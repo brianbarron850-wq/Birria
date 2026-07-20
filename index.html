@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <base target="_top">
   <meta charset="UTF-8">
+  <title>Los Crudos Birrieria POS</title>
   <style>
     :root {
       --primary-color: #d32f2f;
@@ -65,7 +65,6 @@
     .filter-chip { display: inline-block; padding: 8px 16px; background-color: #e0e0e0; border-radius: 20px; margin-right: 8px; margin-bottom: 8px; cursor: pointer; font-size: 13px; font-weight: 600; }
     .filter-chip.active { background-color: var(--dark-bg); color: #fff; }
 
-    /* CSS GRID PARA EL MENÚ MEJORADO */
     .menu-grid { 
       display: grid; 
       grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); 
@@ -229,9 +228,7 @@
               <label>Categoría 
                 <span style="float:right; font-size:12px; color:var(--primary-color); cursor:pointer; font-weight:normal;" onclick="abrirModalCategorias()">⚙️ Gestionar</span>
               </label>
-              <select id="prod-cat" class="form-control">
-                <!-- Se llena dinámicamente -->
-              </select>
+              <select id="prod-cat" class="form-control"></select>
             </div>
             <div class="form-group">
               <label>Nombre del Platillo / Producto</label>
@@ -259,14 +256,11 @@
         <div class="col-7">
           <div class="card">
             <div class="card-title">Catálogo Completo del Menú</div>
-            
-            <!-- FILTROS DE TABLA PRODUCTOS -->
             <div class="filter-inputs-container">
               <input type="text" id="filtro-tabla-cat" class="form-control" placeholder="🔍 Buscar Categoría..." onkeyup="filtrarTablaProductos()">
               <input type="text" id="filtro-tabla-nom" class="form-control" placeholder="🔍 Buscar Nombre..." onkeyup="filtrarTablaProductos()">
               <input type="text" id="filtro-tabla-pre" class="form-control" placeholder="🔍 Buscar Precio..." onkeyup="filtrarTablaProductos()">
             </div>
-
             <table class="table-std">
               <thead>
                 <tr><th>Categoría</th><th>Nombre</th><th>Descripción</th><th>Precio</th><th>Activo</th><th>Acciones</th></tr>
@@ -327,7 +321,6 @@
         </div>
       </div>
 
-      <!-- SECCIÓN NUEVA: HISTORIAL DE CIERRES -->
       <div class="card" style="margin-top: 20px;">
         <div class="card-title">Historial de Cierres de Caja</div>
         <div class="filter-inputs-container">
@@ -344,7 +337,6 @@
         </table>
       </div>
 
-      <!-- SECCIÓN NUEVA: REGISTROS ELIMINADOS -->
       <div class="card" style="margin-top: 20px;">
         <div class="card-title">Registros Eliminados (Órdenes Canceladas)</div>
         <div class="filter-inputs-container">
@@ -409,25 +401,48 @@
         <button class="btn btn-primary" onclick="agregarCategoriaNueva()">Añadir</button>
       </div>
       <div id="lista-categorias-manager" style="max-height: 200px; overflow-y: auto; margin-bottom: 20px; border: 1px solid #eee; border-radius: 4px;">
-        <!-- Se llena con JS -->
       </div>
       <button class="btn btn-secondary btn-block" onclick="cerrarModalCategorias()">Cerrar Panel</button>
     </div>
   </div>
 
   <script>
+    // ==========================================
+    // CONFIGURACIÓN DE CONEXIÓN A LA API
+    // ==========================================
+    // REEMPLAZA ESTA URL CON LA URL DE TU APLICACIÓN WEB DE APPS SCRIPT
+    // IMPORTANTE: Al implementar debes usar los permisos:
+    // - Ejecutar como: "Yo"
+    // - Quién tiene acceso: "Cualquier persona"
+    const API_URL = "https://script.google.com/macros/s/AKfycbxPJvxq0udNGUfisO7-iyF3uQG57GWMrZ8VXyM3jhNEzKIAYYRZ9gjAK0x12cSPyTktBg/exec";
+
+    /**
+     * Función unificada para consultar el Backend
+     * Se usa text/plain para evitar errores de preflight (CORS) en Apps Script
+     */
+    async function fetchAPI(action, payload = {}) {
+      try {
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'text/plain;charset=utf-8' 
+          },
+          body: JSON.stringify({ action: action, payload: payload })
+        });
+        return await response.json();
+      } catch (error) {
+        console.error("Error en la conexión con la base de datos:", error);
+        return { success: false, error: error.toString() };
+      }
+    }
+
     // --- PROTECCIÓN DE CÓDIGO FUENTE (Bloqueo de teclas y clic derecho) ---
     document.addEventListener('contextmenu', event => event.preventDefault());
     document.onkeydown = function(e) {
-      // Bloquear F12
       if (e.keyCode == 123) return false;
-      // Bloquear Ctrl+Shift+I (Herramientas de desarrollador)
       if (e.ctrlKey && e.shiftKey && (e.keyCode == 73 || e.keyCode == 105)) return false;
-      // Bloquear Ctrl+Shift+J (Consola)
       if (e.ctrlKey && e.shiftKey && (e.keyCode == 74 || e.keyCode == 106)) return false;
-      // Bloquear Ctrl+Shift+C (Inspector de elementos)
       if (e.ctrlKey && e.shiftKey && (e.keyCode == 67 || e.keyCode == 99)) return false;
-      // Bloquear Ctrl+U (Ver código fuente)
       if (e.ctrlKey && (e.keyCode == 85 || e.keyCode == 117)) return false;
     };
     // ----------------------------------------------------------------------
@@ -436,9 +451,7 @@
     let carritoActual = [];
     let filtroCategoriaActivo = "TODOS";
     let pagosAcumulados = [];
-    let categoriasMenuGlobal = []; // Para el dropdown del formulario de productos
-    
-    // Variables para historiales
+    let categoriasMenuGlobal = []; 
     let datosHistorialCortes = [];
     let datosRegistrosEliminados = [];
 
@@ -457,13 +470,12 @@
     }
 
     // --- SECCIÓN GESTIÓN DE CATEGORÍAS ---
-    function cargarCategoriasMenu() {
-      google.script.run.withSuccessHandler(res => {
-        if(res.success) {
-          categoriasMenuGlobal = res.data;
-          actualizarDropdownCategorias();
-        }
-      }).obtenerCategorias();
+    async function cargarCategoriasMenu() {
+      const res = await fetchAPI('obtenerCategorias');
+      if(res.success) {
+        categoriasMenuGlobal = res.data;
+        actualizarDropdownCategorias();
+      }
     }
 
     function actualizarDropdownCategorias() {
@@ -513,23 +525,21 @@
       }
     }
 
-    function guardarCategoriasRemoto() {
-      renderListaCategoriasModal(); // Reflejar UI de inmediato
+    async function guardarCategoriasRemoto() {
+      renderListaCategoriasModal(); 
       actualizarDropdownCategorias();
-      google.script.run.withSuccessHandler(res => {
-        if(!res.success) alert("Error guardando categorías: " + res.error);
-      }).guardarCategorias(categoriasMenuGlobal);
+      const res = await fetchAPI('guardarCategorias', { categoriasArray: categoriasMenuGlobal });
+      if(!res.success) alert("Error guardando categorías: " + res.error);
     }
     // --------------------------------------
 
-    function cargarCatalogoInicial() {
-      google.script.run.withSuccessHandler(res => {
-        if(res.success) {
-          listadoProductos = res.data;
-          renderFiltrosCategorias();
-          renderMenuPlatillos();
-        }
-      }).obtenerProductos();
+    async function cargarCatalogoInicial() {
+      const res = await fetchAPI('obtenerProductos');
+      if(res.success) {
+        listadoProductos = res.data;
+        renderFiltrosCategorias();
+        renderMenuPlatillos();
+      }
     }
 
     function renderFiltrosCategorias() {
@@ -570,7 +580,6 @@
     }
 
     function cambiarCantCarrito(idx, cambio) {
-      carritoActual[idx].whitespace = true;
       carritoActual[idx].cantidad += cambio;
       if(carritoActual[idx].cantidad <= 0) { carritoActual.splice(idx, 1); }
       renderCarrito();
@@ -598,7 +607,7 @@
             </td>
             <td>
               ${item.nombre}<br>
-              <input type="text" placeholder="Nota..." value="${item.notes || ''}" style="font-size:11px; width:100%; border:none; border-bottom:1px solid #ccc;" onchange="carritoActual[${idx}].notas = this.value">
+              <input type="text" placeholder="Nota..." value="${item.notas || ''}" style="font-size:11px; width:100%; border:none; border-bottom:1px solid #ccc;" onchange="carritoActual[${idx}].notas = this.value">
             </td>
             <td>$${item.precio.toFixed(2)}</td>
             <td>$${sub.toFixed(2)}</td>
@@ -609,108 +618,105 @@
       totalLabel.innerText = "$" + total.toFixed(2);
     }
 
-    function enviarPedidoCaja() {
+    async function enviarPedidoCaja() {
       const mesa = document.getElementById('cart-mesa').value.trim();
       const notas = document.getElementById('cart-notas').value.trim();
       if(!mesa || carritoActual.length === 0) { alert("Completa el nombre de la mesa y agrega productos."); return; }
 
-      google.script.run.withSuccessHandler(res => {
-        if(res.success) {
-          alert("¡Pedido enviado a cocina!");
-          carritoActual = [];
-          document.getElementById('cart-mesa').value = "";
-          document.getElementById('cart-notas').value = "";
-          renderCarrito();
-        } else {
-          alert("Error al procesar el pedido: " + res.error);
-        }
-      }).levantarPedido(mesa, carritoActual, notas);
+      const res = await fetchAPI('levantarPedido', { mesaCliente: mesa, items: carritoActual, notasGenerales: notas });
+      if(res.success) {
+        alert("¡Pedido enviado a cocina!");
+        carritoActual = [];
+        document.getElementById('cart-mesa').value = "";
+        document.getElementById('cart-notas').value = "";
+        renderCarrito();
+      } else {
+        alert("Error al procesar el pedido: " + res.error);
+      }
     }
 
-    function cargarCocina() {
-      google.script.run.withSuccessHandler(res => {
-        if(res.success) {
-          const container = document.getElementById('kitchen-tickets-container');
-          container.innerHTML = "";
-          const ordenesCocina = res.data.filter(o => o.estado === "Pendiente" || o.estado === "En Cocina" || o.estado === "En proceso" || o.estado === "Listo" || o.estado === "Listo en Barra");
-          
-          ordenesCocina.forEach(o => {
-            let itemsHtml = "";
-            o.items.forEach(i => {
-              itemsHtml += `<div class="ticket-item"><span class="ticket-item-qty">${i.cantidad}x</span> ${i.nombre} ${i.notas ? `<div class="ticket-notes">⚠️ ${i.notas}</div>` : ''}</div>`;
-            });
-
-            let btnAccion = "";
-            if(o.estado === "Pendiente" || o.estado === "En Cocina") { 
-              btnAccion = `<button class="btn btn-primary btn-block" onclick="actualizarEstado('${o.id}', 'En proceso')">Preparar</button>`; 
-            } 
-            else if(o.estado === "En proceso") { 
-              btnAccion = `<button class="btn btn-block" style="background-color: var(--primary-color); color: white;" onclick="actualizarEstado('${o.id}', 'Listo')">En proceso</button>`; 
-            } 
-            else if(o.estado === "Listo") { 
-              btnAccion = `<button class="btn btn-success btn-block" onclick="actualizarEstado('${o.id}', 'Listo en Barra')">Listo</button>`; 
-            } 
-            else if(o.estado === "Listo en Barra") { 
-              btnAccion = `<div style='color:var(--success-color); font-weight:bold; padding:8px;'>Listo en Barra</div>`; 
-            }
-
-            container.innerHTML += `
-              <div class="ticket-card ${o.estado}">
-                <div class="ticket-header"><span class="ticket-id">${o.id}</span><span class="ticket-time">${o.hora}</span><div class="ticket-mesa">${o.mesa}</div></div>
-                <div class="ticket-body">${itemsHtml}</div>
-                <div class="ticket-footer">${btnAccion}</div>
-              </div>
-            `;
+    async function cargarCocina() {
+      const res = await fetchAPI('obtenerOrdenesActivas');
+      if(res.success) {
+        const container = document.getElementById('kitchen-tickets-container');
+        container.innerHTML = "";
+        const ordenesCocina = res.data.filter(o => o.estado === "Pendiente" || o.estado === "En Cocina" || o.estado === "En proceso" || o.estado === "Listo" || o.estado === "Listo en Barra");
+        
+        ordenesCocina.forEach(o => {
+          let itemsHtml = "";
+          o.items.forEach(i => {
+            itemsHtml += `<div class="ticket-item"><span class="ticket-item-qty">${i.cantidad}x</span> ${i.nombre} ${i.notas ? `<div class="ticket-notes">⚠️ ${i.notas}</div>` : ''}</div>`;
           });
-        }
-      }).obtenerOrdenesActivas();
+
+          let btnAccion = "";
+          if(o.estado === "Pendiente" || o.estado === "En Cocina") { 
+            btnAccion = `<button class="btn btn-primary btn-block" onclick="actualizarEstado('${o.id}', 'En proceso')">Preparar</button>`; 
+          } 
+          else if(o.estado === "En proceso") { 
+            btnAccion = `<button class="btn btn-block" style="background-color: var(--primary-color); color: white;" onclick="actualizarEstado('${o.id}', 'Listo')">En proceso</button>`; 
+          } 
+          else if(o.estado === "Listo") { 
+            btnAccion = `<button class="btn btn-success btn-block" onclick="actualizarEstado('${o.id}', 'Listo en Barra')">Listo</button>`; 
+          } 
+          else if(o.estado === "Listo en Barra") { 
+            btnAccion = `<div style='color:var(--success-color); font-weight:bold; padding:8px;'>Listo en Barra</div>`; 
+          }
+
+          container.innerHTML += `
+            <div class="ticket-card ${o.estado}">
+              <div class="ticket-header"><span class="ticket-id">${o.id}</span><span class="ticket-time">${o.hora}</span><div class="ticket-mesa">${o.mesa}</div></div>
+              <div class="ticket-body">${itemsHtml}</div>
+              <div class="ticket-footer">${btnAccion}</div>
+            </div>
+          `;
+        });
+      }
     }
 
-    function actualizarEstado(id, nuevoEstado) {
-      google.script.run.withSuccessHandler(res => { if(res.success) cargarCocina(); }).cambiarEstadoOrden(id, nuevoEstado);
+    async function actualizarEstado(id, nuevoEstado) {
+      const res = await fetchAPI('cambiarEstadoOrden', { idOrden: id, nuevoEstado: nuevoEstado });
+      if(res.success) cargarCocina();
     }
 
-    function cargarCaja() {
-      google.script.run.withSuccessHandler(res => {
-        if(res.success) {
-          const tbody = document.getElementById('caja-table-body');
-          tbody.innerHTML = "";
-          res.data.forEach(o => {
-            let col = (o.estado === "Listo" || o.estado === "Listo en Barra") ? "green" : ((o.estado === "En Cocina" || o.estado === "En proceso") ? "red" : "orange");
-            tbody.innerHTML += `
-              <tr>
-                <td><strong>${o.id}</strong></td><td>${o.hora}</td><td>${o.mesa}</td>
-                <td style='font-weight:bold; color:var(--primary-color);'>$${o.total.toFixed(2)}</td>
-                <td><span style='background:${col}; color:white; padding:3px 8px; border-radius:4px; font-size:12px;'>${o.estado}</span></td>
-                <td>
-                  <button class="btn btn-success" style="padding:6px 12px; font-size:12px;" onclick="abrirModalCobro('${o.id}', '${o.mesa}', ${o.total})">💳 Cobrar</button>
-                  <button class="btn btn-danger" style="padding:6px 12px; font-size:12px; background:#bbb;" onclick="cancelarOrdenCaja('${o.id}')">X</button>
-                </td>
-              </tr>
-            `;
-          });
-        }
-      }).obtenerOrdenesActivas();
+    async function cargarCaja() {
+      const res = await fetchAPI('obtenerOrdenesActivas');
+      if(res.success) {
+        const tbody = document.getElementById('caja-table-body');
+        tbody.innerHTML = "";
+        res.data.forEach(o => {
+          let col = (o.estado === "Listo" || o.estado === "Listo en Barra") ? "green" : ((o.estado === "En Cocina" || o.estado === "En proceso") ? "red" : "orange");
+          tbody.innerHTML += `
+            <tr>
+              <td><strong>${o.id}</strong></td><td>${o.hora}</td><td>${o.mesa}</td>
+              <td style='font-weight:bold; color:var(--primary-color);'>$${o.total.toFixed(2)}</td>
+              <td><span style='background:${col}; color:white; padding:3px 8px; border-radius:4px; font-size:12px;'>${o.estado}</span></td>
+              <td>
+                <button class="btn btn-success" style="padding:6px 12px; font-size:12px;" onclick="abrirModalCobro('${o.id}', '${o.mesa}', ${o.total})">💳 Cobrar</button>
+                <button class="btn btn-danger" style="padding:6px 12px; font-size:12px; background:#bbb;" onclick="cancelarOrdenCaja('${o.id}')">X</button>
+              </td>
+            </tr>
+          `;
+        });
+      }
     }
 
-    function cancelarOrdenCaja(id) {
+    async function cancelarOrdenCaja(id) {
       const motivo = prompt("Ingrese el motivo de la cancelación de esta orden:");
-      if(motivo === null) return; // Si cancela el prompt
+      if(motivo === null) return; 
       if(motivo.trim() === "") {
         alert("Debe ingresar un motivo obligatorio para cancelar la orden.");
         return;
       }
       
       if(confirm("¿Estás seguro de cancelar o eliminar permanentemente esta orden?")) {
-        google.script.run.withSuccessHandler(res => {
-          if(res.success) { 
-            cargarCaja(); 
-            cargarRegistrosEliminados(); 
-            alert("La orden ha sido cancelada y movida a los registros eliminados.");
-          } else {
-            alert("Error al cancelar la orden: " + res.error);
-          }
-        }).cancelarOrdenCaja(id, motivo);
+        const res = await fetchAPI('cancelarOrdenCaja', { idOrden: id, motivo: motivo });
+        if(res.success) { 
+          cargarCaja(); 
+          cargarRegistrosEliminados(); 
+          alert("La orden ha sido cancelada y movida a los registros eliminados.");
+        } else {
+          alert("Error al cancelar la orden: " + res.error);
+        }
       }
     }
 
@@ -787,7 +793,7 @@
 
     function cerrarModalCobro() { document.getElementById('modal-cobro').classList.remove('active'); }
 
-    function confirmarCobroFinal() {
+    async function confirmarCobroFinal() {
       const id = document.getElementById('modal-cobro-id').value;
       const total = parseFloat(document.getElementById('modal-cobro-total').innerText.replace('$', ''));
       
@@ -830,35 +836,33 @@
         metodoFinalString = metodoUnico;
       }
       
-      google.script.run.withSuccessHandler(res => { 
-        if(res.success) { cerrarModalCobro(); cargarCaja(); } 
-        else { alert("Error: " + res.error); }
-      }).realizarCobro(id, metodoFinalString);
+      const res = await fetchAPI('realizarCobro', { idOrden: id, metodoPago: metodoFinalString });
+      if(res.success) { cerrarModalCobro(); cargarCaja(); } 
+      else { alert("Error: " + res.error); }
     }
 
-    function cargarInventario() {
-      google.script.run.withSuccessHandler(res => {
-        if(res.success) {
-          const tbody = document.getElementById('productos-table-body');
-          tbody.innerHTML = "";
-          res.data.forEach(p => {
-            const descEscapada = p.descripcion ? p.descripcion.replace(/'/g, "\\'") : '';
-            tbody.innerHTML += `
-              <tr>
-                <td><span style='font-size:11px; font-weight:bold; background:#eee; padding:3px 6px;'>${p.categoria}</span></td>
-                <td><strong>${p.nombre}</strong></td>
-                <td><span style="font-size:12px; color:var(--text-muted);">${p.descripcion || ''}</span></td>
-                <td>$${p.precio.toFixed(2)}</td><td>${p.activo}</td>
-                <td>
-                  <button class="btn btn-secondary" style="padding:4px 8px; font-size:12px;" onclick="editarProductoForm('${p.id}', '${p.categoria}', '${p.nombre}', ${p.precio}, '${p.activo}', '${descEscapada}')">✏️</button>
-                  <button class="btn btn-danger" style="padding:4px 8px; font-size:12px;" onclick="eliminarProductoMenu('${p.id}')">❌</button>
-                </td>
-              </tr>
-            `;
-          });
-          filtrarTablaProductos();
-        }
-      }).obtenerProductos();
+    async function cargarInventario() {
+      const res = await fetchAPI('obtenerProductos');
+      if(res.success) {
+        const tbody = document.getElementById('productos-table-body');
+        tbody.innerHTML = "";
+        res.data.forEach(p => {
+          const descEscapada = p.descripcion ? p.descripcion.replace(/'/g, "\\'") : '';
+          tbody.innerHTML += `
+            <tr>
+              <td><span style='font-size:11px; font-weight:bold; background:#eee; padding:3px 6px;'>${p.categoria}</span></td>
+              <td><strong>${p.nombre}</strong></td>
+              <td><span style="font-size:12px; color:var(--text-muted);">${p.descripcion || ''}</span></td>
+              <td>$${p.precio.toFixed(2)}</td><td>${p.activo}</td>
+              <td>
+                <button class="btn btn-secondary" style="padding:4px 8px; font-size:12px;" onclick="editarProductoForm('${p.id}', '${p.categoria}', '${p.nombre}', ${p.precio}, '${p.activo}', '${descEscapada}')">✏️</button>
+                <button class="btn btn-danger" style="padding:4px 8px; font-size:12px;" onclick="eliminarProductoMenu('${p.id}')">❌</button>
+              </td>
+            </tr>
+          `;
+        });
+        filtrarTablaProductos();
+      }
     }
 
     function filtrarTablaProductos() {
@@ -880,7 +884,7 @@
       }
     }
 
-    function guardarFormProducto() {
+    async function guardarFormProducto() {
       const prod = {
         id: document.getElementById('prod-id').value,
         categoria: document.getElementById('prod-cat').value,
@@ -890,13 +894,13 @@
         descripcion: document.getElementById('prod-descripcion').value.trim()
       };
       if(!prod.nombre || isNaN(prod.precio)) return;
-      google.script.run.withSuccessHandler(res => { 
-        if(res.success) { 
-          limpiarFormProducto(); 
-          cargarInventario(); 
-          cargarCatalogoInicial(); 
-        } 
-      }).guardarProducto(prod);
+      
+      const res = await fetchAPI('guardarProducto', { producto: prod });
+      if(res.success) { 
+        limpiarFormProducto(); 
+        cargarInventario(); 
+        cargarCatalogoInicial(); 
+      }
     }
 
     function editarProductoForm(id, cat, nombre, precio, activo, descripcion) {
@@ -923,30 +927,34 @@
       actualizarDropdownCategorias(); 
     }
 
-    function eliminarProductoMenu(id) {
-      if(confirm("¿Eliminar este producto?")) { google.script.run.withSuccessHandler(() => { cargarInventario(); cargarCatalogoInicial(); }).eliminarProducto(id); }
-    }
-
-    function cargarReportes() {
-      google.script.run.withSuccessHandler(res => {
-        if(res.success) {
-          const d = res.data;
-          const cajaInic = d.cajaInicial || 0;
-          const efecHoy = d.distribucionPagoHoy["Efectivo"] || 0;
-          
-          document.getElementById('rep-caja-inicial').innerText = "$" + cajaInic.toFixed(2);
-          document.getElementById('rep-dia').innerText = "$" + d.corteDia.toFixed(2);
-          document.getElementById('rep-total-caja').innerText = "$" + (cajaInic + efecHoy).toFixed(2);
-          document.getElementById('rep-semana').innerText = "$" + d.corteSemanal.toFixed(2);
-          document.getElementById('rep-mes').innerText = "$" + d.corteMensual.toFixed(2);
-          document.getElementById('rep-pago-efectivo').innerText = "$" + efecHoy.toFixed(2);
-          document.getElementById('rep-pago-tarjeta').innerText = "$" + (d.distribucionPagoHoy["Tarjeta"] || 0).toFixed(2);
-          document.getElementById('rep-pago-transf').innerText = "$" + (d.distribucionPagoHoy["Transferencia"] || 0).toFixed(2);
+    async function eliminarProductoMenu(id) {
+      if(confirm("¿Eliminar este producto?")) { 
+        const res = await fetchAPI('eliminarProducto', { idProducto: id });
+        if (res.success) {
+          cargarInventario(); 
+          cargarCatalogoInicial(); 
         }
-      }).obtenerReporteFinanciero();
+      }
     }
 
-    // --- GENERADOR DE ARCHIVO DE CIERRE (.TXT) ---
+    async function cargarReportes() {
+      const res = await fetchAPI('obtenerReporteFinanciero');
+      if(res.success) {
+        const d = res.data;
+        const cajaInic = d.cajaInicial || 0;
+        const efecHoy = d.distribucionPagoHoy["Efectivo"] || 0;
+        
+        document.getElementById('rep-caja-inicial').innerText = "$" + cajaInic.toFixed(2);
+        document.getElementById('rep-dia').innerText = "$" + d.corteDia.toFixed(2);
+        document.getElementById('rep-total-caja').innerText = "$" + (cajaInic + efecHoy).toFixed(2);
+        document.getElementById('rep-semana').innerText = "$" + d.corteSemanal.toFixed(2);
+        document.getElementById('rep-mes').innerText = "$" + d.corteMensual.toFixed(2);
+        document.getElementById('rep-pago-efectivo').innerText = "$" + efecHoy.toFixed(2);
+        document.getElementById('rep-pago-tarjeta').innerText = "$" + (d.distribucionPagoHoy["Tarjeta"] || 0).toFixed(2);
+        document.getElementById('rep-pago-transf').innerText = "$" + (d.distribucionPagoHoy["Transferencia"] || 0).toFixed(2);
+      }
+    }
+
     function generarArchivoCierre(texto, fechaHistorial, horaHistorial) {
       let fechaStr, horaStr;
       if (fechaHistorial && horaHistorial) {
@@ -970,7 +978,7 @@
       window.URL.revokeObjectURL(url);
     }
 
-    function ejecutarCierreVentaReal() {
+    async function ejecutarCierreVentaReal() {
       const efecRealInput = prompt("Ingrese el dinero total en EFECTIVO FÍSICO que se encuentra actualmente en caja para validar el cierre:");
       if (efecRealInput === null) return; 
       
@@ -980,30 +988,27 @@
         return;
       }
       
-      google.script.run.withSuccessHandler(res => {
-        if (res.success) {
-          alert(res.message + "\n\nEl reporte se ha guardado en el Historial de Cierres y puede descargarse desde ahí.");
-          
-          let nuevaCajaInput = prompt("Registros del día reiniciados con éxito.\n\n¿Con cuánto dinero (Caja Inicial / Fondo) se comienza el siguiente turno/día?");
-          while (nuevaCajaInput !== null && (isNaN(parseFloat(nuevaCajaInput)) || parseFloat(nuevaCajaInput) < 0)) {
-            alert("Monto inválido. Ingrese un número mayor o igual a 0.");
-            nuevaCajaInput = prompt("¿Con cuánto dinero (Caja Inicial / Fondo) se comienza el siguiente turno/día?");
-          }
-          
-          const nuevaCaja = nuevaCajaInput !== null ? parseFloat(nuevaCajaInput) : 0;
-          
-          google.script.run.withSuccessHandler(res2 => {
-            if(res2.success) {
-              alert("¡Nueva Caja Inicial configurada en $" + nuevaCaja.toFixed(2) + "!");
-              cargarReportes();
-              cargarHistorialCortes();
-            }
-          }).establecerCajaInicial(nuevaCaja);
-          
-        } else {
-          alert("Error al procesar el cierre: " + res.error);
+      const res = await fetchAPI('registrarCierreCaja', { efectivoReal: efectivoReal });
+      if (res.success) {
+        alert(res.message + "\n\nEl reporte se ha guardado en el Historial de Cierres y puede descargarse desde ahí.");
+        
+        let nuevaCajaInput = prompt("Registros del día reiniciados con éxito.\n\n¿Con cuánto dinero (Caja Inicial / Fondo) se comienza el siguiente turno/día?");
+        while (nuevaCajaInput !== null && (isNaN(parseFloat(nuevaCajaInput)) || parseFloat(nuevaCajaInput) < 0)) {
+          alert("Monto inválido. Ingrese un número mayor o igual a 0.");
+          nuevaCajaInput = prompt("¿Con cuánto dinero (Caja Inicial / Fondo) se comienza el siguiente turno/día?");
         }
-      }).registrarCierreCaja(efectivoReal);
+        
+        const nuevaCaja = nuevaCajaInput !== null ? parseFloat(nuevaCajaInput) : 0;
+        
+        const res2 = await fetchAPI('establecerCajaInicial', { monto: nuevaCaja });
+        if(res2.success) {
+          alert("¡Nueva Caja Inicial configurada en $" + nuevaCaja.toFixed(2) + "!");
+          cargarReportes();
+          cargarHistorialCortes();
+        }
+      } else {
+        alert("Error al procesar el cierre: " + res.error);
+      }
     }
 
     function descargarReporteHistorial(fecha, hora) {
@@ -1016,15 +1021,14 @@
     }
 
     // --- CARGAR Y FILTRAR HISTORIAL DE CIERRES ---
-    function cargarHistorialCortes() {
+    async function cargarHistorialCortes() {
       document.getElementById('filtro-fecha-cierre-inicio').value = '';
       document.getElementById('filtro-fecha-cierre-fin').value = '';
-      google.script.run.withSuccessHandler(res => {
-        if(res.success) {
-          datosHistorialCortes = res.data;
-          renderHistorialCortes(datosHistorialCortes);
-        }
-      }).obtenerHistorialCortes();
+      const res = await fetchAPI('obtenerHistorialCortes');
+      if(res.success) {
+        datosHistorialCortes = res.data;
+        renderHistorialCortes(datosHistorialCortes);
+      }
     }
 
     function renderHistorialCortes(datos) {
@@ -1034,7 +1038,6 @@
         tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; color:var(--text-muted);">No hay cierres de caja registrados aún.</td></tr>`;
         return;
       }
-      // Mostrar más recientes primero
       const datosInvertidos = [...datos].reverse();
       datosInvertidos.forEach(d => {
         let colorDif = d.diferencia > 0 ? "var(--warning-color)" : (d.diferencia < 0 ? "red" : "var(--success-color)");
@@ -1072,15 +1075,14 @@
     }
 
     // --- CARGAR Y FILTRAR REGISTROS ELIMINADOS (CANCELADOS) ---
-    function cargarRegistrosEliminados() {
+    async function cargarRegistrosEliminados() {
       document.getElementById('filtro-fecha-elim-inicio').value = '';
       document.getElementById('filtro-fecha-elim-fin').value = '';
-      google.script.run.withSuccessHandler(res => {
-        if(res.success) {
-          datosRegistrosEliminados = res.data;
-          renderRegistrosEliminados(datosRegistrosEliminados);
-        }
-      }).obtenerRegistrosEliminados();
+      const res = await fetchAPI('obtenerRegistrosEliminados');
+      if(res.success) {
+        datosRegistrosEliminados = res.data;
+        renderRegistrosEliminados(datosRegistrosEliminados);
+      }
     }
 
     function renderRegistrosEliminados(datos) {
