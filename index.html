@@ -160,7 +160,7 @@
 
   <header>
     <div class="header-container">
-      <div class="header-logo">LOS CRUDOS <span>BIRRIERIA</span></div>
+      <div class="header-logo">LOS CRUDOS <span>BIRRIERIA POS</span></div>
       <div class="nav-tabs">
         <button class="nav-btn active" id="btn-nav-ordenes" onclick="switchView('view-ordenes')">Nueva Orden</button>
         <button class="nav-btn" id="btn-nav-cocina" onclick="switchView('view-cocina'); cargarCocina();">Pantalla Cocina</button>
@@ -218,7 +218,7 @@
     <!-- MÓDULO 2: MONITOR DE COCINA -->
     <section id="view-cocina" class="view-section">
       <div class="card">
-        <div class="card-title">Monitoreo de Cocina<button class="btn btn-secondary" style="padding:4px 10px; float:right;" onclick="cargarCocina()">🔄 Refrescar</button></div>
+        <div class="card-title">Monitoreo de Cocina (Tiempo Real) <button class="btn btn-secondary" style="padding:4px 10px; float:right;" onclick="cargarCocina()">🔄 Refrescar</button></div>
         <div class="kitchen-container" id="kitchen-tickets-container"></div>
       </div>
     </section>
@@ -660,6 +660,7 @@
           listadoProductos = res.data;
           renderFiltrosCategorias();
           renderMenuPlatillos();
+          renderTablaProductos(); // <-- Línea añadida para invocar la visualización de la tabla
         }
       });
     }
@@ -988,95 +989,137 @@
        }
     }
 
+    // ==========================================
+    // AGREGADOS: FUNCIONES FALTANTES PARA PRODUCTOS
+    // ==========================================
+    function cargarInventario() {
+      cargarCatalogoInicial();
+    }
+
+    function renderTablaProductos() {
+      const tbody = document.getElementById('productos-table-body');
+      tbody.innerHTML = "";
+      listadoProductos.forEach(p => {
+        tbody.innerHTML += `
+          <tr class="fila-producto">
+            <td class="td-cat">${p.categoria}</td>
+            <td class="td-nom">${p.nombre}</td>
+            <td>${p.descripcion || ''}</td>
+            <td class="td-pre">$${p.precio.toFixed(2)}</td>
+            <td>${p.activo}</td>
+            <td>
+              <button class="btn btn-primary" style="padding:4px 8px; font-size:11px;" onclick="editarProducto('${p.id}')">✏️ Editar</button>
+              <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="eliminarProductoConfirm('${p.id}')">❌ Eliminar</button>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    function editarProducto(id) {
+      const p = listadoProductos.find(x => x.id === id);
+      if(p) {
+        document.getElementById('prod-id').value = p.id;
+        document.getElementById('prod-cat').value = p.categoria;
+        document.getElementById('prod-nombre').value = p.nombre;
+        document.getElementById('prod-descripcion').value = p.descripcion || '';
+        document.getElementById('prod-precio').value = p.precio;
+        document.getElementById('prod-activo').value = p.activo;
+        document.getElementById('prod-form-title').innerText = "Editar Producto";
+      }
+    }
+
+    function eliminarProductoConfirm(id) {
+      if(confirm("¿Estás seguro de que deseas eliminar este producto (marcar como inactivo)?")) {
+        apiCall('eliminarProducto', [id, usuarioGlobal], res => {
+          if(res.success) {
+            alert(res.message);
+            cargarCatalogoInicial();
+          } else {
+            alert("Error: " + res.error);
+          }
+        });
+      }
+    }
+
+    function guardarFormProducto() {
+      const id = document.getElementById('prod-id').value;
+      const cat = document.getElementById('prod-cat').value;
+      const nombre = document.getElementById('prod-nombre').value.trim();
+      const desc = document.getElementById('prod-descripcion').value.trim();
+      const precio = parseFloat(document.getElementById('prod-precio').value);
+      const activo = document.getElementById('prod-activo').value;
+
+      if(!nombre || isNaN(precio)) {
+        alert("El nombre y el precio son obligatorios y el precio debe ser un número válido.");
+        return;
+      }
+
+      const producto = {
+        id: id || null,
+        categoria: cat,
+        nombre: nombre,
+        descripcion: desc,
+        precio: precio,
+        activo: activo
+      };
+
+      apiCall('guardarProducto', [producto, usuarioGlobal], res => {
+        if(res.success) {
+          alert(res.message);
+          limpiarFormProducto();
+          cargarCatalogoInicial();
+        } else {
+          alert("Error al guardar el producto: " + res.error);
+        }
+      });
+    }
+
+    function limpiarFormProducto() {
+      document.getElementById('prod-id').value = "";
+      document.getElementById('prod-nombre').value = "";
+      document.getElementById('prod-descripcion').value = "";
+      document.getElementById('prod-precio').value = "";
+      document.getElementById('prod-activo').value = "SÍ";
+      document.getElementById('prod-form-title').innerText = "Agregar / Editar Producto";
+    }
+
+    function filtrarTablaProductos() {
+      const fCat = document.getElementById('filtro-tabla-cat').value.toLowerCase();
+      const fNom = document.getElementById('filtro-tabla-nom').value.toLowerCase();
+      const fPre = document.getElementById('filtro-tabla-pre').value.toLowerCase();
+      
+      const filas = document.querySelectorAll('#productos-table-body .fila-producto');
+      
+      filas.forEach(fila => {
+        const tCat = fila.querySelector('.td-cat').innerText.toLowerCase();
+        const tNom = fila.querySelector('.td-nom').innerText.toLowerCase();
+        const tPre = fila.querySelector('.td-pre').innerText.toLowerCase();
+        
+        if(tCat.includes(fCat) && tNom.includes(fNom) && tPre.includes(fPre)) {
+          fila.style.display = '';
+        } else {
+          fila.style.display = 'none';
+        }
+      });
+    }
+
+    // ==========================================
+    // CIERRE CORRECTO Y OTRAS FUNCIONES ANTERIORES
+    // ==========================================
     function imprimirTicket(id) {
         apiCall('obtenerTicketPDF', [id], res => {
            if(res.success) {
-               let pdf = "data:application/pdf;base64," + res.data;
-               let w = window.open("");
-               w.document.write("<iframe width='100%' height='100%' src='" + pdf + "'></iframe>");
+               let pdfData = res.data;
+               let iframe = "<iframe width='100%' height='100%' src='data:application/pdf;base64," + pdfData + "'></iframe>";
+               let win = window.open();
+               win.document.write(iframe);
            } else {
-               alert("Error al generar el ticket: " + res.error);
+               alert("Error al generar ticket: " + res.error);
            }
         });
     }
 
-    function cargarUsuarios() {
-        apiCall('obtenerUsuarios', [], res => {
-           if(res.success) {
-               let tbody = document.getElementById('usuarios-table-body');
-               tbody.innerHTML = "";
-               res.data.forEach(u => {
-                   tbody.innerHTML += `
-                     <tr>
-                        <td>${u.usuario}</td>
-                        <td>${u.rol}</td>
-                        <td>
-                           <button class="btn btn-secondary" style="padding:4px 8px; font-size:11px;" onclick="editarUsuario('${u.usuario}', '${u.rol}')">✏️ Editar</button>
-                           <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="eliminarUsuario('${u.usuario}')">❌ Eliminar</button>
-                           <button class="btn btn-primary" style="padding:4px 8px; font-size:11px; margin-left:5px;" onclick="descargarMovimientosUsuario('${u.usuario}')">📄 PDF Movs</button>
-                        </td>
-                     </tr>
-                   `;
-               });
-           }
-        });
-    }
-    
-    function editarUsuario(u, r) {
-        document.getElementById('usu-id-original').value = u;
-        document.getElementById('usu-nombre').value = u;
-        document.getElementById('usu-rol').value = r;
-        document.getElementById('usu-form-title').innerText = "Editar Usuario";
-    }
-
-    function limpiarFormUsuario() {
-        document.getElementById('usu-id-original').value = "";
-        document.getElementById('usu-nombre').value = "";
-        document.getElementById('usu-pass').value = "";
-        document.getElementById('usu-form-title').innerText = "Agregar / Editar Usuario";
-    }
-
-    function guardarFormUsuario() {
-        let orig = document.getElementById('usu-id-original').value;
-        let u = document.getElementById('usu-nombre').value;
-        let p = document.getElementById('usu-pass').value;
-        let r = document.getElementById('usu-rol').value;
-        if(!u) return;
-        
-        apiCall('guardarUsuario', [{idOriginal: orig, usuario: u, password: p, rol: r}, usuarioGlobal], res => {
-            if(res.success) { cargarUsuarios(); limpiarFormUsuario(); }
-            else alert(res.error);
-        });
-    }
-
-    function eliminarUsuario(u) {
-        if(confirm("¿Seguro que deseas eliminar este usuario?")) {
-            apiCall('eliminarUsuarioInfo', [u, usuarioGlobal], res => {
-                if(res.success) cargarUsuarios();
-                else alert(res.error);
-            });
-        }
-    }
-
-    function descargarMovimientosUsuario(usuario) {
-        apiCall('generarReporteMovimientosUsuarioPDF', [usuario], res => {
-           if(res.success) {
-               let pdf = "data:application/pdf;base64," + res.data;
-               let w = window.open("");
-               w.document.write("<iframe width='100%' height='100%' src='" + pdf + "'></iframe>");
-           } else {
-               alert("Hubo un error generando el PDF de movimientos: " + res.error);
-           }
-        });
-    }
-
-    function cargarInventario() {}
-    function cargarReportes() {}
-    function cargarHistorialCortes() {}
-    function cargarRegistrosEliminados() {}
-    function ejecutarCierreVentaReal() {}
-    function descargarHistoricoHojasPDF() {}
-    function guardarFormProducto() {}
   </script>
 </body>
 </html>
