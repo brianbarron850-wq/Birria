@@ -1245,9 +1245,17 @@
       apiCall('registrarCierreCaja', [efectivoReal, usuarioGlobal], res => {
         if(res.success) {
           alert("Cierre de caja procesado correctamente.\n\n" + res.message);
-          cargarReportes();
-          cargarHistorialCortes();
-          cargarCaja();
+          
+          // FIX: Pedir el inicio de caja para reiniciar todo a cero
+          let nuevoFondoStr = prompt("Ingrese el fondo de caja inicial para el nuevo turno:");
+          let nuevoFondo = parseFloat(nuevoFondoStr) || 0;
+          
+          apiCall('establecerCajaInicial', [nuevoFondo], resFondo => {
+            cargarReportes();
+            cargarHistorialCortes();
+            cargarCaja();
+          });
+          
         } else {
           alert("Error al realizar cierre de caja: " + res.error);
         }
@@ -1298,32 +1306,18 @@
         if(res.success) {
           abrirPDFBase64(res.data);
         } else {
-          alert("Error al generar PDF del reporte: " + res.error);
+          alert("Error al generar el PDF: " + res.error);
         }
       });
     }
 
-    function filtrarHistorialCortes() {
-      const inicio = document.getElementById('filtro-fecha-cierre-inicio').value;
-      const fin = document.getElementById('filtro-fecha-cierre-fin').value;
-
-      let filtrados = datosHistorialCortes;
-      if (inicio) {
-        filtrados = filtrados.filter(c => c.fecha >= inicio);
-      }
-      if (fin) {
-        filtrados = filtrados.filter(c => c.fecha <= fin);
-      }
-      renderTablaHistorialCortes(filtrados);
-    }
-
     function descargarHistoricoHojasPDF() {
-      alert("Generando PDF del histórico completo de la base de datos...");
+      alert("Generando histórico completo de la base de datos (PDF)...");
       apiCall('obtenerHistoricoHojasPDF', [], res => {
         if(res.success) {
           abrirPDFBase64(res.data);
         } else {
-          alert("Error al generar PDF histórico: " + res.error);
+          alert("Error al generar el histórico: " + res.error);
         }
       });
     }
@@ -1333,8 +1327,6 @@
         if(res.success) {
           datosRegistrosEliminados = res.data;
           renderTablaRegistrosEliminados(datosRegistrosEliminados);
-        } else {
-          alert("Error al cargar órdenes canceladas: " + res.error);
         }
       });
     }
@@ -1343,34 +1335,50 @@
       const tbody = document.getElementById('registros-eliminados-body');
       tbody.innerHTML = "";
       if (lista.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">No hay órdenes canceladas.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">No hay registros eliminados.</td></tr>`;
         return;
       }
-      lista.forEach(e => {
+      lista.forEach(r => {
         tbody.innerHTML += `
           <tr>
-            <td>${e.id}</td>
-            <td>${e.fecha}</td>
-            <td>${e.hora}</td>
-            <td>${e.mesa}</td>
-            <td>$${e.total.toFixed(2)}</td>
-            <td>${e.motivo}</td>
+            <td>${r.id}</td>
+            <td>${r.fecha}</td>
+            <td>${r.hora}</td>
+            <td>${r.mesa}</td>
+            <td>$${r.total.toFixed(2)}</td>
+            <td>${r.motivo} (Por: ${r.usuario.replace('Cancelado por: ', '')})</td>
           </tr>
         `;
       });
     }
 
+    function filtrarHistorialCortes() {
+      const inicio = document.getElementById('filtro-fecha-cierre-inicio').value;
+      const fin = document.getElementById('filtro-fecha-cierre-fin').value;
+      if (!inicio && !fin) { renderTablaHistorialCortes(datosHistorialCortes); return; }
+      
+      const filtrados = datosHistorialCortes.filter(c => {
+        let fecha = c.fecha;
+        let ok = true;
+        if (inicio && fecha < inicio) ok = false;
+        if (fin && fecha > fin) ok = false;
+        return ok;
+      });
+      renderTablaHistorialCortes(filtrados);
+    }
+
     function filtrarRegistrosEliminados() {
       const inicio = document.getElementById('filtro-fecha-elim-inicio').value;
       const fin = document.getElementById('filtro-fecha-elim-fin').value;
-
-      let filtrados = datosRegistrosEliminados;
-      if (inicio) {
-        filtrados = filtrados.filter(e => e.fecha >= inicio);
-      }
-      if (fin) {
-        filtrados = filtrados.filter(e => e.fecha <= fin);
-      }
+      if (!inicio && !fin) { renderTablaRegistrosEliminados(datosRegistrosEliminados); return; }
+      
+      const filtrados = datosRegistrosEliminados.filter(r => {
+        let fecha = r.fecha;
+        let ok = true;
+        if (inicio && fecha < inicio) ok = false;
+        if (fin && fecha > fin) ok = false;
+        return ok;
+      });
       renderTablaRegistrosEliminados(filtrados);
     }
   </script>
