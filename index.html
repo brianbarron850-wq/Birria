@@ -482,7 +482,7 @@
     // ==========================================
     // CONFIGURACIÓN DE CONEXIÓN CON APPS SCRIPT
     // ==========================================
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyfD7y3fGG7-eAUetkim7ca3DRDg8G7yX3A9ZHdTHldM_1-3Jhq7QXLEc6DBRUObe2t/exec"; // <-- REEMPLAZAR CON TU URL DE IMPLEMENTACIÓN DE GOOGLE APPS SCRIPT
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxuD06wtZckE7I2o2cnCVwgK8IQnFUe-fLK9kNvJ981WqWr1ZUvap4TXqZRLTK3eyTt/exec"; // <-- REEMPLAZAR CON TU URL DE IMPLEMENTACIÓN DE GOOGLE APPS SCRIPT
 
     // Envoltorio Fetch para sustituir a google.script.run
     function apiCall(action, args, onSuccess) {
@@ -1312,14 +1312,35 @@
     }
 
     function descargarHistoricoHojasPDF() {
-      alert("Generando histórico completo de la base de datos (PDF)...");
+      alert("Generando Histórico Completo en PDF...");
       apiCall('obtenerHistoricoHojasPDF', [], res => {
-        if(res.success) {
-          abrirPDFBase64(res.data);
-        } else {
-          alert("Error al generar el histórico: " + res.error);
-        }
+         if(res.success) {
+            abrirPDFBase64(res.data);
+         } else {
+            alert("Error al generar Histórico: " + res.error);
+         }
       });
+    }
+
+    function filtrarHistorialCortes() {
+      const inicio = document.getElementById('filtro-fecha-cierre-inicio').value;
+      const fin = document.getElementById('filtro-fecha-cierre-fin').value;
+      if (!inicio && !fin) return;
+      
+      const listaFiltrada = datosHistorialCortes.filter(c => {
+         const fechaC = new Date(c.fecha);
+         let pasa = true;
+         if (inicio) {
+            const fechaI = new Date(inicio);
+            if (fechaC < fechaI) pasa = false;
+         }
+         if (fin) {
+            const fechaF = new Date(fin);
+            if (fechaC > fechaF) pasa = false;
+         }
+         return pasa;
+      });
+      renderTablaHistorialCortes(listaFiltrada);
     }
 
     function cargarRegistrosEliminados() {
@@ -1334,52 +1355,43 @@
     function renderTablaRegistrosEliminados(lista) {
       const tbody = document.getElementById('registros-eliminados-body');
       tbody.innerHTML = "";
-      if (lista.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">No hay registros eliminados.</td></tr>`;
-        return;
+      if(lista.length === 0) {
+         tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">No hay registros eliminados.</td></tr>`;
+         return;
       }
-      lista.forEach(r => {
+      lista.forEach(e => {
         tbody.innerHTML += `
           <tr>
-            <td>${r.id}</td>
-            <td>${r.fecha}</td>
-            <td>${r.hora}</td>
-            <td>${r.mesa}</td>
-            <td>$${r.total.toFixed(2)}</td>
-            <td>${r.motivo} (Por: ${r.usuario.replace('Cancelado por: ', '')})</td>
+            <td>${e.id}</td>
+            <td>${e.fecha}</td>
+            <td>${e.hora}</td>
+            <td>${e.mesa}</td>
+            <td>$${e.total.toFixed(2)}</td>
+            <td>${e.motivo}<br><span style="font-size:11px; color:#666;">${e.usuario}</span></td>
           </tr>
         `;
       });
     }
 
-    function filtrarHistorialCortes() {
-      const inicio = document.getElementById('filtro-fecha-cierre-inicio').value;
-      const fin = document.getElementById('filtro-fecha-cierre-fin').value;
-      if (!inicio && !fin) { renderTablaHistorialCortes(datosHistorialCortes); return; }
-      
-      const filtrados = datosHistorialCortes.filter(c => {
-        let fecha = c.fecha;
-        let ok = true;
-        if (inicio && fecha < inicio) ok = false;
-        if (fin && fecha > fin) ok = false;
-        return ok;
-      });
-      renderTablaHistorialCortes(filtrados);
-    }
-
     function filtrarRegistrosEliminados() {
       const inicio = document.getElementById('filtro-fecha-elim-inicio').value;
       const fin = document.getElementById('filtro-fecha-elim-fin').value;
-      if (!inicio && !fin) { renderTablaRegistrosEliminados(datosRegistrosEliminados); return; }
+      if (!inicio && !fin) return;
       
-      const filtrados = datosRegistrosEliminados.filter(r => {
-        let fecha = r.fecha;
-        let ok = true;
-        if (inicio && fecha < inicio) ok = false;
-        if (fin && fecha > fin) ok = false;
-        return ok;
+      const listaFiltrada = datosRegistrosEliminados.filter(e => {
+         const fechaE = new Date(e.fecha);
+         let pasa = true;
+         if (inicio) {
+            const fechaI = new Date(inicio);
+            if (fechaE < fechaI) pasa = false;
+         }
+         if (fin) {
+            const fechaF = new Date(fin);
+            if (fechaE > fechaF) pasa = false;
+         }
+         return pasa;
       });
-      renderTablaRegistrosEliminados(filtrados);
+      renderTablaRegistrosEliminados(listaFiltrada);
     }
   </script>
 </body>
