@@ -168,6 +168,7 @@
         <button class="nav-btn" id="btn-nav-productos" onclick="switchView('view-productos'); cargarInventario();">Productos</button>
         <button class="nav-btn" id="btn-nav-reportes" onclick="switchView('view-reportes'); cargarReportes(); cargarHistorialCortes(); cargarRegistrosEliminados();">Cortes y Ventas</button>
         <button class="nav-btn" id="btn-nav-usuarios" onclick="switchView('view-usuarios'); cargarUsuarios();">Usuarios</button>
+        <button class="nav-btn" id="btn-refresh-app" onclick="refrescarTodaLaApp()" style="background-color: var(--accent-color); color: #000; font-weight: bold;">🔄 Actualizar</button>
       </div>
     </div>
   </header>
@@ -482,7 +483,7 @@
     // ==========================================
     // CONFIGURACIÓN DE CONEXIÓN CON APPS SCRIPT
     // ==========================================
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxuD06wtZckE7I2o2cnCVwgK8IQnFUe-fLK9kNvJ981WqWr1ZUvap4TXqZRLTK3eyTt/exec"; // <-- REEMPLAZAR CON TU URL DE IMPLEMENTACIÓN DE GOOGLE APPS SCRIPT
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwXesnahZnb_RY6iZU--hb_0F5ATkwZ4x63mU7tLUi9Io4Qq8cfSFBSXmN6zUyNydQ/exec"; // <-- REEMPLAZAR CON TU URL DE IMPLEMENTACIÓN DE GOOGLE APPS SCRIPT
 
     // Envoltorio Fetch para sustituir a google.script.run
     function apiCall(action, args, onSuccess) {
@@ -567,6 +568,7 @@
       document.getElementById('btn-nav-productos').style.display = 'none';
       document.getElementById('btn-nav-reportes').style.display = 'none';
       document.getElementById('btn-nav-usuarios').style.display = 'none';
+      document.getElementById('btn-refresh-app').style.display = 'inline-block';
 
       if (rolGlobal === "Admin") {
         document.getElementById('btn-nav-ordenes').style.display = 'inline-block';
@@ -590,6 +592,21 @@
         document.getElementById('btn-nav-caja').style.display = 'inline-block';
         switchView('view-caja');
         cargarCaja();
+      }
+    }
+
+    function refrescarTodaLaApp() {
+      cargarCategoriasMenu();
+      cargarCatalogoInicial();
+      cargarCocina();
+      cargarCaja();
+      if (rolGlobal === "Admin" || rolGlobal === "Cajero") {
+        cargarReportes();
+        cargarHistorialCortes();
+        cargarRegistrosEliminados();
+      }
+      if (rolGlobal === "Admin") {
+        cargarUsuarios();
       }
     }
 
@@ -1242,7 +1259,10 @@
         return;
       }
 
-      apiCall('registrarCierreCaja', [efectivoReal, usuarioGlobal], res => {
+      let reiniciarSemana = confirm("¿Desea reiniciar el acumulado de 'Venta Semanal'?");
+      let reiniciarMes = confirm("¿Desea reiniciar el acumulado de 'Venta Mensual'?");
+
+      apiCall('registrarCierreCaja', [efectivoReal, usuarioGlobal, reiniciarSemana, reiniciarMes], res => {
         if(res.success) {
           alert("Cierre de caja procesado correctamente.\n\n" + res.message);
           
