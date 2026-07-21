@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <base target="_top">
   <meta charset="UTF-8">
-  <title>Los Crudos Birrieria POS</title>
   <style>
     :root {
       --primary-color: #d32f2f;
@@ -47,6 +47,7 @@
       cursor: pointer;
       border-radius: var(--border-radius);
       transition: all 0.3s ease;
+      display: none; 
     }
     .nav-btn:hover, .nav-btn.active { color: #fff; background-color: var(--primary-color); }
 
@@ -140,15 +141,33 @@
 </head>
 <body>
 
+  <!-- MODAL DE INICIO DE SESIÓN -->
+  <div id="login-view" style="position:fixed; top:0; left:0; width:100%; height:100%; background:var(--dark-bg); z-index:9999; display:flex; align-items:center; justify-content:center;">
+    <div class="card" style="width: 350px; background:white; color:var(--text-main);">
+      <h2 style="text-align:center; color:var(--primary-color); margin-bottom: 20px;">Iniciar Sesión</h2>
+      <div class="form-group">
+        <label>Usuario</label>
+        <input type="text" id="login-user" class="form-control" placeholder="Nombre de usuario" onkeydown="if(event.key === 'Enter') intentarLogin()">
+      </div>
+      <div class="form-group">
+        <label>Contraseña</label>
+        <input type="password" id="login-pass" class="form-control" placeholder="Contraseña" onkeydown="if(event.key === 'Enter') intentarLogin()">
+      </div>
+      <button class="btn btn-primary btn-block" onclick="intentarLogin()">Entrar</button>
+      <div id="login-error" style="color:red; margin-top:15px; display:none; text-align:center; font-weight:bold;">Credenciales incorrectas</div>
+    </div>
+  </div>
+
   <header>
     <div class="header-container">
-      <div class="header-logo">LOS CRUDOS <span>BIRRIERIA POS</span></div>
+      <div class="header-logo">LOS CRUDOS <span>BIRRIERIA</span></div>
       <div class="nav-tabs">
-        <button class="nav-btn active" onclick="switchView('view-ordenes')">Nueva Orden</button>
-        <button class="nav-btn" onclick="switchView('view-cocina'); cargarCocina();">Pantalla Cocina</button>
-        <button class="nav-btn" onclick="switchView('view-caja'); cargarCaja();">Caja / Cobros</button>
-        <button class="nav-btn" onclick="switchView('view-productos'); cargarInventario();">Productos</button>
-        <button class="nav-btn" onclick="switchView('view-reportes'); cargarReportes(); cargarHistorialCortes(); cargarRegistrosEliminados();">Cortes y Ventas</button>
+        <button class="nav-btn active" id="btn-nav-ordenes" onclick="switchView('view-ordenes')">Nueva Orden</button>
+        <button class="nav-btn" id="btn-nav-cocina" onclick="switchView('view-cocina'); cargarCocina();">Pantalla Cocina</button>
+        <button class="nav-btn" id="btn-nav-caja" onclick="switchView('view-caja'); cargarCaja();">Caja / Cobros</button>
+        <button class="nav-btn" id="btn-nav-productos" onclick="switchView('view-productos'); cargarInventario();">Productos</button>
+        <button class="nav-btn" id="btn-nav-reportes" onclick="switchView('view-reportes'); cargarReportes(); cargarHistorialCortes(); cargarRegistrosEliminados();">Cortes y Ventas</button>
+        <button class="nav-btn" id="btn-nav-usuarios" onclick="switchView('view-usuarios'); cargarUsuarios();">Usuarios</button>
       </div>
     </div>
   </header>
@@ -156,7 +175,7 @@
   <div class="container">
 
     <!-- MÓDULO 1: LEVANTAR ORDEN -->
-    <section id="view-ordenes" class="view-section active">
+    <section id="view-ordenes" class="view-section">
       <div class="row-layout">
         <div class="col-7">
           <div class="card">
@@ -199,7 +218,7 @@
     <!-- MÓDULO 2: MONITOR DE COCINA -->
     <section id="view-cocina" class="view-section">
       <div class="card">
-        <div class="card-title">Monitoreo de Cocina (Tiempo Real) <button class="btn btn-secondary" style="padding:4px 10px; float:right;" onclick="cargarCocina()">🔄 Refrescar</button></div>
+        <div class="card-title">Monitoreo de Cocina<button class="btn btn-secondary" style="padding:4px 10px; float:right;" onclick="cargarCocina()">🔄 Refrescar</button></div>
         <div class="kitchen-container" id="kitchen-tickets-container"></div>
       </div>
     </section>
@@ -213,6 +232,16 @@
             <tr><th>ID Orden</th><th>Hora</th><th>Cliente/Mesa</th><th>Total</th><th>Estado Actual</th><th>Acciones</th></tr>
           </thead>
           <tbody id="caja-table-body"></tbody>
+        </table>
+      </div>
+
+      <div class="card" style="margin-top: 20px;">
+        <div class="card-title">Historial de Pedidos Cobrados (Turno Actual)</div>
+        <table class="table-std">
+          <thead>
+            <tr><th>ID Orden</th><th>Hora</th><th>Cliente/Mesa</th><th>Total</th><th>Método Pago</th><th>Estatus</th><th>Usuario</th><th>Acciones</th></tr>
+          </thead>
+          <tbody id="caja-cobrados-table-body"></tbody>
         </table>
       </div>
     </section>
@@ -328,10 +357,11 @@
           <input type="date" id="filtro-fecha-cierre-fin" class="form-control" title="Fecha Fin">
           <button class="btn btn-primary" onclick="filtrarHistorialCortes()">Filtrar</button>
           <button class="btn btn-secondary" onclick="cargarHistorialCortes()">Limpiar Filtro</button>
+          <button class="btn btn-success" style="margin-left: auto;" onclick="descargarHistoricoHojasPDF()">📄 Histórico Completo Base de Datos (PDF)</button>
         </div>
         <table class="table-std">
           <thead>
-            <tr><th>Fecha</th><th>Hora</th><th>Caja Inicial</th><th>Total Día</th><th>Efectivo Sist.</th><th>Tarjeta</th><th>Transf.</th><th>Efec. Real</th><th>Diferencia</th><th>Reporte</th></tr>
+            <tr><th>Fecha</th><th>Hora</th><th>Caja Inicial</th><th>Total Día</th><th>Efectivo Sist.</th><th>Tarjeta</th><th>Transf.</th><th>Efec. Real</th><th>Diferencia</th><th>Reporte (PDF)</th></tr>
           </thead>
           <tbody id="historial-cortes-body"></tbody>
         </table>
@@ -354,9 +384,51 @@
       </div>
     </section>
 
+    <!-- MÓDULO 6: GESTIÓN DE USUARIOS -->
+    <section id="view-usuarios" class="view-section">
+      <div class="row-layout">
+        <div class="col-5">
+          <div class="card">
+            <div class="card-title" id="usu-form-title">Agregar / Editar Usuario</div>
+            <input type="hidden" id="usu-id-original">
+            <div class="form-group">
+              <label>Nombre de Usuario</label>
+              <input type="text" id="usu-nombre" class="form-control" placeholder="Ej: cajero_tarde">
+            </div>
+            <div class="form-group">
+              <label>Contraseña</label>
+              <input type="text" id="usu-pass" class="form-control" placeholder="Dejar en blanco para no cambiar">
+            </div>
+            <div class="form-group">
+              <label>Rol</label>
+              <select id="usu-rol" class="form-control">
+                <option value="Admin">Administrador</option>
+                <option value="Cajero">Cajero</option>
+                <option value="Cocina">Cocina</option>
+                <option value="Mesero">Mesero</option>
+              </select>
+            </div>
+            <button class="btn btn-success btn-block" onclick="guardarFormUsuario()">Guardar Usuario</button>
+            <button class="btn btn-secondary btn-block" style="margin-top:8px;" onclick="limpiarFormUsuario()">Limpiar</button>
+          </div>
+        </div>
+        <div class="col-7">
+          <div class="card">
+            <div class="card-title">Listado de Usuarios</div>
+            <table class="table-std">
+              <thead>
+                <tr><th>Usuario</th><th>Rol</th><th>Acciones</th></tr>
+              </thead>
+              <tbody id="usuarios-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
   </div>
 
-  <!-- MODAL DE COBRO AUTOMÁTICO -->
+  <!-- MODAL DE COBRO AUTOMÁTICO Y MULTIPAGO -->
   <div class="modal-overlay" id="modal-cobro">
     <div class="modal-content">
       <h3 style="margin-bottom:15px; border-bottom:2px solid var(--primary-color); padding-bottom:5px;">Procesar Pago</h3>
@@ -375,11 +447,12 @@
       </div>
       <div class="form-group">
         <label>Monto a Recibir / Abonar</label>
-        <input type="number" id="modal-cobro-recibido" class="form-control" placeholder="0.00" oninput="calcularCambioCaja()">
+        <input type="number" step="0.01" id="modal-cobro-recibido" class="form-control" placeholder="0.00" oninput="calcularCambioCaja()">
       </div>
       
       <button class="btn btn-secondary btn-block" style="padding:6px; margin-bottom:12px; font-size:12px; background:#e0e0e0; font-weight:bold;" onclick="agregarMetodoPagoLista()">+ Agregar a Métodos de Pago</button>
       <div id="modal-cobro-lista-pagos" style="background:#fafafa; border:1px solid #ddd; border-radius:4px; padding:8px; margin-bottom:12px; max-height:85px; overflow-y:auto; font-size:12px; display:none;"></div>
+      
       <div style="font-size:13px; margin-bottom:10px; font-weight:bold; color:var(--warning-color);" id="modal-cobro-restante-box">
         Restante por Cubrir: <span id="modal-cobro-restante">$0.00</span>
       </div>
@@ -400,43 +473,35 @@
         <input type="text" id="nueva-categoria-input" class="form-control" placeholder="Nueva categoría...">
         <button class="btn btn-primary" onclick="agregarCategoriaNueva()">Añadir</button>
       </div>
-      <div id="lista-categorias-manager" style="max-height: 200px; overflow-y: auto; margin-bottom: 20px; border: 1px solid #eee; border-radius: 4px;">
-      </div>
+      <div id="lista-categorias-manager" style="max-height: 200px; overflow-y: auto; margin-bottom: 20px; border: 1px solid #eee; border-radius: 4px;"></div>
       <button class="btn btn-secondary btn-block" onclick="cerrarModalCategorias()">Cerrar Panel</button>
     </div>
   </div>
 
   <script>
     // ==========================================
-    // CONFIGURACIÓN DE CONEXIÓN A LA API
+    // CONFIGURACIÓN DE CONEXIÓN CON APPS SCRIPT
     // ==========================================
-    // REEMPLAZA ESTA URL CON LA URL DE TU APLICACIÓN WEB DE APPS SCRIPT
-    // IMPORTANTE: Al implementar debes usar los permisos:
-    // - Ejecutar como: "Yo"
-    // - Quién tiene acceso: "Cualquier persona"
-    const API_URL = "https://script.google.com/macros/s/AKfycbxPJvxq0udNGUfisO7-iyF3uQG57GWMrZ8VXyM3jhNEzKIAYYRZ9gjAK0x12cSPyTktBg/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyfD7y3fGG7-eAUetkim7ca3DRDg8G7yX3A9ZHdTHldM_1-3Jhq7QXLEc6DBRUObe2t/exec"; // <-- REEMPLAZAR CON TU URL DE IMPLEMENTACIÓN DE GOOGLE APPS SCRIPT
 
-    /**
-     * Función unificada para consultar el Backend
-     * Se usa text/plain para evitar errores de preflight (CORS) en Apps Script
-     */
-    async function fetchAPI(action, payload = {}) {
-      try {
-        const response = await fetch(API_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'text/plain;charset=utf-8' 
-          },
-          body: JSON.stringify({ action: action, payload: payload })
-        });
-        return await response.json();
-      } catch (error) {
-        console.error("Error en la conexión con la base de datos:", error);
-        return { success: false, error: error.toString() };
-      }
+    // Envoltorio Fetch para sustituir a google.script.run
+    function apiCall(action, args, onSuccess) {
+      fetch(SCRIPT_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain;charset=utf-8' // Permite saltar pre-flight CORS
+        },
+        body: JSON.stringify({ action: action, args: args })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (onSuccess) onSuccess(data);
+      })
+      .catch(error => console.error('Error de red en la llamada API:', error));
     }
 
-    // --- PROTECCIÓN DE CÓDIGO FUENTE (Bloqueo de teclas y clic derecho) ---
+
+    // --- PROTECCIÓN DE CÓDIGO FUENTE ---
     document.addEventListener('contextmenu', event => event.preventDefault());
     document.onkeydown = function(e) {
       if (e.keyCode == 123) return false;
@@ -445,20 +510,76 @@
       if (e.ctrlKey && e.shiftKey && (e.keyCode == 67 || e.keyCode == 99)) return false;
       if (e.ctrlKey && (e.keyCode == 85 || e.keyCode == 117)) return false;
     };
-    // ----------------------------------------------------------------------
 
     let listadoProductos = [];
     let carritoActual = [];
     let filtroCategoriaActivo = "TODOS";
     let pagosAcumulados = [];
+    let totalOrdenActual = 0;
     let categoriasMenuGlobal = []; 
     let datosHistorialCortes = [];
     let datosRegistrosEliminados = [];
+    
+    let rolGlobal = "";
+    let usuarioGlobal = ""; 
 
     window.addEventListener('load', () => { 
+      document.getElementById('login-view').style.display = 'flex';
       cargarCategoriasMenu();
       cargarCatalogoInicial(); 
     });
+
+    function intentarLogin() {
+      const user = document.getElementById('login-user').value.trim();
+      const pass = document.getElementById('login-pass').value.trim();
+      if (!user || !pass) return;
+
+      apiCall('validarLogin', [user, pass], res => {
+        if(res.success) {
+          rolGlobal = res.rol;
+          usuarioGlobal = res.usuario; 
+          document.getElementById('login-view').style.display = 'none';
+          document.getElementById('login-error').style.display = 'none';
+          aplicarPermisosRol();
+        } else {
+          document.getElementById('login-error').innerText = res.error;
+          document.getElementById('login-error').style.display = 'block';
+        }
+      });
+    }
+
+    function aplicarPermisosRol() {
+      document.getElementById('btn-nav-ordenes').style.display = 'none';
+      document.getElementById('btn-nav-cocina').style.display = 'none';
+      document.getElementById('btn-nav-caja').style.display = 'none';
+      document.getElementById('btn-nav-productos').style.display = 'none';
+      document.getElementById('btn-nav-reportes').style.display = 'none';
+      document.getElementById('btn-nav-usuarios').style.display = 'none';
+
+      if (rolGlobal === "Admin") {
+        document.getElementById('btn-nav-ordenes').style.display = 'inline-block';
+        document.getElementById('btn-nav-cocina').style.display = 'inline-block';
+        document.getElementById('btn-nav-caja').style.display = 'inline-block';
+        document.getElementById('btn-nav-productos').style.display = 'inline-block';
+        document.getElementById('btn-nav-reportes').style.display = 'inline-block';
+        document.getElementById('btn-nav-usuarios').style.display = 'inline-block';
+        switchView('view-ordenes');
+      } else if (rolGlobal === "Mesero") {
+        document.getElementById('btn-nav-ordenes').style.display = 'inline-block';
+        document.getElementById('btn-nav-cocina').style.display = 'inline-block';
+        switchView('view-ordenes');
+      } else if (rolGlobal === "Cocina") {
+        document.getElementById('btn-nav-cocina').style.display = 'inline-block';
+        switchView('view-cocina');
+        cargarCocina();
+      } else if (rolGlobal === "Cajero") {
+        document.getElementById('btn-nav-ordenes').style.display = 'inline-block';
+        document.getElementById('btn-nav-cocina').style.display = 'inline-block';
+        document.getElementById('btn-nav-caja').style.display = 'inline-block';
+        switchView('view-caja');
+        cargarCaja();
+      }
+    }
 
     function switchView(viewId) {
       document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
@@ -469,13 +590,13 @@
       }
     }
 
-    // --- SECCIÓN GESTIÓN DE CATEGORÍAS ---
-    async function cargarCategoriasMenu() {
-      const res = await fetchAPI('obtenerCategorias');
-      if(res.success) {
-        categoriasMenuGlobal = res.data;
-        actualizarDropdownCategorias();
-      }
+    function cargarCategoriasMenu() {
+      apiCall('obtenerCategorias', [], res => {
+        if(res.success) {
+          categoriasMenuGlobal = res.data;
+          actualizarDropdownCategorias();
+        }
+      });
     }
 
     function actualizarDropdownCategorias() {
@@ -519,27 +640,28 @@
     }
 
     function eliminarCategoriaLista(idx) {
-      if(confirm("¿Seguro que deseas eliminar esta categoría de la lista? (No borrará los productos que ya la usen)")) {
+      if(confirm("¿Seguro que deseas eliminar esta categoría?")) {
         categoriasMenuGlobal.splice(idx, 1);
         guardarCategoriasRemoto();
       }
     }
 
-    async function guardarCategoriasRemoto() {
+    function guardarCategoriasRemoto() {
       renderListaCategoriasModal(); 
       actualizarDropdownCategorias();
-      const res = await fetchAPI('guardarCategorias', { categoriasArray: categoriasMenuGlobal });
-      if(!res.success) alert("Error guardando categorías: " + res.error);
+      apiCall('guardarCategorias', [categoriasMenuGlobal], res => {
+        if(!res.success) alert("Error guardando categorías: " + res.error);
+      });
     }
-    // --------------------------------------
 
-    async function cargarCatalogoInicial() {
-      const res = await fetchAPI('obtenerProductos');
-      if(res.success) {
-        listadoProductos = res.data;
-        renderFiltrosCategorias();
-        renderMenuPlatillos();
-      }
+    function cargarCatalogoInicial() {
+      apiCall('obtenerProductos', [], res => {
+        if(res.success) {
+          listadoProductos = res.data;
+          renderFiltrosCategorias();
+          renderMenuPlatillos();
+        }
+      });
     }
 
     function renderFiltrosCategorias() {
@@ -618,508 +740,343 @@
       totalLabel.innerText = "$" + total.toFixed(2);
     }
 
-    async function enviarPedidoCaja() {
+    function enviarPedidoCaja() {
+      if (rolGlobal !== "Admin" && rolGlobal !== "Mesero" && rolGlobal !== "Cajero") {
+        alert("No tienes permiso para registrar nuevas órdenes.");
+        return;
+      }
+
       const mesa = document.getElementById('cart-mesa').value.trim();
       const notas = document.getElementById('cart-notas').value.trim();
       if(!mesa || carritoActual.length === 0) { alert("Completa el nombre de la mesa y agrega productos."); return; }
 
-      const res = await fetchAPI('levantarPedido', { mesaCliente: mesa, items: carritoActual, notasGenerales: notas });
-      if(res.success) {
-        alert("¡Pedido enviado a cocina!");
-        carritoActual = [];
-        document.getElementById('cart-mesa').value = "";
-        document.getElementById('cart-notas').value = "";
-        renderCarrito();
-      } else {
-        alert("Error al procesar el pedido: " + res.error);
-      }
-    }
-
-    async function cargarCocina() {
-      const res = await fetchAPI('obtenerOrdenesActivas');
-      if(res.success) {
-        const container = document.getElementById('kitchen-tickets-container');
-        container.innerHTML = "";
-        const ordenesCocina = res.data.filter(o => o.estado === "Pendiente" || o.estado === "En Cocina" || o.estado === "En proceso" || o.estado === "Listo" || o.estado === "Listo en Barra");
-        
-        ordenesCocina.forEach(o => {
-          let itemsHtml = "";
-          o.items.forEach(i => {
-            itemsHtml += `<div class="ticket-item"><span class="ticket-item-qty">${i.cantidad}x</span> ${i.nombre} ${i.notas ? `<div class="ticket-notes">⚠️ ${i.notas}</div>` : ''}</div>`;
-          });
-
-          let btnAccion = "";
-          if(o.estado === "Pendiente" || o.estado === "En Cocina") { 
-            btnAccion = `<button class="btn btn-primary btn-block" onclick="actualizarEstado('${o.id}', 'En proceso')">Preparar</button>`; 
-          } 
-          else if(o.estado === "En proceso") { 
-            btnAccion = `<button class="btn btn-block" style="background-color: var(--primary-color); color: white;" onclick="actualizarEstado('${o.id}', 'Listo')">En proceso</button>`; 
-          } 
-          else if(o.estado === "Listo") { 
-            btnAccion = `<button class="btn btn-success btn-block" onclick="actualizarEstado('${o.id}', 'Listo en Barra')">Listo</button>`; 
-          } 
-          else if(o.estado === "Listo en Barra") { 
-            btnAccion = `<div style='color:var(--success-color); font-weight:bold; padding:8px;'>Listo en Barra</div>`; 
-          }
-
-          container.innerHTML += `
-            <div class="ticket-card ${o.estado}">
-              <div class="ticket-header"><span class="ticket-id">${o.id}</span><span class="ticket-time">${o.hora}</span><div class="ticket-mesa">${o.mesa}</div></div>
-              <div class="ticket-body">${itemsHtml}</div>
-              <div class="ticket-footer">${btnAccion}</div>
-            </div>
-          `;
-        });
-      }
-    }
-
-    async function actualizarEstado(id, nuevoEstado) {
-      const res = await fetchAPI('cambiarEstadoOrden', { idOrden: id, nuevoEstado: nuevoEstado });
-      if(res.success) cargarCocina();
-    }
-
-    async function cargarCaja() {
-      const res = await fetchAPI('obtenerOrdenesActivas');
-      if(res.success) {
-        const tbody = document.getElementById('caja-table-body');
-        tbody.innerHTML = "";
-        res.data.forEach(o => {
-          let col = (o.estado === "Listo" || o.estado === "Listo en Barra") ? "green" : ((o.estado === "En Cocina" || o.estado === "En proceso") ? "red" : "orange");
-          tbody.innerHTML += `
-            <tr>
-              <td><strong>${o.id}</strong></td><td>${o.hora}</td><td>${o.mesa}</td>
-              <td style='font-weight:bold; color:var(--primary-color);'>$${o.total.toFixed(2)}</td>
-              <td><span style='background:${col}; color:white; padding:3px 8px; border-radius:4px; font-size:12px;'>${o.estado}</span></td>
-              <td>
-                <button class="btn btn-success" style="padding:6px 12px; font-size:12px;" onclick="abrirModalCobro('${o.id}', '${o.mesa}', ${o.total})">💳 Cobrar</button>
-                <button class="btn btn-danger" style="padding:6px 12px; font-size:12px; background:#bbb;" onclick="cancelarOrdenCaja('${o.id}')">X</button>
-              </td>
-            </tr>
-          `;
-        });
-      }
-    }
-
-    async function cancelarOrdenCaja(id) {
-      const motivo = prompt("Ingrese el motivo de la cancelación de esta orden:");
-      if(motivo === null) return; 
-      if(motivo.trim() === "") {
-        alert("Debe ingresar un motivo obligatorio para cancelar la orden.");
-        return;
-      }
-      
-      if(confirm("¿Estás seguro de cancelar o eliminar permanentemente esta orden?")) {
-        const res = await fetchAPI('cancelarOrdenCaja', { idOrden: id, motivo: motivo });
-        if(res.success) { 
-          cargarCaja(); 
-          cargarRegistrosEliminados(); 
-          alert("La orden ha sido cancelada y movida a los registros eliminados.");
+      apiCall('levantarPedido', [mesa, carritoActual, notas, usuarioGlobal], res => {
+        if(res.success) {
+          alert("¡Pedido enviado a cocina!");
+          carritoActual = [];
+          document.getElementById('cart-mesa').value = "";
+          document.getElementById('cart-notas').value = "";
+          renderCarrito();
         } else {
-          alert("Error al cancelar la orden: " + res.error);
+          alert("Error al procesar el pedido: " + res.error);
         }
-      }
+      });
+    }
+
+    function cargarCocina() {
+      apiCall('obtenerOrdenesActivas', [], res => {
+        if(res.success) {
+          const container = document.getElementById('kitchen-tickets-container');
+          container.innerHTML = "";
+          res.data.forEach(orden => {
+            if (orden.estado === "Cobrado" || orden.estado === "Archivado") return; 
+
+            let cardClass = orden.estado.replace(/\s+/g, '-');
+            let itemsHtml = orden.items.map(i => `
+              <div class="ticket-item">
+                <span class="ticket-item-qty">${i.cantidad}x</span> ${i.nombre}
+                ${i.notas ? `<div class="ticket-notes">Nota: ${i.notas}</div>` : ''}
+              </div>
+            `).join('');
+
+            let usuarioRegistro = orden.usuarioRastreo ? orden.usuarioRastreo.replace('Registrado por: ', '').split(' | ')[0] : 'Desconocido';
+
+            let botones = "";
+            if (orden.estado === "Pendiente") {
+                botones = `<button class="btn btn-primary btn-block" onclick="cambiarEstado('${orden.id}', 'En proceso')">Marcar En Proceso</button>`;
+            } else if (orden.estado === "En proceso") {
+                botones = `<button class="btn btn-success btn-block" onclick="cambiarEstado('${orden.id}', 'Listo')">Marcar Listo</button>`;
+            } else if (orden.estado === "Listo") {
+                botones = `<button class="btn btn-secondary btn-block" onclick="cambiarEstado('${orden.id}', 'Listo en Barra')">A Barra</button>`;
+            } else {
+                botones = `<span style="font-size:12px; font-weight:bold; color:var(--text-muted);">Esperando Cobro/Entrega</span>`;
+            }
+
+            container.innerHTML += `
+              <div class="ticket-card ${cardClass}">
+                <div class="ticket-header">
+                  <span class="ticket-id">${orden.id}</span>
+                  <span class="ticket-time">${orden.hora}</span>
+                  <div class="ticket-mesa">${orden.mesa}</div>
+                  <div style="font-size:11px; color:var(--text-muted); margin-top:3px;">Atendió: <strong>${usuarioRegistro}</strong></div>
+                </div>
+                <div class="ticket-body">${itemsHtml}</div>
+                <div class="ticket-footer">
+                  <div style="font-weight:bold; margin-bottom:8px; font-size:12px; color:var(--primary-color);">ESTADO: ${orden.estado.toUpperCase()}</div>
+                  ${botones}
+                </div>
+              </div>
+            `;
+          });
+        }
+      });
+    }
+
+    function cambiarEstado(id, estado) {
+      apiCall('cambiarEstadoOrden', [id, estado, usuarioGlobal], res => {
+        if(res.success) { cargarCocina(); cargarCaja(); }
+      });
+    }
+
+    function cargarCaja() {
+      apiCall('obtenerOrdenesActivas', [], res => {
+        if(res.success) {
+          const tbodyAbiertas = document.getElementById('caja-table-body');
+          const tbodyCobrados = document.getElementById('caja-cobrados-table-body');
+          tbodyAbiertas.innerHTML = "";
+          tbodyCobrados.innerHTML = "";
+
+          res.data.forEach(orden => {
+             let usuarioRegistro = orden.usuarioRastreo ? orden.usuarioRastreo.replace('Registrado por: ', '').split(' | ')[0] : 'Desconocido';
+
+             if (orden.estado === "Cobrado" || orden.estadoPago === "Cobrado") {
+                 tbodyCobrados.innerHTML += `
+                   <tr>
+                     <td>${orden.id}</td>
+                     <td>${orden.hora}</td>
+                     <td>${orden.mesa}</td>
+                     <td>$${orden.total.toFixed(2)}</td>
+                     <td>${orden.metodoPago || 'N/A'}</td>
+                     <td><span style="color:var(--success-color); font-weight:bold;">Cobrado</span></td>
+                     <td><strong>${usuarioRegistro}</strong></td>
+                     <td>
+                        <button class="btn btn-primary" style="padding:4px 8px; font-size:11px;" onclick="imprimirTicket('${orden.id}')">🖨️ Ticket</button>
+                        <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="cancelarOrden('${orden.id}')">❌ Cancelar</button>
+                     </td>
+                   </tr>
+                 `;
+             } else {
+                 let btnCobrar = `<button class="btn btn-success" style="padding:6px 12px; font-size:12px;" onclick="abrirModalCobro('${orden.id}', '${orden.mesa}', ${orden.total})">💲 Cobrar</button>`;
+                 tbodyAbiertas.innerHTML += `
+                   <tr>
+                     <td>${orden.id}</td>
+                     <td>${orden.hora}</td>
+                     <td>${orden.mesa}</td>
+                     <td>$${orden.total.toFixed(2)}</td>
+                     <td>${orden.estado}</td>
+                     <td>${btnCobrar} <button class="btn btn-danger" style="padding:6px 12px; font-size:12px;" onclick="cancelarOrden('${orden.id}')">❌</button></td>
+                   </tr>
+                 `;
+             }
+          });
+        }
+      });
     }
 
     function abrirModalCobro(id, mesa, total) {
       document.getElementById('modal-cobro-id').value = id;
       document.getElementById('modal-cobro-mesa').innerText = mesa;
       document.getElementById('modal-cobro-total').innerText = "$" + total.toFixed(2);
-      document.getElementById('modal-cobro-recibido').value = "";
+      totalOrdenActual = total;
+      document.getElementById('modal-cobro-recibido').value = total.toFixed(2);
       document.getElementById('modal-cobro-cambio').innerText = "$0.00";
-      
       pagosAcumulados = [];
-      document.getElementById('modal-cobro-lista-pagos').innerHTML = "";
-      document.getElementById('modal-cobro-lista-pagos').style.display = "none";
-      document.getElementById('modal-cobro-restante').innerText = "$" + total.toFixed(2);
-      
+      actualizarUIpagosMultiples();
       document.getElementById('modal-cobro').classList.add('active');
     }
 
-    function calcularCambioCaja() {
-      const total = parseFloat(document.getElementById('modal-cobro-total').innerText.replace('$', ''));
-      const recibidoManual = parseFloat(document.getElementById('modal-cobro-recibido').value) || 0;
-      
-      if (pagosAcumulados.length === 0) {
-        const cambio = recibidoManual - total;
-        document.getElementById('modal-cobro-cambio').innerText = cambio >= 0 ? "$" + cambio.toFixed(2) : "$0.00 (Incompleto)";
-        document.getElementById('modal-cobro-restante').innerText = recibidoManual >= total ? "$0.00" : "$" + (total - recibidoManual).toFixed(2);
-      } else {
-        let sumado = pagosAcumulados.reduce((acc, p) => acc + p.monto, 0) + recibidoManual;
-        const restante = total - sumado;
-        document.getElementById('modal-cobro-restante').innerText = restante > 0 ? "$" + restante.toFixed(2) : "$0.00";
-        document.getElementById('modal-cobro-cambio').innerText = sumado >= total ? "$" + (sumado - total).toFixed(2) : "$0.00 (Incompleto)";
-      }
+    function cerrarModalCobro() { 
+      document.getElementById('modal-cobro').classList.remove('active'); 
     }
 
     function agregarMetodoPagoLista() {
-      const metodo = document.getElementById('modal-cobro-metodo').value;
-      const monto = parseFloat(document.getElementById('modal-cobro-recibido').value) || 0;
-      if (monto <= 0) { alert("Por favor, ingrese un monto válido mayor a 0."); return; }
+      let metodo = document.getElementById('modal-cobro-metodo').value;
+      let montoInput = parseFloat(document.getElementById('modal-cobro-recibido').value) || 0;
       
-      pagosAcumulados.push({ metodo: metodo, monto: monto });
+      if(montoInput <= 0) {
+        alert("Ingrese un monto válido a abonar.");
+        return;
+      }
+
+      let totalAbonado = pagosAcumulados.reduce((sum, p) => sum + p.monto, 0);
+      let restante = totalOrdenActual - totalAbonado;
+
+      if(montoInput > restante + 0.01) {
+        if(confirm("El monto ingresado es mayor al restante. ¿Ajustar al restante exacto de $" + restante.toFixed(2) + "?")) {
+          montoInput = restante;
+        }
+      }
+
+      pagosAcumulados.push({ metodo: metodo, monto: montoInput });
       document.getElementById('modal-cobro-recibido').value = "";
-      renderListaPagosAcumulados();
+      actualizarUIpagosMultiples();
     }
 
-    function renderListaPagosAcumulados() {
-      const total = parseFloat(document.getElementById('modal-cobro-total').innerText.replace('$', ''));
-      const container = document.getElementById('modal-cobro-lista-pagos');
-      container.innerHTML = "";
-      
-      if (pagosAcumulados.length > 0) { container.style.display = "block"; } 
-      else { container.style.display = "none"; }
-      
-      let sumado = 0;
-      pagosAcumulados.forEach((p, idx) => {
-        sumado += p.monto;
-        let icono = p.metodo === 'Tarjeta' ? '💳' : (p.metodo === 'Transferencia' ? '📲' : '💵');
-        container.innerHTML += `
-          <div style="padding:3px 0; border-bottom:1px dashed #ddd; display:flow-root;">
-            <span>${icono} ${p.metodo}: <strong>$${p.monto.toFixed(2)}</strong></span>
-            <span style="float:right; color:red; cursor:pointer; font-weight:bold;" onclick="eliminarPagoAcumulado(${idx})">❌</span>
-          </div>
-        `;
-      });
-      
-      const restante = total - sumado;
-      document.getElementById('modal-cobro-restante').innerText = restante > 0 ? "$" + restante.toFixed(2) : "$0.00";
-      document.getElementById('modal-cobro-cambio').innerText = sumado >= total ? "$" + (sumado - total).toFixed(2) : "$0.00 (Incompleto)";
-    }
-
-    function eliminarPagoAcumulado(idx) {
+    function eliminarPagoLista(idx) {
       pagosAcumulados.splice(idx, 1);
-      renderListaPagosAcumulados();
+      actualizarUIpagosMultiples();
     }
 
-    function cerrarModalCobro() { document.getElementById('modal-cobro').classList.remove('active'); }
+    function actualizarUIpagosMultiples() {
+      let container = document.getElementById('modal-cobro-lista-pagos');
+      let restanteSpan = document.getElementById('modal-cobro-restante');
+      
+      let totalAbonado = pagosAcumulados.reduce((sum, p) => sum + p.monto, 0);
+      let restante = totalOrdenActual - totalAbonado;
+      if(restante < 0) restante = 0;
 
-    async function confirmarCobroFinal() {
-      const id = document.getElementById('modal-cobro-id').value;
-      const total = parseFloat(document.getElementById('modal-cobro-total').innerText.replace('$', ''));
-      
-      let metodoFinalString = "";
-      const metodoManual = document.getElementById('modal-cobro-metodo').value;
-      const recibidoManual = parseFloat(document.getElementById('modal-cobro-recibido').value) || 0;
-      
-      let listaPagosProcesar = [...pagosAcumulados];
-      if (recibidoManual > 0) {
-        listaPagosProcesar.push({ metodo: metodoManual, monto: recibidoManual });
-      }
-      
-      if (listaPagosProcesar.length > 0 && pagosAcumulados.length > 0) {
-        let totalCubierto = listaPagosProcesar.reduce((acc, p) => acc + p.monto, 0);
-        
-        if (parseFloat(totalCubierto.toFixed(2)) < parseFloat(total.toFixed(2))) {
-          alert("No se puede cerrar la venta. El monto cubierto ($" + totalCubierto.toFixed(2) + ") es menor al total requerido ($" + total.toFixed(2) + ").");
-          return;
-        }
-        
-        let excedente = totalCubierto - total;
-        let metodosMap = {};
-        listaPagosProcesar.forEach(p => { metodosMap[p.metodo] = (metodosMap[p.metodo] || 0) + p.monto; });
-        if (excedente > 0 && metodosMap["Efectivo"]) { metodosMap["Efectivo"] -= excedente; }
-        
-        let arrayMetodos = [];
-        for (let m in metodosMap) {
-          if (metodosMap[m] > 0) arrayMetodos.push(m + ":" + metodosMap[m].toFixed(2));
-        }
-        metodoFinalString = arrayMetodos.join(";");
-        
-      } else {
-        const metodoUnico = document.getElementById('modal-cobro-metodo').value;
-        const recibidoUnico = parseFloat(document.getElementById('modal-cobro-recibido').value) || 0;
-        
-        if (parseFloat(recibidoUnico.toFixed(2)) < parseFloat(total.toFixed(2))) {
-          alert("No se puede cerrar la venta. El dinero recibido ($" + recibidoUnico.toFixed(2) + ") no cubre el total de la deuda ($" + total.toFixed(2) + ").");
-          return;
-        }
-        metodoFinalString = metodoUnico;
-      }
-      
-      const res = await fetchAPI('realizarCobro', { idOrden: id, metodoPago: metodoFinalString });
-      if(res.success) { cerrarModalCobro(); cargarCaja(); } 
-      else { alert("Error: " + res.error); }
-    }
+      restanteSpan.innerText = "$" + restante.toFixed(2);
 
-    async function cargarInventario() {
-      const res = await fetchAPI('obtenerProductos');
-      if(res.success) {
-        const tbody = document.getElementById('productos-table-body');
-        tbody.innerHTML = "";
-        res.data.forEach(p => {
-          const descEscapada = p.descripcion ? p.descripcion.replace(/'/g, "\\'") : '';
-          tbody.innerHTML += `
-            <tr>
-              <td><span style='font-size:11px; font-weight:bold; background:#eee; padding:3px 6px;'>${p.categoria}</span></td>
-              <td><strong>${p.nombre}</strong></td>
-              <td><span style="font-size:12px; color:var(--text-muted);">${p.descripcion || ''}</span></td>
-              <td>$${p.precio.toFixed(2)}</td><td>${p.activo}</td>
-              <td>
-                <button class="btn btn-secondary" style="padding:4px 8px; font-size:12px;" onclick="editarProductoForm('${p.id}', '${p.categoria}', '${p.nombre}', ${p.precio}, '${p.activo}', '${descEscapada}')">✏️</button>
-                <button class="btn btn-danger" style="padding:4px 8px; font-size:12px;" onclick="eliminarProductoMenu('${p.id}')">❌</button>
-              </td>
-            </tr>
-          `;
+      if(pagosAcumulados.length > 0) {
+        container.style.display = 'block';
+        container.innerHTML = "<strong>Pagos agregados:</strong><br>";
+        pagosAcumulados.forEach((p, idx) => {
+          container.innerHTML += `${p.metodo}: $${p.monto.toFixed(2)} <button style="color:red; border:none; background:none; cursor:pointer;" onclick="eliminarPagoLista(${idx})">❌</button><br>`;
         });
-        filtrarTablaProductos();
+      } else {
+        container.style.display = 'none';
+        container.innerHTML = "";
+      }
+
+      let recibidoActual = parseFloat(document.getElementById('modal-cobro-recibido').value) || 0;
+      if(pagosAcumulados.length === 0) {
+        let cambio = recibidoActual - totalOrdenActual;
+        document.getElementById('modal-cobro-cambio').innerText = cambio > 0 ? "$" + cambio.toFixed(2) : "$0.00";
+      } else {
+        let cambio = recibidoActual - restante;
+        document.getElementById('modal-cobro-cambio').innerText = cambio > 0 ? "$" + cambio.toFixed(2) : "$0.00";
       }
     }
 
-    function filtrarTablaProductos() {
-      const filterCat = document.getElementById('filtro-tabla-cat').value.toLowerCase();
-      const filterNom = document.getElementById('filtro-tabla-nom').value.toLowerCase();
-      const filterPre = document.getElementById('filtro-tabla-pre').value.toLowerCase();
+    function calcularCambioCaja() {
+      actualizarUIpagosMultiples();
+    }
+
+    function confirmarCobroFinal() {
+      let id = document.getElementById('modal-cobro-id').value;
+      let metodoFinal = "";
+
+      let totalAbonado = pagosAcumulados.reduce((sum, p) => sum + p.monto, 0);
       
-      const trs = document.getElementById('productos-table-body').getElementsByTagName('tr');
-      for (let i = 0; i < trs.length; i++) {
-        let tdCat = trs[i].getElementsByTagName('td')[0].innerText.toLowerCase();
-        let tdNom = trs[i].getElementsByTagName('td')[1].innerText.toLowerCase();
-        let tdPre = trs[i].getElementsByTagName('td')[3].innerText.toLowerCase();
+      if(pagosAcumulados.length === 0) {
+        let metodoUnico = document.getElementById('modal-cobro-metodo').value;
+        metodoFinal = metodoUnico;
+      } else {
+        let montoActual = parseFloat(document.getElementById('modal-cobro-recibido').value) || 0;
+        if(montoActual > 0) {
+           let metodoActualSelect = document.getElementById('modal-cobro-metodo').value;
+           let restante = totalOrdenActual - totalAbonado;
+           if(montoActual > restante) montoActual = restante;
+           pagosAcumulados.push({ metodo: metodoActualSelect, monto: montoActual });
+        }
         
-        if (tdCat.includes(filterCat) && tdNom.includes(filterNom) && tdPre.includes(filterPre)) {
-          trs[i].style.display = "";
+        totalAbonado = pagosAcumulados.reduce((sum, p) => sum + p.monto, 0);
+        if(totalAbonado < totalOrdenActual - 0.05) {
+           alert("El total abonado ($" + totalAbonado.toFixed(2) + ") es menor al total de la orden ($" + totalOrdenActual.toFixed(2) + "). Falta cubrir $" + (totalOrdenActual - totalAbonado).toFixed(2));
+           return;
+        }
+
+        let partes = pagosAcumulados.map(p => p.metodo + ":" + p.monto.toFixed(2));
+        metodoFinal = partes.join("; ");
+      }
+
+      apiCall('realizarCobro', [id, metodoFinal, usuarioGlobal], res => {
+        if(res.success) {
+           cerrarModalCobro();
+           cargarCaja();
+           alert("Cobro realizado con éxito.");
         } else {
-          trs[i].style.display = "none";
+           alert("Error al procesar el cobro: " + res.error);
         }
-      }
-    }
-
-    async function guardarFormProducto() {
-      const prod = {
-        id: document.getElementById('prod-id').value,
-        categoria: document.getElementById('prod-cat').value,
-        nombre: document.getElementById('prod-nombre').value.trim(),
-        precio: parseFloat(document.getElementById('prod-precio').value),
-        activo: document.getElementById('prod-activo').value,
-        descripcion: document.getElementById('prod-descripcion').value.trim()
-      };
-      if(!prod.nombre || isNaN(prod.precio)) return;
-      
-      const res = await fetchAPI('guardarProducto', { producto: prod });
-      if(res.success) { 
-        limpiarFormProducto(); 
-        cargarInventario(); 
-        cargarCatalogoInicial(); 
-      }
-    }
-
-    function editarProductoForm(id, cat, nombre, precio, activo, descripcion) {
-      document.getElementById('prod-id').value = id;
-      let selObj = document.getElementById('prod-cat');
-      let found = Array.from(selObj.options).some(opt => opt.value === cat);
-      if(!found) selObj.innerHTML += `<option value="${cat}">${cat}</option>`;
-      
-      document.getElementById('prod-cat').value = cat;
-      document.getElementById('prod-nombre').value = nombre;
-      document.getElementById('prod-precio').value = precio;
-      document.getElementById('prod-activo').value = activo;
-      document.getElementById('prod-descripcion').value = descripcion || "";
-      document.getElementById('prod-form-title').innerText = "Editar Producto ✏️";
-    }
-
-    function limpiarFormProducto() {
-      document.getElementById('prod-id').value = "";
-      document.getElementById('prod-nombre').value = "";
-      document.getElementById('prod-precio').value = "";
-      document.getElementById('prod-descripcion').value = "";
-      document.getElementById('prod-activo').value = "SÍ";
-      document.getElementById('prod-form-title').innerText = "Agregar / Editar Producto";
-      actualizarDropdownCategorias(); 
-    }
-
-    async function eliminarProductoMenu(id) {
-      if(confirm("¿Eliminar este producto?")) { 
-        const res = await fetchAPI('eliminarProducto', { idProducto: id });
-        if (res.success) {
-          cargarInventario(); 
-          cargarCatalogoInicial(); 
-        }
-      }
-    }
-
-    async function cargarReportes() {
-      const res = await fetchAPI('obtenerReporteFinanciero');
-      if(res.success) {
-        const d = res.data;
-        const cajaInic = d.cajaInicial || 0;
-        const efecHoy = d.distribucionPagoHoy["Efectivo"] || 0;
-        
-        document.getElementById('rep-caja-inicial').innerText = "$" + cajaInic.toFixed(2);
-        document.getElementById('rep-dia').innerText = "$" + d.corteDia.toFixed(2);
-        document.getElementById('rep-total-caja').innerText = "$" + (cajaInic + efecHoy).toFixed(2);
-        document.getElementById('rep-semana').innerText = "$" + d.corteSemanal.toFixed(2);
-        document.getElementById('rep-mes').innerText = "$" + d.corteMensual.toFixed(2);
-        document.getElementById('rep-pago-efectivo').innerText = "$" + efecHoy.toFixed(2);
-        document.getElementById('rep-pago-tarjeta').innerText = "$" + (d.distribucionPagoHoy["Tarjeta"] || 0).toFixed(2);
-        document.getElementById('rep-pago-transf').innerText = "$" + (d.distribucionPagoHoy["Transferencia"] || 0).toFixed(2);
-      }
-    }
-
-    function generarArchivoCierre(texto, fechaHistorial, horaHistorial) {
-      let fechaStr, horaStr;
-      if (fechaHistorial && horaHistorial) {
-        fechaStr = fechaHistorial;
-        horaStr = horaHistorial.replace(/:/g, '-');
-      } else {
-        const fecha = new Date();
-        fechaStr = fecha.getFullYear() + "-" + (fecha.getMonth()+1).toString().padStart(2, '0') + "-" + fecha.getDate().toString().padStart(2, '0');
-        horaStr = fecha.getHours().toString().padStart(2, '0') + "-" + fecha.getMinutes().toString().padStart(2, '0');
-      }
-      
-      const nombreArchivo = "Cierre_Caja_" + fechaStr + "_" + horaStr + ".txt";
-      const blob = new Blob([texto], { type: 'text/plain;charset=utf-8' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = nombreArchivo;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-    }
-
-    async function ejecutarCierreVentaReal() {
-      const efecRealInput = prompt("Ingrese el dinero total en EFECTIVO FÍSICO que se encuentra actualmente en caja para validar el cierre:");
-      if (efecRealInput === null) return; 
-      
-      const efectivoReal = parseFloat(efecRealInput);
-      if (isNaN(efectivoReal) || efectivoReal < 0) {
-        alert("Por favor, ingrese un monto de efectivo físico válido.");
-        return;
-      }
-      
-      const res = await fetchAPI('registrarCierreCaja', { efectivoReal: efectivoReal });
-      if (res.success) {
-        alert(res.message + "\n\nEl reporte se ha guardado en el Historial de Cierres y puede descargarse desde ahí.");
-        
-        let nuevaCajaInput = prompt("Registros del día reiniciados con éxito.\n\n¿Con cuánto dinero (Caja Inicial / Fondo) se comienza el siguiente turno/día?");
-        while (nuevaCajaInput !== null && (isNaN(parseFloat(nuevaCajaInput)) || parseFloat(nuevaCajaInput) < 0)) {
-          alert("Monto inválido. Ingrese un número mayor o igual a 0.");
-          nuevaCajaInput = prompt("¿Con cuánto dinero (Caja Inicial / Fondo) se comienza el siguiente turno/día?");
-        }
-        
-        const nuevaCaja = nuevaCajaInput !== null ? parseFloat(nuevaCajaInput) : 0;
-        
-        const res2 = await fetchAPI('establecerCajaInicial', { monto: nuevaCaja });
-        if(res2.success) {
-          alert("¡Nueva Caja Inicial configurada en $" + nuevaCaja.toFixed(2) + "!");
-          cargarReportes();
-          cargarHistorialCortes();
-        }
-      } else {
-        alert("Error al procesar el cierre: " + res.error);
-      }
-    }
-
-    function descargarReporteHistorial(fecha, hora) {
-      const reporte = datosHistorialCortes.find(r => r.fecha === fecha && r.hora === hora);
-      if (reporte && reporte.reporteTexto) {
-        generarArchivoCierre(reporte.reporteTexto, fecha, hora);
-      } else {
-        alert("No hay reporte de texto guardado para este cierre.");
-      }
-    }
-
-    // --- CARGAR Y FILTRAR HISTORIAL DE CIERRES ---
-    async function cargarHistorialCortes() {
-      document.getElementById('filtro-fecha-cierre-inicio').value = '';
-      document.getElementById('filtro-fecha-cierre-fin').value = '';
-      const res = await fetchAPI('obtenerHistorialCortes');
-      if(res.success) {
-        datosHistorialCortes = res.data;
-        renderHistorialCortes(datosHistorialCortes);
-      }
-    }
-
-    function renderHistorialCortes(datos) {
-      const tbody = document.getElementById('historial-cortes-body');
-      tbody.innerHTML = "";
-      if(datos.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; color:var(--text-muted);">No hay cierres de caja registrados aún.</td></tr>`;
-        return;
-      }
-      const datosInvertidos = [...datos].reverse();
-      datosInvertidos.forEach(d => {
-        let colorDif = d.diferencia > 0 ? "var(--warning-color)" : (d.diferencia < 0 ? "red" : "var(--success-color)");
-        tbody.innerHTML += `
-          <tr>
-            <td>${d.fecha}</td>
-            <td>${d.hora}</td>
-            <td>$${d.cajaInicial.toFixed(2)}</td>
-            <td>$${d.ventaTotal.toFixed(2)}</td>
-            <td>$${d.ventasEfectivoSistema.toFixed(2)}</td>
-            <td>$${d.ventasTarjeta.toFixed(2)}</td>
-            <td>$${d.ventasTransferencia.toFixed(2)}</td>
-            <td>$${d.efectivoReal.toFixed(2)}</td>
-            <td style="color:${colorDif}; font-weight:bold;">$${d.diferencia.toFixed(2)}</td>
-            <td>
-              <button class="btn btn-secondary" style="padding:4px 8px; font-size:12px;" onclick="descargarReporteHistorial('${d.fecha}', '${d.hora}')">📄 Descargar</button>
-            </td>
-          </tr>
-        `;
       });
     }
 
-    function filtrarHistorialCortes() {
-      const inicio = document.getElementById('filtro-fecha-cierre-inicio').value;
-      const fin = document.getElementById('filtro-fecha-cierre-fin').value;
-      if(!inicio && !fin) return renderHistorialCortes(datosHistorialCortes);
-      
-      const filtrados = datosHistorialCortes.filter(d => {
-        let cumple = true;
-        if(inicio) cumple = cumple && (d.fecha >= inicio);
-        if(fin) cumple = cumple && (d.fecha <= fin);
-        return cumple;
-      });
-      renderHistorialCortes(filtrados);
+    function cancelarOrden(id) {
+       let m = prompt("Indique el motivo de la cancelación:");
+       if(m) {
+          apiCall('cancelarOrdenCaja', [id, m, usuarioGlobal], r => { if(r.success) cargarCaja(); });
+       }
     }
 
-    // --- CARGAR Y FILTRAR REGISTROS ELIMINADOS (CANCELADOS) ---
-    async function cargarRegistrosEliminados() {
-      document.getElementById('filtro-fecha-elim-inicio').value = '';
-      document.getElementById('filtro-fecha-elim-fin').value = '';
-      const res = await fetchAPI('obtenerRegistrosEliminados');
-      if(res.success) {
-        datosRegistrosEliminados = res.data;
-        renderRegistrosEliminados(datosRegistrosEliminados);
-      }
+    function imprimirTicket(id) {
+        apiCall('obtenerTicketPDF', [id], res => {
+           if(res.success) {
+               let pdf = "data:application/pdf;base64," + res.data;
+               let w = window.open("");
+               w.document.write("<iframe width='100%' height='100%' src='" + pdf + "'></iframe>");
+           } else {
+               alert("Error al generar el ticket: " + res.error);
+           }
+        });
     }
 
-    function renderRegistrosEliminados(datos) {
-      const tbody = document.getElementById('registros-eliminados-body');
-      tbody.innerHTML = "";
-      if(datos.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">No hay órdenes canceladas.</td></tr>`;
-        return;
-      }
-      const datosInvertidos = [...datos].reverse();
-      datosInvertidos.forEach(d => {
-        tbody.innerHTML += `
-          <tr>
-            <td><strong>${d.id}</strong></td>
-            <td>${d.fecha}</td>
-            <td>${d.hora}</td>
-            <td>${d.mesa}</td>
-            <td style="color:var(--primary-color); font-weight:bold;">$${d.total.toFixed(2)}</td>
-            <td style="font-style:italic; font-size:12px;">${d.motivo}</td>
-          </tr>
-        `;
-      });
+    function cargarUsuarios() {
+        apiCall('obtenerUsuarios', [], res => {
+           if(res.success) {
+               let tbody = document.getElementById('usuarios-table-body');
+               tbody.innerHTML = "";
+               res.data.forEach(u => {
+                   tbody.innerHTML += `
+                     <tr>
+                        <td>${u.usuario}</td>
+                        <td>${u.rol}</td>
+                        <td>
+                           <button class="btn btn-secondary" style="padding:4px 8px; font-size:11px;" onclick="editarUsuario('${u.usuario}', '${u.rol}')">✏️ Editar</button>
+                           <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="eliminarUsuario('${u.usuario}')">❌ Eliminar</button>
+                           <button class="btn btn-primary" style="padding:4px 8px; font-size:11px; margin-left:5px;" onclick="descargarMovimientosUsuario('${u.usuario}')">📄 PDF Movs</button>
+                        </td>
+                     </tr>
+                   `;
+               });
+           }
+        });
+    }
+    
+    function editarUsuario(u, r) {
+        document.getElementById('usu-id-original').value = u;
+        document.getElementById('usu-nombre').value = u;
+        document.getElementById('usu-rol').value = r;
+        document.getElementById('usu-form-title').innerText = "Editar Usuario";
     }
 
-    function filtrarRegistrosEliminados() {
-      const inicio = document.getElementById('filtro-fecha-elim-inicio').value;
-      const fin = document.getElementById('filtro-fecha-elim-fin').value;
-      if(!inicio && !fin) return renderRegistrosEliminados(datosRegistrosEliminados);
-      
-      const filtrados = datosRegistrosEliminados.filter(d => {
-        let cumple = true;
-        if(inicio) cumple = cumple && (d.fecha >= inicio);
-        if(fin) cumple = cumple && (d.fecha <= fin);
-        return cumple;
-      });
-      renderRegistrosEliminados(filtrados);
+    function limpiarFormUsuario() {
+        document.getElementById('usu-id-original').value = "";
+        document.getElementById('usu-nombre').value = "";
+        document.getElementById('usu-pass').value = "";
+        document.getElementById('usu-form-title').innerText = "Agregar / Editar Usuario";
     }
+
+    function guardarFormUsuario() {
+        let orig = document.getElementById('usu-id-original').value;
+        let u = document.getElementById('usu-nombre').value;
+        let p = document.getElementById('usu-pass').value;
+        let r = document.getElementById('usu-rol').value;
+        if(!u) return;
+        
+        apiCall('guardarUsuario', [{idOriginal: orig, usuario: u, password: p, rol: r}, usuarioGlobal], res => {
+            if(res.success) { cargarUsuarios(); limpiarFormUsuario(); }
+            else alert(res.error);
+        });
+    }
+
+    function eliminarUsuario(u) {
+        if(confirm("¿Seguro que deseas eliminar este usuario?")) {
+            apiCall('eliminarUsuarioInfo', [u, usuarioGlobal], res => {
+                if(res.success) cargarUsuarios();
+                else alert(res.error);
+            });
+        }
+    }
+
+    function descargarMovimientosUsuario(usuario) {
+        apiCall('generarReporteMovimientosUsuarioPDF', [usuario], res => {
+           if(res.success) {
+               let pdf = "data:application/pdf;base64," + res.data;
+               let w = window.open("");
+               w.document.write("<iframe width='100%' height='100%' src='" + pdf + "'></iframe>");
+           } else {
+               alert("Hubo un error generando el PDF de movimientos: " + res.error);
+           }
+        });
+    }
+
+    function cargarInventario() {}
+    function cargarReportes() {}
+    function cargarHistorialCortes() {}
+    function cargarRegistrosEliminados() {}
+    function ejecutarCierreVentaReal() {}
+    function descargarHistoricoHojasPDF() {}
+    function guardarFormProducto() {}
   </script>
 </body>
 </html>
