@@ -1,1418 +1,1530 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-  <base target="_top">
-  <meta charset="UTF-8">
-  <style>
-    :root {
-      --primary-color: #d32f2f;
-      --primary-dark: #9a0007;
-      --accent-color: #ffb300;
-      --dark-bg: #1e1e1e;
-      --light-bg: #f5f5f5;
-      --surface-color: #ffffff;
-      --text-main: #333333;
-      --text-muted: #757575;
-      --success-color: #388e3c;
-      --warning-color: #f57c00;
-      --border-radius: 8px;
-      --box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-      --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: var(--font-family); }
-    body { background-color: var(--light-bg); color: var(--text-main); display: block; min-height: 100vh; }
-
-    header {
-      background-color: var(--dark-bg);
-      color: #fff;
-      padding: 15px 20px;
-      display: block;
-      border-bottom: 4px solid var(--primary-color);
-    }
-    
-    .header-container { display: table; width: 100%; }
-    .header-logo { display: table-cell; vertical-align: middle; font-size: 22px; font-weight: bold; letter-spacing: 1px; }
-    .header-logo span { color: var(--accent-color); }
-    .nav-tabs { display: table-cell; text-align: right; vertical-align: middle; }
-
-    .nav-btn {
-      background: transparent;
-      border: none;
-      color: #ccc;
-      padding: 10px 15px;
-      margin-left: 5px;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      border-radius: var(--border-radius);
-      transition: all 0.3s ease;
-      display: none; 
-    }
-    .nav-btn:hover, .nav-btn.active { color: #fff; background-color: var(--primary-color); }
-
-    .container { padding: 20px; max-width: 1400px; margin: 0 auto; }
-    .view-section { display: none; }
-    .view-section.active { display: block; }
-
-    .row-layout { display: table; width: 100%; table-layout: fixed; }
-    .col-7 { display: table-cell; width: 60%; padding-right: 20px; vertical-align: top; }
-    .col-5 { display: table-cell; width: 40%; vertical-align: top; }
-
-    .card { background: var(--surface-color); border-radius: var(--border-radius); padding: 20px; box-shadow: var(--box-shadow); margin-bottom: 20px; }
-    .card-title { font-size: 18px; font-weight: 700; margin-bottom: 15px; color: var(--dark-bg); border-left: 5px solid var(--primary-color); padding-left: 10px; }
-
-    .category-filter { margin-bottom: 15px; }
-    .filter-chip { display: inline-block; padding: 8px 16px; background-color: #e0e0e0; border-radius: 20px; margin-right: 8px; margin-bottom: 8px; cursor: pointer; font-size: 13px; font-weight: 600; }
-    .filter-chip.active { background-color: var(--dark-bg); color: #fff; }
-
-    .menu-grid { 
-      display: grid; 
-      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); 
-      gap: 12px; 
-      max-height: 600px; 
-      overflow-y: auto; 
-      padding-right: 5px; 
-    }
-    .product-card { 
-      display: flex; 
-      flex-direction: column; 
-      background: #fff; 
-      border: 1px solid #ddd; 
-      border-radius: var(--border-radius); 
-      padding: 12px; 
-      cursor: pointer; 
-      transition: transform 0.2s, box-shadow 0.2s; 
-    }
-    .product-card:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.15); border-color: var(--primary-color); }
-    .product-name { font-weight: bold; font-size: 13px; margin-bottom: 4px; flex-grow: 1; }
-    .product-price { color: var(--primary-color); font-weight: 700; font-size: 14px; margin-top: auto; }
-    .product-cat { font-size: 10px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px; }
-
-    .cart-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-    .cart-table th, .cart-table td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; font-size: 13px; }
-    .cart-table th { font-weight: 600; color: var(--text-muted); }
-    .cart-total-box { background-color: #f9f9f9; padding: 15px; border-radius: var(--border-radius); text-align: right; margin-bottom: 15px; }
-    .total-amount { font-size: 24px; font-weight: 800; color: var(--primary-color); }
-
-    .btn { padding: 12px 20px; border: none; border-radius: var(--border-radius); font-weight: bold; cursor: pointer; font-size: 14px; transition: background 0.2s; }
-    .btn-block { display: block; width: 100%; text-align: center; }
-    .btn-primary { background-color: var(--primary-color); color: #fff; }
-    .btn-primary:hover { background-color: var(--primary-dark); }
-    .btn-success { background-color: var(--success-color); color: #fff; }
-    .btn-secondary { background-color: #e0e0e0; color: #333; }
-    .btn-danger { background-color: #c62828; color: white; }
-
-    .form-group { margin-bottom: 15px; }
-    .form-group label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 13px; }
-    .form-control { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: var(--border-radius); font-size: 14px; }
-
-    .kitchen-container { display: block; }
-    .ticket-card { display: inline-block; width: 31%; margin: 1%; background: white; border-radius: var(--border-radius); box-shadow: var(--box-shadow); vertical-align: top; border-top: 6px solid var(--warning-color); }
-    .ticket-card.En-Cocina, .ticket-card.En.proceso { border-top-color: var(--primary-color); }
-    .ticket-card.Listo { border-top-color: var(--success-color); }
-    .ticket-header { padding: 12px; background: #fdfdfd; border-bottom: 1px solid #eee; }
-    .ticket-id { font-weight: bold; font-size: 14px; }
-    .ticket-time { float: right; color: var(--text-muted); font-size: 11px; }
-    .ticket-mesa { font-size: 16px; font-weight: bold; color: var(--primary-color); margin-top: 4px; }
-    .ticket-body { padding: 12px; min-height: 120px; }
-    .ticket-item { padding: 6px 0; border-bottom: 1px dashed #eee; font-size: 14px; }
-    .ticket-item-qty { font-weight: bold; color: var(--dark-bg); margin-right: 5px; }
-    .ticket-notes { font-size: 12px; color: var(--warning-color); font-style: italic; margin-left: 15px; }
-    .ticket-footer { padding: 10px; background: #fafafa; text-align: center; border-bottom-left-radius: var(--border-radius); border-bottom-right-radius: var(--border-radius); }
-
-    .metrics-row { display: table; width: 100%; margin-bottom: 25px; }
-    .metric-box { display: table-cell; background: white; padding: 20px; text-align: center; border-right: 1px solid #eee; box-shadow: var(--box-shadow); }
-    .metric-box:last-child { border-right: none; }
-    .metric-val { font-size: 26px; font-weight: 800; color: var(--primary-color); margin-top: 8px; }
-    .metric-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; }
-
-    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 1000; }
-    .modal-overlay.active { display: flex; }
-    .modal-content { background: white; padding: 25px; border-radius: var(--border-radius); width: 450px; max-width: 90%; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
-    
-    .table-std { width: 100%; border-collapse: collapse; }
-    .table-std th, .table-std td { padding: 12px; border-bottom: 1px solid #ddd; text-align: left; font-size: 14px; }
-    .table-std th { background: var(--dark-bg); color: white; }
-
-    .filter-inputs-container { display: flex; gap: 10px; margin-bottom: 15px; }
-    .filter-inputs-container input { flex: 1; }
-  </style>
+<base target="_top">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🔥 Birria Express — Sistema de Gestión</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>
+:root{
+  --birria:#C8400A;--birria2:#E85A1F;--birria-dk:#8B2500;
+  --sb:#1A0B06;--sb-txt:#F0D5C0;
+  --bg:#F5EDE4;--card:#fff;--text:#1C0A05;--muted:#7B5040;--border:#E8D5C4;
+  --ok:#15803D;--warn:#B45309;--err:#DC2626;--info:#1D4ED8;--purple:#7C3AED;--teal:#0F766E;
+  --sh:0 2px 12px rgba(28,10,5,.10);--sh2:0 8px 32px rgba(28,10,5,.16);
+  --r:12px;--rs:8px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+/* ── LOGIN ── */
+#login-screen{display:none;min-height:100vh;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,#1A0B06 0%,#3D1A0A 45%,#C8400A 100%);padding:20px}
+.lcard{background:var(--card);border-radius:20px;padding:48px 40px;width:100%;max-width:400px;
+  box-shadow:var(--sh2);text-align:center}
+.llogo{font-family:'Bebas Neue',sans-serif;font-size:52px;color:var(--birria);letter-spacing:5px;line-height:1}
+.lsub{color:var(--muted);font-size:13px;margin-bottom:32px;margin-top:4px}
+.lcard input{width:100%;padding:13px 16px;border:2px solid var(--border);border-radius:var(--rs);
+  font-size:15px;font-family:inherit;color:var(--text);background:#FDFAF8;transition:border-color .2s;margin-bottom:12px}
+.lcard input:focus{outline:none;border-color:var(--birria)}
+.btn-login{width:100%;padding:14px;background:var(--birria);color:#fff;border:none;border-radius:var(--rs);
+  font-size:16px;font-weight:700;font-family:inherit;cursor:pointer;transition:background .2s,transform .1s;margin-top:4px}
+.btn-login:hover{background:var(--birria2)}.btn-login:active{transform:scale(.98)}
+.lerr{color:var(--err);font-size:13px;margin-top:10px;display:none}
+/* ── APP ── */
+#app{display:none;min-height:100vh}
+.layout{display:flex;min-height:100vh}
+/* ── SIDEBAR ── */
+.sb{width:240px;background:var(--sb);color:var(--sb-txt);display:flex;flex-direction:column;
+  position:fixed;top:0;left:0;bottom:0;z-index:100;transition:transform .3s}
+.sb-brand{padding:22px 20px 14px;border-bottom:1px solid rgba(255,255,255,.08)}
+.sb-brand .bname{font-family:'Bebas Neue',sans-serif;font-size:28px;color:#fff;letter-spacing:3px}
+.sb-brand .bsub{font-size:11px;color:rgba(240,213,192,.45);text-transform:uppercase;letter-spacing:1px}
+.sb-user{padding:12px 20px;display:flex;align-items:center;gap:10px;
+  background:rgba(200,64,10,.18);border-bottom:1px solid rgba(255,255,255,.06)}
+.uav{width:32px;height:32px;background:var(--birria);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#fff;flex-shrink:0}
+.uname{font-size:13px;font-weight:600;color:#fff}.urole{font-size:11px;color:rgba(240,213,192,.55);text-transform:capitalize}
+nav.sbnav{flex:1;padding:10px 0;overflow-y:auto}
+.ni{display:flex;align-items:center;gap:11px;padding:11px 20px;cursor:pointer;
+  color:rgba(240,213,192,.7);font-size:14px;font-weight:500;transition:all .18s;
+  position:relative;border:none;background:none;width:100%;text-align:left;font-family:inherit}
+.ni .ico{font-size:18px;width:22px;text-align:center;flex-shrink:0}
+.ni:hover{color:#fff;background:rgba(200,64,10,.18)}
+.ni.active{color:#fff;background:rgba(200,64,10,.28)}
+.ni.active::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--birria2);border-radius:0 2px 2px 0}
+.ni .nbadge{margin-left:auto;background:var(--err);color:#fff;font-size:11px;font-weight:800;
+  padding:1px 6px;border-radius:10px;min-width:20px;text-align:center}
+.sb-bot{padding:10px 12px;border-top:1px solid rgba(255,255,255,.08);display:flex;gap:8px}
+.btn-ref,.btn-out{flex:1;padding:9px 6px;border:none;border-radius:var(--rs);cursor:pointer;
+  font-size:12px;font-weight:700;font-family:inherit;transition:all .2s}
+.btn-ref{background:rgba(200,64,10,.3);color:var(--sb-txt)}.btn-ref:hover{background:rgba(200,64,10,.5)}
+.btn-out{background:rgba(220,38,38,.25);color:#FCA5A5}.btn-out:hover{background:rgba(220,38,38,.45)}
+/* ── MAIN ── */
+.main{margin-left:240px;flex:1;display:flex;flex-direction:column;min-height:100vh}
+.topbar{background:var(--card);border-bottom:1px solid var(--border);padding:14px 24px;
+  display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.tb-title{font-size:19px;font-weight:800;color:var(--text)}
+.tb-r{display:flex;align-items:center;gap:12px}
+.clock{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.hbg{display:none;background:none;border:none;font-size:22px;cursor:pointer;color:var(--text);padding:4px}
+.content{padding:24px;flex:1}
+/* ── OVERLAY ── */
+.sb-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99}
+.sb-ov.open{display:block}
+/* ── CARDS ── */
+.card{background:var(--card);border-radius:var(--r);box-shadow:var(--sh);padding:20px;border:1px solid var(--border)}
+.ch{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px}
+.ct{font-size:16px;font-weight:700}
+/* ── BUTTONS ── */
+.btn{padding:9px 18px;border-radius:var(--rs);border:none;cursor:pointer;font-family:inherit;
+  font-size:14px;font-weight:600;transition:all .18s;display:inline-flex;align-items:center;gap:6px}
+.btn:active{transform:scale(.97)}
+.bp{background:var(--birria);color:#fff}.bp:hover{background:var(--birria2)}
+.bs{background:var(--ok);color:#fff}.bs:hover{background:#166534}
+.bw{background:var(--warn);color:#fff}.bw:hover{background:#92400E}
+.bd{background:var(--err);color:#fff}.bd:hover{background:#B91C1C}
+.bi{background:var(--info);color:#fff}.bi:hover{background:#1E40AF}
+.bpu{background:var(--purple);color:#fff}.bpu:hover{background:#6D28D9}
+.bo{background:transparent;border:2px solid var(--border);color:var(--muted)}
+.bo:hover{border-color:var(--birria);color:var(--birria)}
+.btn-sm{padding:6px 12px;font-size:12px}.btn-xs{padding:3px 8px;font-size:11px}
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;
+  font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}
+.bp_{background:#FEF3C7;color:#92400E}.bip{background:#DBEAFE;color:#1E40AF}
+.br{background:#D1FAE5;color:#065F46}.bbar{background:#EDE9FE;color:#5B21B6}
+.bdel{background:#CCFBF1;color:#134E4A}.bpaid{background:#D1FAE5;color:#065F46}
+.b-admin{background:#FEE2E2;color:#991B1B}.b-waiter{background:#FEF3C7;color:#92400E}
+.b-cook{background:#DBEAFE;color:#1E40AF}.b-cashier{background:#D1FAE5;color:#065F46}
+/* ── FORM ── */
+.fg{margin-bottom:14px}
+.fl{display:block;font-size:12px;font-weight:600;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.fc{width:100%;padding:10px 14px;border:2px solid var(--border);border-radius:var(--rs);
+  font-size:14px;font-family:inherit;color:var(--text);background:#FDFAF8;transition:border-color .2s}
+.fc:focus{outline:none;border-color:var(--birria)}
+.fc::placeholder{color:rgba(123,80,64,.4)}
+textarea.fc{resize:vertical;min-height:70px}select.fc{cursor:pointer}
+/* ── TABLE ── */
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{background:#F5EDE4;padding:10px 14px;text-align:left;font-size:11px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.5px;color:var(--muted);border-bottom:2px solid var(--border);white-space:nowrap}
+td{padding:11px 14px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:none}tr:hover td{background:#FDFAF8}
+/* ── GRID ── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+/* ── STAT ── */
+.stat{background:var(--card);border-radius:var(--r);padding:20px;border:1px solid var(--border);box-shadow:var(--sh)}
+.stl{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.stv{font-size:28px;font-weight:900;color:var(--text);margin:4px 0}
+.sts{font-size:12px;color:var(--muted)}
+/* ── MODAL ── */
+.mov{position:fixed;inset:0;background:rgba(26,11,6,.62);display:none;
+  align-items:center;justify-content:center;z-index:1000;padding:16px}
+.mov.open{display:flex}
+.modal{background:var(--card);border-radius:var(--r);width:100%;max-width:540px;
+  max-height:90vh;overflow-y:auto;box-shadow:var(--sh2);animation:mIn .2s ease}
+@keyframes mIn{from{transform:scale(.95);opacity:0}to{transform:scale(1);opacity:1}}
+.mh{padding:18px 24px 14px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between}
+.mt{font-size:17px;font-weight:700}
+.mc{background:none;border:none;cursor:pointer;font-size:22px;color:var(--muted);padding:2px}
+.mc:hover{color:var(--err)}
+.mb{padding:18px 24px}
+.mf{padding:14px 24px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end}
+/* ── NOTIFICATIONS ── */
+#notif-box{position:fixed;top:76px;right:20px;z-index:2000;
+  display:flex;flex-direction:column;gap:8px;max-width:340px;pointer-events:none}
+.notif{background:var(--card);border-radius:var(--rs);padding:13px 14px;
+  box-shadow:var(--sh2);border-left:4px solid var(--birria);
+  animation:nIn .3s ease;display:flex;align-items:flex-start;gap:10px;pointer-events:auto}
+@keyframes nIn{from{transform:translateX(110%);opacity:0}to{transform:translateX(0);opacity:1}}
+.notif.nbar{border-left-color:var(--purple)}
+.nicon{font-size:18px;flex-shrink:0;margin-top:1px}
+.ntxt{flex:1}.nttl{font-weight:700;font-size:13px}.nmsg{font-size:12px;color:var(--muted);margin-top:1px}
+.nclose{background:none;border:none;cursor:pointer;font-size:16px;color:var(--muted);flex-shrink:0;font-family:inherit}
+/* ── CONFIRM ── */
+.cov{position:fixed;inset:0;background:rgba(26,11,6,.62);
+  display:none;align-items:center;justify-content:center;z-index:2000;padding:16px}
+.cov.open{display:flex}
+.cbox{background:var(--card);border-radius:var(--r);padding:28px 32px;
+  width:100%;max-width:400px;text-align:center;box-shadow:var(--sh2)}
+.cbox h3{font-size:18px;font-weight:700;margin-bottom:8px}
+.cbox p{font-size:14px;color:var(--muted);margin-bottom:20px}
+.cacts{display:flex;gap:10px;justify-content:center}
+/* ── ORDERS VIEW ── */
+.order-layout{display:grid;grid-template-columns:1fr 380px;gap:20px;align-items:start}
+.prod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:9px}
+.pb{background:#FDFAF8;border:2px solid var(--border);border-radius:var(--rs);
+  padding:13px 10px;text-align:center;cursor:pointer;transition:all .18s;font-family:inherit}
+.pb:hover{border-color:var(--birria);background:#FFF5F0}
+.pb .pn{font-size:13px;font-weight:600;color:var(--text);display:block}
+.pb .pp{font-size:12px;color:var(--birria);font-weight:700;display:block;margin-top:2px}
+.pb .pc{font-size:10px;color:var(--muted);display:block;margin-top:1px}
+.cart-item{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;
+  padding:9px 11px;background:#FDFAF8;border:1px solid var(--border);border-radius:var(--rs)}
+.cin{min-width:0}
+.cname{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cprice{font-size:12px;color:var(--muted)}
+.qc{display:flex;align-items:center;gap:6px}
+.qb{width:26px;height:26px;border:none;background:var(--border);border-radius:4px;
+  cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:background .15s}
+.qb:hover{background:var(--birria);color:#fff}
+.qv{font-weight:700;min-width:18px;text-align:center;font-size:14px}
+.cr{background:none;border:none;cursor:pointer;color:var(--err);font-size:18px;padding:0 2px}
+.ctrow{display:flex;justify-content:space-between;align-items:center;
+  padding:12px 0;border-top:2px solid var(--border);margin-top:8px}
+.ctamt{font-size:24px;font-weight:900;color:var(--birria)}
+/* ── BAR ALERT ── */
+.bar-alert{background:linear-gradient(90deg,#4C1D95,#7C3AED);color:#fff;
+  padding:12px 20px;border-radius:var(--rs);display:flex;align-items:flex-start;gap:12px;
+  margin-bottom:16px;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.82}}
+/* ── KITCHEN ── */
+.kgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px}
+.ocard{background:var(--card);border-radius:var(--r);border:1px solid var(--border);
+  box-shadow:var(--sh);overflow:hidden;transition:box-shadow .2s}
+.ocard:hover{box-shadow:var(--sh2)}
+.och{padding:13px 15px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+.oid{font-size:11px;font-weight:700;color:var(--muted)}
+.oclient{font-size:15px;font-weight:700}
+.ocb{padding:13px 15px}
+.oitems{list-style:none;display:flex;flex-direction:column;gap:4px}
+.oitems li{font-size:13px}.oitems .oq{font-weight:700;color:var(--birria)}
+.oitems .inotice{font-size:11px;color:var(--muted);font-style:italic;padding-left:10px}
+.owrk{font-size:11px;color:var(--muted);margin-top:8px}
+.ocf{padding:11px 15px;border-top:1px solid var(--border)}
+.sbts{display:flex;gap:6px;flex-wrap:wrap}
+.ocard[data-s="pending"]{border-left:4px solid #F59E0B}
+.ocard[data-s="in-process"]{border-left:4px solid #3B82F6}
+.ocard[data-s="ready"]{border-left:4px solid #10B981}
+.ocard[data-s="bar"]{border-left:4px solid #8B5CF6}
+.ocard[data-s="delivered"]{border-left:4px solid #0F766E}
+.ocard[data-s="paid"]{border-left:4px solid #9CA3AF}
+/* ── CASHIER ── */
+.cslayout{display:grid;grid-template-columns:1fr 400px;gap:20px;align-items:start}
+.cord{background:var(--card);border-radius:var(--rs);border:1px solid var(--border);
+  padding:13px;cursor:pointer;transition:all .18s;margin-bottom:9px}
+.cord:hover,.cord.sel{border-color:var(--birria);background:#FFF8F5}
+.cord.sel{box-shadow:0 0 0 2px var(--birria)}
+.payinp{width:100%;padding:11px 14px;border:2px solid var(--border);border-radius:var(--rs);
+  font-size:16px;font-weight:700;font-family:inherit;color:var(--text);background:#FDFAF8;transition:border-color .2s}
+.payinp:focus{outline:none;border-color:var(--birria)}
+.prow{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:14px}
+.prow.total{font-size:18px;font-weight:900;border-top:2px solid var(--border);margin-top:6px;padding-top:8px}
+.prow.change{color:var(--ok);font-weight:700}.prow.pend{color:var(--err);font-weight:700}
+.psum{background:#F5EDE4;border-radius:var(--rs);padding:14px;margin-top:12px}
+.pil{font-size:13px;font-weight:600;color:var(--muted);white-space:nowrap;width:115px;flex-shrink:0}
+/* ── TICKET ── */
+.ticket{font-family:'Courier New',monospace;background:#fff;border:1px solid #ddd;
+  border-radius:var(--rs);padding:20px;font-size:12px;line-height:1.7}
+.tcenter{text-align:center}.ttitle{font-size:16px;font-weight:bold}
+.tdiv{border:none;border-top:1px dashed #999;margin:8px 0}
+/* ── PRODUCTS ── */
+.pflt{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;align-items:flex-end}
+.pflt .fc{max-width:220px}
+/* ── CORTE ── */
+.cmeths{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.mcard{background:#FDFAF8;border:1px solid var(--border);border-radius:var(--rs);padding:13px;text-align:center}
+.mcard .mamt{font-size:16px;font-weight:800}.mcard .mlbl{font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:600}
+.mcard.mc{border-left:3px solid var(--ok)}.mcard.mk{border-left:3px solid var(--info)}.mcard.mt{border-left:3px solid var(--purple)}
+.chkbox{background:#FDFAF8;border:2px solid var(--border);border-radius:var(--r);padding:18px}
+.chkbox.ok{border-color:var(--ok)}.chkbox.over{border-color:var(--warn)}.chkbox.short{border-color:var(--err)}
+/* ── FILTER PILLS ── */
+.fpills{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.fpill{padding:5px 14px;border-radius:20px;border:2px solid var(--border);cursor:pointer;
+  font-size:12px;font-weight:600;font-family:inherit;background:#FDFAF8;color:var(--muted);transition:all .18s}
+.fpill.active{border-color:var(--birria);color:var(--birria);background:#FFF5F0}
+.cchip{padding:4px 12px;border-radius:20px;border:2px solid var(--border);cursor:pointer;
+  font-size:12px;font-weight:600;font-family:inherit;background:#FDFAF8;color:var(--muted);transition:all .18s}
+.cchip.active{border-color:var(--birria);background:#FFF5F0;color:var(--birria)}
+.chip-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+/* ── MISC ── */
+.empty{text-align:center;padding:40px 20px;color:var(--muted)}
+.empty .ei{font-size:44px;margin-bottom:10px}.empty h3{font-size:15px;font-weight:600;margin-bottom:3px}
+.itext{font-size:12px;color:var(--muted);margin-top:4px}
+.scrl{max-height:420px;overflow-y:auto}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-thumb{background:rgba(200,64,10,.3);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:rgba(200,64,10,.6)}
+/* ── RESPONSIVE ── */
+@media(max-width:960px){
+  .order-layout{grid-template-columns:1fr}
+  .cslayout{grid-template-columns:1fr}
+  .g3{grid-template-columns:1fr 1fr}
+  .g4{grid-template-columns:1fr 1fr}
+}
+@media(max-width:768px){
+  .sb{transform:translateX(-100%)}.sb.open{transform:translateX(0)}
+  .main{margin-left:0}.hbg{display:block}
+  .content{padding:14px}.g2{grid-template-columns:1fr}.g3{grid-template-columns:1fr}
+  .g4{grid-template-columns:1fr 1fr}.kgrid{grid-template-columns:1fr}
+  .cmeths{grid-template-columns:1fr 1fr}
+}
+@media(max-width:480px){
+  .g4{grid-template-columns:1fr}.cmeths{grid-template-columns:1fr}
+  .modal{max-width:100%}
+  .mov{align-items:flex-end;padding:0}.modal{border-radius:var(--r) var(--r) 0 0;max-height:95vh}
+}
+@media print{
+  .sb,.topbar,.hbg,.btn,#notif-box{display:none!important}
+  body{background:#fff}.ticket{border:none}
+}
+</style>
 </head>
 <body>
 
-  <!-- MODAL DE INICIO DE SESIÓN -->
-  <div id="login-view" style="position:fixed; top:0; left:0; width:100%; height:100%; background:var(--dark-bg); z-index:9999; display:flex; align-items:center; justify-content:center;">
-    <div class="card" style="width: 350px; background:white; color:var(--text-main);">
-      <h2 style="text-align:center; color:var(--primary-color); margin-bottom: 20px;">Iniciar Sesión</h2>
-      <div class="form-group">
-        <label>Usuario</label>
-        <input type="text" id="login-user" class="form-control" placeholder="Nombre de usuario" onkeydown="if(event.key === 'Enter') intentarLogin()">
-      </div>
-      <div class="form-group">
-        <label>Contraseña</label>
-        <input type="password" id="login-pass" class="form-control" placeholder="Contraseña" onkeydown="if(event.key === 'Enter') intentarLogin()">
-      </div>
-      <button class="btn btn-primary btn-block" onclick="intentarLogin()">Entrar</button>
-      <div id="login-error" style="color:red; margin-top:15px; display:none; text-align:center; font-weight:bold;">Credenciales incorrectas</div>
-    </div>
+<!-- LOADER DB -->
+<div id="loader" style="position:fixed;inset:0;background:#1A0B06;color:#C8400A;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:40px;letter-spacing:3px;">
+  🔥 CARGANDO SISTEMA...
+  <div style="font-family:'Inter',sans-serif;font-size:14px;color:#F0D5C0;margin-top:10px;letter-spacing:1px;font-weight:300;">Sincronizando con Base de Datos</div>
+</div>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="lcard">
+    <div class="llogo">🔥 BIRRIA</div>
+    <div class="lsub">Sistema de Gestión · Restaurante</div>
+    <input type="text" id="lu" placeholder="Usuario" autocomplete="username"/>
+    <input type="password" id="lp" placeholder="Contraseña" autocomplete="current-password"
+      onkeydown="if(event.key==='Enter')doLogin()"/>
+    <button class="btn-login" onclick="doLogin()">Iniciar Sesión</button>
+    <div class="lerr" id="lerr">Usuario o contraseña incorrectos</div>
   </div>
+</div>
 
-  <header>
-    <div class="header-container">
-      <div class="header-logo">LOS CRUDOS <span>BIRRIERIA POS</span></div>
-      <div class="nav-tabs">
-        <button class="nav-btn active" id="btn-nav-ordenes" onclick="switchView('view-ordenes')">Nueva Orden</button>
-        <button class="nav-btn" id="btn-nav-cocina" onclick="switchView('view-cocina'); cargarCocina();">Pantalla Cocina</button>
-        <button class="nav-btn" id="btn-nav-caja" onclick="switchView('view-caja'); cargarCaja();">Caja / Cobros</button>
-        <button class="nav-btn" id="btn-nav-productos" onclick="switchView('view-productos'); cargarInventario();">Productos</button>
-        <button class="nav-btn" id="btn-nav-reportes" onclick="switchView('view-reportes'); cargarReportes(); cargarHistorialCortes(); cargarRegistrosEliminados();">Cortes y Ventas</button>
-        <button class="nav-btn" id="btn-nav-usuarios" onclick="switchView('view-usuarios'); cargarUsuarios();">Usuarios</button>
-        <button class="nav-btn" id="btn-refresh-app" onclick="refrescarTodaLaApp()" style="background-color: var(--accent-color); color: #000; font-weight: bold;">🔄 Actualizar</button>
+<!-- APP -->
+<div id="app">
+  <div class="layout">
+    <div class="sb-ov" id="sb-ov" onclick="closeSB()"></div>
+    <!-- SIDEBAR -->
+    <aside class="sb" id="sidebar">
+      <div class="sb-brand">
+        <div class="bname">🔥 BIRRIA</div>
+        <div class="bsub">Sistema de Gestión</div>
       </div>
-    </div>
-  </header>
-
-  <div class="container">
-
-    <!-- MÓDULO 1: LEVANTAR ORDEN -->
-    <section id="view-ordenes" class="view-section">
-      <div class="row-layout">
-        <div class="col-7">
-          <div class="card">
-            <div class="card-title">Menú Digital</div>
-            <div class="category-filter" id="cat-filters"></div>
-            <div class="menu-grid" id="menu-container">
-              <p>Cargando menú de platillos...</p>
-            </div>
-          </div>
+      <div class="sb-user">
+        <div class="uav" id="uav">B</div>
+        <div><div class="uname" id="uname">Brian</div><div class="urole" id="urole">Administrador</div></div>
+      </div>
+      <nav class="sbnav">
+        <button class="ni active" data-v="orders" onclick="go('orders')"><span class="ico">📋</span>Pedidos<span class="nbadge" id="b-bar" style="display:none">●</span></button>
+        <button class="ni" data-v="kitchen" onclick="go('kitchen')"><span class="ico">👨‍🍳</span>Cocina<span class="nbadge" id="b-kit"></span></button>
+        <button class="ni" data-v="cashier" onclick="go('cashier')"><span class="ico">🏧</span>Caja<span class="nbadge" id="b-cas"></span></button>
+        <button class="ni" data-v="products" onclick="go('products')"><span class="ico">🍖</span>Productos</button>
+        <button class="ni" data-v="corte" onclick="go('corte')"><span class="ico">📊</span>Corte</button>
+        <button class="ni" data-v="users" onclick="go('users')"><span class="ico">👥</span>Usuarios</button>
+      </nav>
+      <div class="sb-bot">
+        <button class="btn-ref" onclick="refreshView()">🔄 Actualizar</button>
+        <button class="btn-out" onclick="doLogout()">⏏️ Salir</button>
+      </div>
+    </aside>
+    <!-- MAIN -->
+    <main class="main">
+      <div class="topbar">
+        <div style="display:flex;align-items:center;gap:12px">
+          <button class="hbg" onclick="toggleSB()">☰</button>
+          <div class="tb-title" id="tb-title">📋 Pedidos</div>
         </div>
-        <div class="col-5">
-          <div class="card">
-            <div class="card-title">Detalle del Pedido</div>
-            <div class="form-group">
-              <label>Mesa / Identificador Cliente</label>
-              <input type="text" id="cart-mesa" class="form-control" placeholder="Ej: Mesa 4, Llevar Carlos...">
-            </div>
-            <table class="cart-table">
-              <thead>
-                <tr><th>Cant</th><th>Producto</th><th>Precio</th><th>Total</th><th>Acción</th></tr>
-              </thead>
-              <tbody id="cart-items-body">
-                <tr><td colspan="5" style="text-align:center; color:var(--text-muted);">El pedido está vacío.</td></tr>
-              </tbody>
-            </table>
-            <div class="cart-total-box">
-              <div>Total General</div>
-              <div class="total-amount" id="cart-total-val">$0.00</div>
-            </div>
-            <div class="form-group">
-              <label>Notas Generales Cocina</label>
-              <input type="text" id="cart-notas" class="form-control" placeholder="Ej: Sin cebolla, extra salsa...">
-            </div>
-            <button class="btn btn-primary btn-block" onclick="enviarPedidoCaja()">ENVIAR PEDIDO A COCINA</button>
-          </div>
+        <div class="tb-r">
+          <div class="clock" id="clock">--:--</div>
+          <span id="tb-chip" style="font-size:12px;color:var(--muted)"></span>
         </div>
       </div>
-    </section>
-
-    <!-- MÓDULO 2: MONITOR DE COCINA -->
-    <section id="view-cocina" class="view-section">
-      <div class="card">
-        <div class="card-title">Monitoreo de Cocina (Tiempo Real) <button class="btn btn-secondary" style="padding:4px 10px; float:right;" onclick="cargarCocina()">🔄 Refrescar</button></div>
-        <div class="kitchen-container" id="kitchen-tickets-container"></div>
-      </div>
-    </section>
-
-    <!-- MÓDULO 3: CAJA Y COBROS -->
-    <section id="view-caja" class="view-section">
-      <div class="card">
-        <div class="card-title">Cuentas Abiertas y Control de Cobro</div>
-        <table class="table-std">
-          <thead>
-            <tr><th>ID Orden</th><th>Hora</th><th>Cliente/Mesa</th><th>Total</th><th>Estado Actual</th><th>Acciones</th></tr>
-          </thead>
-          <tbody id="caja-table-body"></tbody>
-        </table>
-      </div>
-
-      <div class="card" style="margin-top: 20px;">
-        <div class="card-title">Historial de Pedidos Cobrados (Turno Actual)</div>
-        <table class="table-std">
-          <thead>
-            <tr><th>ID Orden</th><th>Hora</th><th>Cliente/Mesa</th><th>Total</th><th>Método Pago</th><th>Estatus</th><th>Usuario</th><th>Acciones</th></tr>
-          </thead>
-          <tbody id="caja-cobrados-table-body"></tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- MÓDULO 4: GESTIÓN DE PRODUCTOS (CRUD) -->
-    <section id="view-productos" class="view-section">
-      <div class="row-layout">
-        <div class="col-5">
-          <div class="card">
-            <div class="card-title" id="prod-form-title">Agregar / Editar Producto</div>
-            <input type="hidden" id="prod-id">
-            <div class="form-group">
-              <label>Categoría 
-                <span style="float:right; font-size:12px; color:var(--primary-color); cursor:pointer; font-weight:normal;" onclick="abrirModalCategorias()">⚙️ Gestionar</span>
-              </label>
-              <select id="prod-cat" class="form-control"></select>
-            </div>
-            <div class="form-group">
-              <label>Nombre del Platillo / Producto</label>
-              <input type="text" id="prod-nombre" class="form-control" placeholder="Ej: Quesitacos Orden">
-            </div>
-            <div class="form-group">
-              <label>Descripción / ¿Qué contiene?</label>
-              <input type="text" id="prod-descripcion" class="form-control" placeholder="Ej: Contiene 3 piezas, limones y verdura">
-            </div>
-            <div class="form-group">
-              <label>Precio ($)</label>
-              <input type="number" step="0.01" id="prod-precio" class="form-control" placeholder="0.00">
-            </div>
-            <div class="form-group">
-              <label>Estado</label>
-              <select id="prod-activo" class="form-control">
-                <option value="SÍ">Disponible / Activo</option>
-                <option value="NO">Agotado / Inactivo</option>
-              </select>
-            </div>
-            <button class="btn btn-success btn-block" onclick="guardarFormProducto()">Guardar Item</button>
-            <button class="btn btn-secondary btn-block" style="margin-top:8px;" onclick="limpiarFormProducto()">Limpiar</button>
-          </div>
-        </div>
-        <div class="col-7">
-          <div class="card">
-            <div class="card-title">Catálogo Completo del Menú</div>
-            <div class="filter-inputs-container">
-              <input type="text" id="filtro-tabla-cat" class="form-control" placeholder="🔍 Buscar Categoría..." onkeyup="filtrarTablaProductos()">
-              <input type="text" id="filtro-tabla-nom" class="form-control" placeholder="🔍 Buscar Nombre..." onkeyup="filtrarTablaProductos()">
-              <input type="text" id="filtro-tabla-pre" class="form-control" placeholder="🔍 Buscar Precio..." onkeyup="filtrarTablaProductos()">
-            </div>
-            <table class="table-std">
-              <thead>
-                <tr><th>Categoría</th><th>Nombre</th><th>Descripción</th><th>Precio</th><th>Activo</th><th>Acciones</th></tr>
-              </thead>
-              <tbody id="productos-table-body"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- MÓDULO 5: CORTES Y REPORTES -->
-    <section id="view-reportes" class="view-section">
-      <div class="metrics-row">
-        <div class="metric-box" style="width: 20%;">
-          <div class="metric-label">Caja Inicial</div>
-          <div class="metric-val" id="rep-caja-inicial">$0.00</div>
-        </div>
-        <div class="metric-box" style="width: 20%;">
-          <div class="metric-label">Corte del Día</div>
-          <div class="metric-val" id="rep-dia">$0.00</div>
-        </div>
-        <div class="metric-box" style="width: 20%;">
-          <div class="metric-label">Efectivo en Caja</div>
-          <div class="metric-val" id="rep-total-caja">$0.00</div>
-        </div>
-        <div class="metric-box" style="width: 20%;">
-          <div class="metric-label">Venta Semanal</div>
-          <div class="metric-val" id="rep-semana">$0.00</div>
-        </div>
-        <div class="metric-box" style="width: 20%;">
-          <div class="metric-label">Venta Mensual</div>
-          <div class="metric-val" id="rep-mes">$0.00</div>
-        </div>
-      </div>
-      <div class="row-layout">
-        <div class="col-7">
-          <div class="card">
-            <div class="card-title">Distribución de Ingresos (Hoy)</div>
-            <table class="table-std">
-              <thead>
-                <tr><th>Método de Pago</th><th>Total Recaudado</th></tr>
-              </thead>
-              <tbody>
-                <tr><td>💵 Efectivo</td><td id="rep-pago-efectivo">$0.00</td></tr>
-                <tr><td>💳 Tarjeta Bancaria</td><td id="rep-pago-tarjeta">$0.00</td></tr>
-                <tr><td>📲 Transferencia</td><td id="rep-pago-transf">$0.00</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <div class="col-5">
-          <div class="card" style="text-align: center;">
-            <div class="card-title">Cierre de Turno General</div>
-            <p style="margin-bottom:15px; color:var(--text-muted); font-size:13px;">Consolida los montos del día y bloquea transacciones del turno.</p>
-            <button class="btn btn-danger btn-block" onclick="ejecutarCierreVentaReal()">EJECUTAR CIERRE DE CAJA</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="card" style="margin-top: 20px;">
-        <div class="card-title">Historial de Cierres de Caja</div>
-        <div class="filter-inputs-container">
-          <input type="date" id="filtro-fecha-cierre-inicio" class="form-control" title="Fecha Inicio">
-          <input type="date" id="filtro-fecha-cierre-fin" class="form-control" title="Fecha Fin">
-          <button class="btn btn-primary" onclick="filtrarHistorialCortes()">Filtrar</button>
-          <button class="btn btn-secondary" onclick="cargarHistorialCortes()">Limpiar Filtro</button>
-          <button class="btn btn-success" style="margin-left: auto;" onclick="descargarHistoricoHojasPDF()">📄 Histórico Completo Base de Datos (PDF)</button>
-        </div>
-        <table class="table-std">
-          <thead>
-            <tr><th>Fecha</th><th>Hora</th><th>Caja Inicial</th><th>Total Día</th><th>Efectivo Sist.</th><th>Tarjeta</th><th>Transf.</th><th>Efec. Real</th><th>Diferencia</th><th>Reporte (PDF)</th></tr>
-          </thead>
-          <tbody id="historial-cortes-body"></tbody>
-        </table>
-      </div>
-
-      <div class="card" style="margin-top: 20px;">
-        <div class="card-title">Registros Eliminados (Órdenes Canceladas)</div>
-        <div class="filter-inputs-container">
-          <input type="date" id="filtro-fecha-elim-inicio" class="form-control" title="Fecha Inicio">
-          <input type="date" id="filtro-fecha-elim-fin" class="form-control" title="Fecha Fin">
-          <button class="btn btn-primary" onclick="filtrarRegistrosEliminados()">Filtrar</button>
-          <button class="btn btn-secondary" onclick="cargarRegistrosEliminados()">Limpiar Filtro</button>
-        </div>
-        <table class="table-std">
-          <thead>
-            <tr><th>ID Orden</th><th>Fecha</th><th>Hora</th><th>Cliente/Mesa</th><th>Total</th><th>Motivo Cancelación</th></tr>
-          </thead>
-          <tbody id="registros-eliminados-body"></tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- MÓDULO 6: GESTIÓN DE USUARIOS -->
-    <section id="view-usuarios" class="view-section">
-      <div class="row-layout">
-        <div class="col-5">
-          <div class="card">
-            <div class="card-title" id="usu-form-title">Agregar / Editar Usuario</div>
-            <input type="hidden" id="usu-id-original">
-            <div class="form-group">
-              <label>Nombre de Usuario</label>
-              <input type="text" id="usu-nombre" class="form-control" placeholder="Ej: cajero_tarde">
-            </div>
-            <div class="form-group">
-              <label>Contraseña</label>
-              <input type="password" id="usu-pass" class="form-control" placeholder="Dejar en blanco para no cambiar">
-            </div>
-            <div class="form-group">
-              <label>Rol</label>
-              <select id="usu-rol" class="form-control">
-                <option value="Admin">Administrador</option>
-                <option value="Cajero">Cajero</option>
-                <option value="Cocina">Cocina</option>
-                <option value="Mesero">Mesero</option>
-              </select>
-            </div>
-            <button class="btn btn-success btn-block" onclick="guardarFormUsuario()">Guardar Usuario</button>
-            <button class="btn btn-secondary btn-block" style="margin-top:8px;" onclick="limpiarFormUsuario()">Limpiar</button>
-          </div>
-        </div>
-        <div class="col-7">
-          <div class="card">
-            <div class="card-title">Listado de Usuarios</div>
-            <table class="table-std">
-              <thead>
-                <tr><th>Usuario</th><th>Rol</th><th>Acciones</th></tr>
-              </thead>
-              <tbody id="usuarios-table-body"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </section>
-
+      <div class="content" id="content"></div>
+    </main>
   </div>
+</div>
 
-  <!-- MODAL DE COBRO AUTOMÁTICO Y MULTIPAGO -->
-  <div class="modal-overlay" id="modal-cobro">
-    <div class="modal-content">
-      <h3 style="margin-bottom:15px; border-bottom:2px solid var(--primary-color); padding-bottom:5px;">Procesar Pago</h3>
-      <input type="hidden" id="modal-cobro-id">
-      <div style="font-size:15px; margin-bottom:15px;">
-        Mesa/Cliente: <strong id="modal-cobro-mesa">-</strong><br>
-        Total a Liquidar: <span style="font-weight:bold; color:var(--primary-color);" id="modal-cobro-total">$0.00</span>
-      </div>
-      <div class="form-group">
-        <label>Método de Pago</label>
-        <select id="modal-cobro-metodo" class="form-control">
-          <option value="Efectivo">Efectivo</option>
-          <option value="Tarjeta">Tarjeta Bancaria</option>
-          <option value="Transferencia">Transferencia</option>
+<!-- MODALS -->
+<!-- Product -->
+<div class="mov" id="m-product">
+  <div class="modal">
+    <div class="mh"><div class="mt" id="mt-product">Nuevo Producto</div><button class="mc" onclick="cm('m-product')">✕</button></div>
+    <div class="mb">
+      <input type="hidden" id="pe-id"/>
+      <div class="fg"><label class="fl">Nombre *</label><input type="text" class="fc" id="pe-name" placeholder="Ej: Birria de res"/></div>
+      <div class="fg"><label class="fl">Descripción</label><textarea class="fc" id="pe-desc" placeholder="Descripción del producto..." rows="2"></textarea></div>
+      <div class="fg"><label class="fl">Categoría *</label><input type="text" class="fc" id="pe-cat" placeholder="Ej: Tacos, Platos Fuertes..." list="dl-cats"/><datalist id="dl-cats"></datalist></div>
+      <div class="fg"><label class="fl">Precio ($) *</label><input type="number" class="fc" id="pe-price" placeholder="0.00" min="0" step="0.50"/></div>
+    </div>
+    <div class="mf"><button class="btn bo" onclick="cm('m-product')">Cancelar</button><button class="btn bp" onclick="saveProduct()">💾 Guardar</button></div>
+  </div>
+</div>
+<!-- User -->
+<div class="mov" id="m-user">
+  <div class="modal">
+    <div class="mh"><div class="mt" id="mt-user">Nuevo Usuario</div><button class="mc" onclick="cm('m-user')">✕</button></div>
+    <div class="mb">
+      <input type="hidden" id="ue-id"/>
+      <div class="fg"><label class="fl">Nombre *</label><input type="text" class="fc" id="ue-name" placeholder="Nombre"/></div>
+      <div class="fg"><label class="fl">Contraseña *</label><input type="password" class="fc" id="ue-pass" placeholder="Contraseña"/></div>
+      <div class="fg"><label class="fl">Rol *</label>
+        <select class="fc" id="ue-role">
+          <option value="admin">Administrador</option>
+          <option value="waiter">Mesero</option>
+          <option value="cook">Cocinero</option>
+          <option value="cashier">Cajero</option>
         </select>
       </div>
-      <div class="form-group">
-        <label>Monto a Recibir / Abonar</label>
-        <input type="number" step="0.01" id="modal-cobro-recibido" class="form-control" placeholder="0.00" oninput="calcularCambioCaja()">
-      </div>
-      
-      <button class="btn btn-secondary btn-block" style="padding:6px; margin-bottom:12px; font-size:12px; background:#e0e0e0; font-weight:bold;" onclick="agregarMetodoPagoLista()">+ Agregar a Métodos de Pago</button>
-      <div id="modal-cobro-lista-pagos" style="background:#fafafa; border:1px solid #ddd; border-radius:4px; padding:8px; margin-bottom:12px; max-height:85px; overflow-y:auto; font-size:12px; display:none;"></div>
-      
-      <div style="font-size:13px; margin-bottom:10px; font-weight:bold; color:var(--warning-color);" id="modal-cobro-restante-box">
-        Restante por Cubrir: <span id="modal-cobro-restante">$0.00</span>
-      </div>
-
-      <div style="font-size:16px; margin-bottom:20px; font-weight:bold; color:var(--success-color);">
-        Cambio Total: <span id="modal-cobro-cambio">$0.00</span>
-      </div>
-      <button class="btn btn-success" style="width:48%;" onclick="confirmarCobroFinal()">Finalizar Venta</button>
-      <button class="btn btn-secondary" style="width:48%; float:right;" onclick="cerrarModalCobro()">Cancelar</button>
+    </div>
+    <div class="mf"><button class="btn bo" onclick="cm('m-user')">Cancelar</button><button class="btn bp" onclick="saveUser()">💾 Guardar</button></div>
+  </div>
+</div>
+<!-- History -->
+<div class="mov" id="m-hist">
+  <div class="modal" style="max-width:680px">
+    <div class="mh"><div class="mt" id="mt-hist">Historial</div><button class="mc" onclick="cm('m-hist')">✕</button></div>
+    <div class="mb" id="mb-hist"></div>
+  </div>
+</div>
+<!-- Item note -->
+<div class="mov" id="m-note">
+  <div class="modal" style="max-width:400px">
+    <div class="mh"><div class="mt">Nota del Producto</div><button class="mc" onclick="cm('m-note')">✕</button></div>
+    <div class="mb">
+      <div class="fg"><label class="fl">Nota especial</label><textarea class="fc" id="nte-inp" placeholder="Ej: Sin cebolla, extra picante..." rows="3"></textarea></div>
+      <input type="hidden" id="nte-pid"/>
+    </div>
+    <div class="mf"><button class="btn bo" onclick="cm('m-note')">Cancelar</button><button class="btn bp" onclick="saveItemNote()">Guardar</button></div>
+  </div>
+</div>
+<!-- Ticket -->
+<div class="mov" id="m-ticket">
+  <div class="modal" style="max-width:420px">
+    <div class="mh"><div class="mt">🧾 Ticket del Cliente</div><button class="mc" onclick="cm('m-ticket')">✕</button></div>
+    <div class="mb" id="mb-ticket"></div>
+    <div class="mf"><button class="btn bo" onclick="cm('m-ticket')">Cerrar</button><button class="btn bp" onclick="printTicket()">🖨️ Imprimir</button></div>
+  </div>
+</div>
+<!-- Cierre de caja -->
+<div class="mov" id="m-cierre">
+  <div class="modal" style="max-width:480px">
+    <div class="mh"><div class="mt">🔒 Cierre de Caja</div><button class="mc" onclick="cm('m-cierre')">✕</button></div>
+    <div class="mb">
+      <p style="font-size:14px;color:var(--muted);margin-bottom:16px">Ingresa el dinero físico en caja para comparar con lo esperado.</p>
+      <div class="fg"><label class="fl">Caja Inicial ($)</label><input type="number" class="fc" id="ci-ini" placeholder="0.00" step="0.01"/></div>
+      <div class="fg"><label class="fl">Dinero Físico Contado ($)</label><input type="number" class="fc" id="ci-fis" placeholder="0.00" step="0.01"/></div>
+      <div id="ci-res" style="display:none;margin-top:14px"></div>
+    </div>
+    <div class="mf">
+      <button class="btn bo" onclick="cm('m-cierre')">Cancelar</button>
+      <button class="btn bw" onclick="calcCierre()">🔢 Calcular</button>
+      <button class="btn bp" id="btn-corte" style="display:none" onclick="doCorte()">✅ Realizar Corte</button>
     </div>
   </div>
-
-  <!-- MODAL PARA GESTIONAR CATEGORÍAS -->
-  <div class="modal-overlay" id="modal-categorias">
-    <div class="modal-content" style="width:400px;">
-      <h3 style="margin-bottom:15px; border-bottom:2px solid var(--primary-color); padding-bottom:5px;">Gestor de Categorías</h3>
-      <div style="display:flex; gap:10px; margin-bottom:15px;">
-        <input type="text" id="nueva-categoria-input" class="form-control" placeholder="Nueva categoría...">
-        <button class="btn btn-primary" onclick="agregarCategoriaNueva()">Añadir</button>
+</div>
+<!-- Discount -->
+<div class="mov" id="m-disc">
+  <div class="modal" style="max-width:420px">
+    <div class="mh"><div class="mt">🏷️ Descuento / Propina</div><button class="mc" onclick="cm('m-disc')">✕</button></div>
+    <div class="mb">
+      <div class="fg"><label class="fl">Tipo</label>
+        <select class="fc" id="dc-type" onchange="updDiscCalc()">
+          <option value="none">Sin descuento</option>
+          <option value="pct">Descuento en %</option>
+          <option value="amt">Descuento en $</option>
+          <option value="tip">Propina</option>
+        </select>
       </div>
-      <div id="lista-categorias-manager" style="max-height: 200px; overflow-y: auto; margin-bottom: 20px; border: 1px solid #eee; border-radius: 4px;"></div>
-      <button class="btn btn-secondary btn-block" onclick="cerrarModalCategorias()">Cerrar Panel</button>
+      <div class="fg">
+        <label class="fl" id="dc-lbl">Valor</label>
+        <input type="number" class="fc" id="dc-val" placeholder="0" min="0" step="0.01" oninput="updDiscCalc()"/>
+      </div>
+      <div class="fg"><label class="fl">Motivo</label><input type="text" class="fc" id="dc-reason" placeholder="Motivo del descuento o propina..."/></div>
+      <div id="dc-prev" style="margin-top:10px"></div>
+    </div>
+    <div class="mf"><button class="btn bo" onclick="cm('m-disc')">Cancelar</button><button class="btn bp" onclick="applyDisc()">Aplicar</button></div>
+  </div>
+</div>
+<!-- Confirm -->
+<div class="cov" id="m-confirm">
+  <div class="cbox">
+    <h3 id="cf-title">¿Confirmar?</h3>
+    <p id="cf-msg">Esta acción no se puede deshacer.</p>
+    <div class="cacts">
+      <button class="btn bo" onclick="cm('m-confirm')">Cancelar</button>
+      <button class="btn bd" id="cf-ok">Confirmar</button>
     </div>
   </div>
+</div>
+<!-- Notifications -->
+<div id="notif-box"></div>
 
-  <script>
-    // ==========================================
-    // CONFIGURACIÓN DE CONEXIÓN CON APPS SCRIPT
-    // ==========================================
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwXesnahZnb_RY6iZU--hb_0F5ATkwZ4x63mU7tLUi9Io4Qq8cfSFBSXmN6zUyNydQ/exec"; // <-- REEMPLAZAR CON TU URL DE IMPLEMENTACIÓN DE GOOGLE APPS SCRIPT
+<script>
+// ═══════════════════════════════════════════
+// CONFIGURACIÓN DE CONEXIÓN GITHUB <-> APPS SCRIPT
+// ═══════════════════════════════════════════
+// IMPORTANTE: Sustituye la siguiente URL por la URL de implementación de tu Web App
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyjJ6ulXsOvjJim8fRB6xgRZDRyJDHNnC7bU14wgE26cyZv_at_-ndUy1RGpocz2jKDCw/exec';
 
-    // Envoltorio Fetch para sustituir a google.script.run
-    function apiCall(action, args, onSuccess) {
+// ═══════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════
+const ROLES={admin:'Administrador',waiter:'Mesero',cook:'Cocinero',cashier:'Cajero'};
+const SL={pending:'En Espera','in-process':'En Proceso',ready:'Listo',bar:'En Barra',delivered:'Entregado',paid:'Pagado',cancelled:'Cancelado'};
+const SB={pending:'bp_','in-process':'bip',ready:'br',bar:'bbar',delivered:'bdel',paid:'bpaid',cancelled:'bd'};
+const VIEW_T={'orders':'📋 Pedidos','kitchen':'👨‍🍳 Cocina','cashier':'🏧 Caja','products':'🍖 Productos','corte':'📊 Corte','users':'👥 Usuarios'};
+
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+let CU=null,CV='orders',cart=[],selOrder=null,csPayments={cash:0,card:0,transfer:0},csDisc={type:'none',value:0,reason:''},cierreData=null,cfCB=null,kFilter='active',pFlt={name:'',cat:''},editingOrderId=null;
+
+// ═══════════════════════════════════════════
+// DATOS EN APP SCRIPT (Sincronización Dual)
+// ═══════════════════════════════════════════
+let LCache = {};
+
+const LS = {
+  get: (k, d = []) => { return LCache[k] !== undefined ? LCache[k] : d },
+  set: (k, v) => { 
+    LCache[k] = v; 
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run.saveData(k, v); 
+    } else if (SCRIPT_URL && SCRIPT_URL !== 'https://script.google.com/macros/s/AKfycbyjJ6ulXsOvjJim8fRB6xgRZDRyJDHNnC7bU14wgE26cyZv_at_-ndUy1RGpocz2jKDCw/exec') {
       fetch(SCRIPT_URL, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'text/plain;charset=utf-8' // Permite saltar pre-flight CORS
-        },
-        body: JSON.stringify({ action: action, args: args })
+        body: JSON.stringify({ action: 'save', key: k, value: v }),
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' } // Text/plain para evadir CORS preflight
+      }).catch(e => console.error("Error de guardado:", e));
+    }
+  },
+  obj: (k, d = {}) => { return LCache[k] !== undefined && Object.keys(LCache[k]).length > 0 ? LCache[k] : d }
+};
+
+window.onload = () => {
+  // Asegurar limpieza de interfaz inicial
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'none';
+  
+  if (typeof google !== 'undefined' && google.script && google.script.run) {
+    // Entorno local de Google Apps Script
+    google.script.run
+      .withFailureHandler(err => {
+        document.getElementById('loader').style.display = 'none';
+        initData();
+        document.getElementById('login-screen').style.display = 'flex';
+        notify('⚠️', 'Aviso', 'Problema al sincronizar con Sheets. Entrando en modo local.', 5000);
       })
-      .then(response => response.json())
+      .withSuccessHandler(data => {
+        LCache = data || {};
+        document.getElementById('loader').style.display = 'none';
+        initData();
+        document.getElementById('login-screen').style.display = 'flex';
+      }).loadAllData();
+  } else {
+    // Entorno externo hospedado (ej. GitHub Pages) mediante Fetch API
+    fetch(SCRIPT_URL + '?action=load')
+      .then(res => res.json())
       .then(data => {
-        if (onSuccess) onSuccess(data);
+        LCache = data || {};
+        document.getElementById('loader').style.display = 'none';
+        initData();
+        document.getElementById('login-screen').style.display = 'flex';
       })
-      .catch(error => console.error('Error de red en la llamada API:', error));
-    }
-
-    // Función auxiliar para abrir PDF en Base64
-    function abrirPDFBase64(pdfBase64) {
-      const byteCharacters = atob(pdfBase64);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      const file = new Blob([byteArray], { type: 'application/pdf;base64' });
-      const fileURL = URL.createObjectURL(file);
-      window.open(fileURL, '_blank');
-    }
-
-    // --- PROTECCIÓN DE CÓDIGO FUENTE ---
-    document.addEventListener('contextmenu', event => event.preventDefault());
-    document.onkeydown = function(e) {
-      if (e.keyCode == 123) return false;
-      if (e.ctrlKey && e.shiftKey && (e.keyCode == 73 || e.keyCode == 105)) return false;
-      if (e.ctrlKey && e.shiftKey && (e.keyCode == 74 || e.keyCode == 106)) return false;
-      if (e.ctrlKey && e.shiftKey && (e.keyCode == 67 || e.keyCode == 99)) return false;
-      if (e.ctrlKey && (e.keyCode == 85 || e.keyCode == 117)) return false;
-    };
-
-    let listadoProductos = [];
-    let carritoActual = [];
-    let filtroCategoriaActivo = "TODOS";
-    let pagosAcumulados = [];
-    let totalOrdenActual = 0;
-    let categoriasMenuGlobal = []; 
-    let datosHistorialCortes = [];
-    let datosRegistrosEliminados = [];
-    
-    let rolGlobal = "";
-    let usuarioGlobal = ""; 
-
-    window.addEventListener('load', () => { 
-      document.getElementById('login-view').style.display = 'flex';
-      cargarCategoriasMenu();
-      cargarCatalogoInicial(); 
-    });
-
-    function intentarLogin() {
-      const user = document.getElementById('login-user').value.trim();
-      const pass = document.getElementById('login-pass').value.trim();
-      if (!user || !pass) return;
-
-      apiCall('validarLogin', [user, pass], res => {
-        if(res.success) {
-          rolGlobal = res.rol;
-          usuarioGlobal = res.usuario; 
-          document.getElementById('login-view').style.display = 'none';
-          document.getElementById('login-error').style.display = 'none';
-          aplicarPermisosRol();
-        } else {
-          document.getElementById('login-error').innerText = res.error;
-          document.getElementById('login-error').style.display = 'block';
-        }
+      .catch(err => {
+        document.getElementById('loader').style.display = 'none';
+        initData();
+        document.getElementById('login-screen').style.display = 'flex';
+        notify('⚠️', 'Aviso', 'Falla de conexión a Apps Script. Entrando en modo local.', 5000);
       });
+  }
+};
+
+// ═══════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════
+const uid=()=>'id-'+Date.now().toString(36)+'-'+Math.random().toString(36).substr(2,5);
+const fc=(n)=>'$'+(parseFloat(n)||0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+const fd=(iso)=>{if(!iso)return'';const d=new Date(iso);return d.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'})+' '+d.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})};
+const fds=(iso)=>{if(!iso)return'';return new Date(iso).toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'})};
+const today=()=>new Date().toISOString().split('T')[0];
+const weekStart=()=>{const d=new Date();d.setDate(d.getDate()-d.getDay());return d.toISOString().split('T')[0]};
+const monthStart=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`};
+const nextNum=()=>String(LS.get('be_orders').length+1).padStart(4,'0');
+
+// ═══════════════════════════════════════════
+// INIT DATA
+// ═══════════════════════════════════════════
+function initData(){
+  if(!LCache['be_users'] || LCache['be_users'].length === 0){
+    LS.set('be_users',[{id:'user-1',name:'Brian',password:'1234',role:'admin',active:true,
+      createdAt:new Date().toISOString(),
+      history:[{action:'Sistema inicializado. Usuario administrador creado.',timestamp:new Date().toISOString()}]}]);
+  }
+  if(!LCache['be_products'] || LCache['be_products'].length === 0){
+    LS.set('be_products',[
+      {id:uid(),name:'Birria de res',description:'Birria tradicional de res con consomé incluido',category:'Platos Fuertes',price:120,active:true},
+      {id:uid(),name:'Taco de birria',description:'Taco dorado de birria con queso manchego',category:'Tacos',price:25,active:true},
+      {id:uid(),name:'Quesabirria',description:'Quesadilla de birria gratinada con queso Oaxaca',category:'Especialidades',price:45,active:true},
+      {id:uid(),name:'Orden 3 Tacos',description:'3 tacos de birria con consomé y salsas de la casa',category:'Tacos',price:70,active:true},
+      {id:uid(),name:'Consomé',description:'Consomé de birria 250ml caliente',category:'Bebidas',price:30,active:true},
+      {id:uid(),name:'Agua Fresca',description:'Agua fresca del día 500ml',category:'Bebidas',price:25,active:true},
+    ]);
+  }
+  if(!LCache['be_orders']) LS.set('be_orders',[]);
+  if(!LCache['be_cuts']) LS.set('be_cuts',[]);
+  if(!LCache['be_caja']) LS.set('be_caja',[]);
+  if(!LCache['be_sd'] || !LCache['be_sd'].date) LS.set('be_sd',{total:0,cash:0,card:0,transfer:0,date:today(),initCash:0});
+  if(!LCache['be_sw'] || !LCache['be_sw'].weekStart) LS.set('be_sw',{total:0,cash:0,card:0,transfer:0,weekStart:weekStart()});
+  if(!LCache['be_sm'] || !LCache['be_sm'].monthStart) LS.set('be_sm',{total:0,cash:0,card:0,transfer:0,monthStart:monthStart()});
+}
+
+// ═══════════════════════════════════════════
+// CANCELAR Y EDITAR PEDIDOS
+// ═══════════════════════════════════════════
+function cancelOrder(oid){
+  confirm2('¿Cancelar pedido?', 'El pedido será marcado como cancelado.', () => {
+    const orders = LS.get('be_orders');
+    const i = orders.findIndex(o => o.id === oid);
+    if(i > -1) {
+      orders[i].status = 'cancelled';
+      LS.set('be_orders', orders);
+      logAct(CU.id, `Canceló pedido #${orders[i].number}`);
+      notify('🚫', 'Pedido cancelado', `Pedido #${orders[i].number} ha sido cancelado.`, 4000);
+      selOrder = null;
+      go(CV);
     }
+  }, 'Cancelar', 'bd');
+}
 
-    function aplicarPermisosRol() {
-      document.getElementById('btn-nav-ordenes').style.display = 'none';
-      document.getElementById('btn-nav-cocina').style.display = 'none';
-      document.getElementById('btn-nav-caja').style.display = 'none';
-      document.getElementById('btn-nav-productos').style.display = 'none';
-      document.getElementById('btn-nav-reportes').style.display = 'none';
-      document.getElementById('btn-nav-usuarios').style.display = 'none';
-      document.getElementById('btn-refresh-app').style.display = 'inline-block';
+function editOrder(oid){
+  const orders = LS.get('be_orders');
+  const o = orders.find(x => x.id === oid);
+  if(!o) return;
+  document.getElementById('o-client').value = o.clientName;
+  const gEl = document.getElementById('o-gnote');
+  if(gEl) gEl.value = o.generalNote || '';
+  cart = o.items.map(i => ({...i}));
+  editingOrderId = oid;
+  buildCart();
+  const btn = document.getElementById('btn-send-order');
+  if(btn) btn.innerHTML = '💾 Guardar Cambios';
+}
 
-      if (rolGlobal === "Admin") {
-        document.getElementById('btn-nav-ordenes').style.display = 'inline-block';
-        document.getElementById('btn-nav-cocina').style.display = 'inline-block';
-        document.getElementById('btn-nav-caja').style.display = 'inline-block';
-        document.getElementById('btn-nav-productos').style.display = 'inline-block';
-        document.getElementById('btn-nav-reportes').style.display = 'inline-block';
-        document.getElementById('btn-nav-usuarios').style.display = 'inline-block';
-        switchView('view-ordenes');
-      } else if (rolGlobal === "Mesero") {
-        document.getElementById('btn-nav-ordenes').style.display = 'inline-block';
-        document.getElementById('btn-nav-cocina').style.display = 'inline-block';
-        switchView('view-ordenes');
-      } else if (rolGlobal === "Cocina") {
-        document.getElementById('btn-nav-cocina').style.display = 'inline-block';
-        switchView('view-cocina');
-        cargarCocina();
-      } else if (rolGlobal === "Cajero") {
-        document.getElementById('btn-nav-ordenes').style.display = 'inline-block';
-        document.getElementById('btn-nav-cocina').style.display = 'inline-block';
-        document.getElementById('btn-nav-caja').style.display = 'inline-block';
-        switchView('view-caja');
-        cargarCaja();
-      }
+// ═══════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════
+function doLogin(){
+  const name=document.getElementById('lu').value.trim();
+  const pass=document.getElementById('lp').value;
+  const errEl=document.getElementById('lerr');
+  const users=LS.get('be_users');
+  const u=users.find(u=>u.name && u.name.toLowerCase()===name.toLowerCase()&&u.password==pass&&u.active!==false);
+  if(!u){errEl.style.display='block';return}
+  errEl.style.display='none';
+  CU=u;LS.set('be_session',{uid:u.id});
+  logAct(u.id,'Inició sesión');
+  startApp();
+}
+function doLogout(){
+  if(CU)logAct(CU.id,'Cerró sesión');
+  CU=null;cart=[];selOrder=null;editingOrderId=null;
+  LS.set('be_session',null);
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('lu').value='';
+  document.getElementById('lp').value='';
+}
+function logAct(uid,action){
+  const users=LS.get('be_users');
+  const i=users.findIndex(u=>u.id===uid);
+  if(i===-1)return;
+  if(!users[i].history)users[i].history=[];
+  users[i].history.unshift({action,timestamp:new Date().toISOString()});
+  LS.set('be_users',users);
+}
+
+// ═══════════════════════════════════════════
+// START APP
+// ═══════════════════════════════════════════
+function startApp(){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('uav').textContent=CU.name.charAt(0).toUpperCase();
+  document.getElementById('uname').textContent=CU.name;
+  document.getElementById('urole').textContent=ROLES[CU.role]||CU.role;
+  document.getElementById('tb-chip').textContent=CU.name+' · '+(ROLES[CU.role]||'');
+  go('orders');
+  startClock();
+  setInterval(updBadges,6000);
+  window.addEventListener('storage',e=>{if(e.key&&e.key.startsWith('be_'))updBadges()});
+}
+function startClock(){
+  const el=document.getElementById('clock');
+  const tick=()=>el.textContent=new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  tick();setInterval(tick,1000);
+}
+function updBadges(){
+  const orders=LS.get('be_orders');
+  const kc=orders.filter(o=>['pending','in-process'].includes(o.status)).length;
+  const cc=orders.filter(o=>['ready','bar','delivered'].includes(o.status)).length;
+  const kb=document.getElementById('b-kit');
+  const cb=document.getElementById('b-cas');
+  const bb=document.getElementById('b-bar');
+  if(kb){kb.textContent=kc||'';kb.style.display=kc?'':'none'}
+  if(cb){cb.textContent=cc||'';cb.style.display=cc?'':'none'}
+  if(bb&&CU){
+    const bc=orders.filter(o=>o.status==='bar'&&o.workerId===CU.id).length;
+    bb.style.display=bc?'':'none';bb.textContent=bc||'';
+  }
+}
+
+// ═══════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════
+function go(v){
+  CV=v;
+  document.getElementById('tb-title').textContent=VIEW_T[v]||v;
+  document.querySelectorAll('.ni').forEach(el=>el.classList.toggle('active',el.dataset.v===v));
+  closeSB();
+  const c=document.getElementById('content');
+  switch(v){
+    case'orders':rOrders(c);break;
+    case'kitchen':rKitchen(c);break;
+    case'cashier':rCashier(c);break;
+    case'products':rProducts(c);break;
+    case'corte':rCorte(c);break;
+    case'users':rUsers(c);break;
+  }
+  updBadges();
+}
+function refreshView(){go(CV);notify('✅','Actualizado','Datos refrescados.',2000)}
+function toggleSB(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('sb-ov').classList.toggle('open')}
+function closeSB(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sb-ov').classList.remove('open')}
+
+// ═══════════════════════════════════════════
+// MODALS
+// ═══════════════════════════════════════════
+function om(id){document.getElementById(id).style.display='flex';document.getElementById(id).classList.add('open')}
+function cm(id){const el=document.getElementById(id);el.style.display='none';el.classList.remove('open')}
+function confirm2(title,msg,cb,okLbl='Confirmar',okCls='bd'){
+  document.getElementById('cf-title').textContent=title;
+  document.getElementById('cf-msg').textContent=msg;
+  const btn=document.getElementById('cf-ok');
+  btn.textContent=okLbl;btn.className='btn '+okCls;
+  cfCB=cb;om('m-confirm');
+}
+document.getElementById('cf-ok').addEventListener('click',()=>{if(cfCB)cfCB();cm('m-confirm');cfCB=null});
+
+// ═══════════════════════════════════════════
+// NOTIFICATIONS
+// ═══════════════════════════════════════════
+function notify(ico,title,msg,dur=4000,cls=''){
+  const box=document.getElementById('notif-box');
+  const el=document.createElement('div');
+  el.className='notif '+cls;
+  el.innerHTML=`<div class="nicon">${ico}</div><div class="ntxt"><div class="nttl">${title}</div>${msg?`<div class="nmsg">${msg}</div>`:''}</div><button class="nclose" onclick="this.parentElement.remove()">✕</button>`;
+  box.appendChild(el);
+  if(dur>0)setTimeout(()=>el.remove(),dur);
+}
+
+// ═══════════════════════════════════════════
+// ORDERS VIEW
+// ═══════════════════════════════════════════
+let orderCatFilter='all';
+function rOrders(c){
+  const orders=LS.get('be_orders');
+  const barOrders=orders.filter(o=>o.status==='bar'&&o.workerId===CU.id);
+  const prods=LS.get('be_products').filter(p=>p.active!==false);
+  const cats=[...new Set(prods.map(p=>p.category))].sort();
+
+  let barHtml='';
+  if(barOrders.length>0){
+    const names=barOrders.map(o=>`<strong>#${o.number} – ${o.clientName}</strong>`).join(', ');
+    barHtml=`<div class="bar-alert">
+      <div style="font-size:26px;flex-shrink:0">🔔</div>
+      <div style="flex:1"><div style="font-size:14px;font-weight:700">¡Pedido en Barra listo para entregar! ${names}</div>
+      <div style="font-size:12px;margin-top:3px;font-weight:400">Dirígete a la barra y cámbia el estatus a "Entregado".</div></div>
+    </div>`;
+  }
+
+  c.innerHTML=`${barHtml}
+  <div class="order-layout">
+    <div>
+      <div class="card" style="margin-bottom:16px">
+        <div class="ch"><div class="ct">📋 Nuevo Pedido</div></div>
+        <div class="fg"><label class="fl">Mesa / Cliente *</label>
+          <input type="text" class="fc" id="o-client" placeholder="Ej: Mesa 3, Juan García..."/></div>
+        <div class="fg"><label class="fl">Nota General</label>
+          <textarea class="fc" id="o-gnote" placeholder="Observaciones del pedido..." rows="2"></textarea></div>
+      </div>
+      <div class="card">
+        <div class="ch"><div class="ct">🍖 Menú</div></div>
+        <div class="chip-row" id="cat-chips">
+          <button class="cchip ${orderCatFilter==='all'?'active':''}" onclick="filterCat('all',this)">Todos</button>
+          ${cats.map(c=>`<button class="cchip ${orderCatFilter===c?'active':''}" onclick="filterCat('${c}',this)">${c}</button>`).join('')}
+        </div>
+        <div class="prod-grid" id="pgrid">
+          ${buildProdGrid(prods,orderCatFilter)}
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="position:sticky;top:80px">
+        <div class="ch"><div class="ct">🛒 Carrito</div><button class="btn bo btn-sm" onclick="clearCart()">🗑️ Limpiar</button></div>
+        <div id="cart-items"></div>
+        <div class="ctrow"><div style="font-size:13px;font-weight:600;color:var(--muted)">TOTAL</div><div class="ctamt" id="cart-tot">$0.00</div></div>
+        <button class="btn bp" id="btn-send-order" style="width:100%;margin-top:10px;padding:14px;font-size:16px" onclick="sendOrder()">${editingOrderId ? '💾 Guardar Cambios' : '🚀 Enviar a Cocina'}</button>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <div class="ch"><div class="ct">Mis Pedidos Activos</div></div>
+        <div id="my-orders">${buildMyOrders()}</div>
+      </div>
+    </div>
+  </div>`;
+  buildCart();
+}
+
+function buildProdGrid(prods,cat){
+  const f=cat==='all'?prods:prods.filter(p=>p.category===cat);
+  if(!f.length)return'<p style="color:var(--muted);font-size:13px;padding:8px">Sin productos en esta categoría.</p>';
+  return f.map(p=>`<button class="pb" onclick="addToCart('${p.id}')">
+    <span class="pn">${p.name}</span><span class="pp">${fc(p.price)}</span><span class="pc">${p.category}</span>
+  </button>`).join('');
+}
+function filterCat(cat,btn){
+  orderCatFilter=cat;
+  document.querySelectorAll('#cat-chips .cchip').forEach(c=>c.classList.remove('active'));
+  btn.classList.add('active');
+  const prods=LS.get('be_products').filter(p=>p.active!==false);
+  document.getElementById('pgrid').innerHTML=buildProdGrid(prods,cat);
+}
+function addToCart(pid){
+  const p=LS.get('be_products').find(x=>x.id===pid);if(!p)return;
+  const ex=cart.find(i=>i.pid===pid);
+  if(ex)ex.qty++;
+  else cart.push({pid:p.id,name:p.name,price:p.price,qty:1,note:''});
+  buildCart();
+}
+function remFromCart(pid){cart=cart.filter(i=>i.pid!==pid);buildCart()}
+function chgQty(pid,d){const i=cart.find(x=>x.pid===pid);if(i)i.qty=Math.max(1,i.qty+d);buildCart()}
+function clearCart(){
+  cart=[];
+  editingOrderId=null;
+  const btn=document.getElementById('btn-send-order');
+  if(btn)btn.innerHTML='🚀 Enviar a Cocina';
+  const cEl=document.getElementById('o-client'); if(cEl) cEl.value='';
+  const gEl=document.getElementById('o-gnote'); if(gEl) gEl.value='';
+  buildCart();
+}
+function openNote(pid){const i=cart.find(x=>x.pid===pid);if(!i)return;document.getElementById('nte-inp').value=i.note||'';document.getElementById('nte-pid').value=pid;om('m-note')}
+function saveItemNote(){const pid=document.getElementById('nte-pid').value;const i=cart.find(x=>x.pid===pid);if(i)i.note=document.getElementById('nte-inp').value.trim();cm('m-note');buildCart()}
+function buildCart(){
+  const el=document.getElementById('cart-items');const tel=document.getElementById('cart-tot');
+  if(!el)return;
+  if(!cart.length){el.innerHTML='<div class="empty" style="padding:20px 0"><div class="ei">🛒</div><p>Sin productos</p></div>';if(tel)tel.textContent='$0.00';return}
+  const tot=cart.reduce((s,i)=>s+i.price*i.qty,0);
+  el.innerHTML='<div style="display:flex;flex-direction:column;gap:8px">'+cart.map(i=>`
+    <div class="cart-item">
+      <div class="cin">
+        <div class="cname">${i.name}</div>
+        <div class="cprice">${fc(i.price)} c/u</div>
+        ${i.note?`<div style="font-size:11px;color:var(--muted);font-style:italic">📝 ${i.note}</div>`:''}
+      </div>
+      <div class="qc">
+        <button class="qb" onclick="chgQty('${i.pid}',-1)">−</button>
+        <span class="qv">${i.qty}</span>
+        <button class="qb" onclick="chgQty('${i.pid}',+1)">+</button>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+        <span style="font-weight:700;font-size:13px">${fc(i.price*i.qty)}</span>
+        <button class="btn bo btn-xs" onclick="openNote('${i.pid}')">📝</button>
+        <button class="cr" onclick="remFromCart('${i.pid}')">✕</button>
+      </div>
+    </div>`).join('')+'</div>';
+  if(tel)tel.textContent=fc(tot);
+}
+function buildMyOrders(){
+  const orders=LS.get('be_orders');
+  const mine=orders.filter(o=>o.workerId===CU.id&&!['paid','cancelled'].includes(o.status)).sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
+  if(!mine.length)return'<div class="empty" style="padding:16px 0"><p>Sin pedidos activos</p></div>';
+  return mine.map(o=>`
+    <div class="cord" style="cursor:default">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+        <span style="font-weight:700">#${o.number} – ${o.clientName}</span>
+        <span class="badge ${SB[o.status]}">${SL[o.status]}</span>
+      </div>
+      <div style="font-size:12px;color:var(--muted)">${o.items.length} producto(s) · ${fc(o.total)}</div>
+      <div style="margin-top:8px; display:flex; gap:6px; flex-wrap:wrap;">
+        ${o.status==='bar'?`<button class="btn bpu btn-sm" onclick="markDel('${o.id}')">🍽️ Entregar</button>`:''}
+        <button class="btn bo btn-sm" onclick="editOrder('${o.id}')">✏️ Editar</button>
+        <button class="btn bo btn-sm" style="color:var(--err);border-color:var(--err)" onclick="cancelOrder('${o.id}')">🚫 Cancelar</button>
+      </div>
+    </div>`).join('');
+}
+function sendOrder(){
+  const cEl=document.getElementById('o-client');
+  const gEl=document.getElementById('o-gnote');
+  if(!cEl||!cEl.value.trim()){
+    notify('⚠️','Campo requerido','El campo Mesa / Cliente es obligatorio antes de enviar.',3500);
+    if(cEl){cEl.focus();cEl.style.borderColor='var(--err)';setTimeout(()=>cEl.style.borderColor='',2500);}
+    return;
+  }
+  if(!cart.length){notify('⚠️','Carrito vacío','Agrega al menos un producto al pedido.',3000);return}
+  const tot=cart.reduce((s,i)=>s+i.price*i.qty,0);
+  const orders=LS.get('be_orders');
+  
+  if(editingOrderId){
+    const i = orders.findIndex(o => o.id === editingOrderId);
+    if(i !== -1){
+      orders[i].clientName = cEl.value.trim();
+      orders[i].items = cart.map(item => ({...item}));
+      orders[i].generalNote = gEl ? gEl.value.trim() : '';
+      orders[i].total = tot;
+      if(orders[i].discount) orders[i].discount.finalTotal = tot;
+      LS.set('be_orders', orders);
+      logAct(CU.id, `Editó pedido #${orders[i].number}`);
+      notify('✅','¡Pedido editado!',`Pedido #${orders[i].number} ha sido actualizado.`,4000);
     }
-
-    function refrescarTodaLaApp() {
-      cargarCategoriasMenu();
-      cargarCatalogoInicial();
-      cargarCocina();
-      cargarCaja();
-      if (rolGlobal === "Admin" || rolGlobal === "Cajero") {
-        cargarReportes();
-        cargarHistorialCortes();
-        cargarRegistrosEliminados();
-      }
-      if (rolGlobal === "Admin") {
-        cargarUsuarios();
-      }
-    }
-
-    function switchView(viewId) {
-      document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
-      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-      document.getElementById(viewId).classList.add('active');
-      if (window.event && window.event.currentTarget) {
-        window.event.currentTarget.classList.add('active');
-      }
-    }
-
-    function cargarCategoriasMenu() {
-      apiCall('obtenerCategorias', [], res => {
-        if(res.success) {
-          categoriasMenuGlobal = res.data;
-          actualizarDropdownCategorias();
-        }
-      });
-    }
-
-    function actualizarDropdownCategorias() {
-      const select = document.getElementById('prod-cat');
-      select.innerHTML = "";
-      categoriasMenuGlobal.forEach(c => {
-        select.innerHTML += `<option value="${c}">${c}</option>`;
-      });
-    }
-
-    function abrirModalCategorias() {
-      renderListaCategoriasModal();
-      document.getElementById('modal-categorias').classList.add('active');
-    }
-
-    function cerrarModalCategorias() {
-      document.getElementById('modal-categorias').classList.remove('active');
-    }
-
-    function renderListaCategoriasModal() {
-      const container = document.getElementById('lista-categorias-manager');
-      container.innerHTML = "";
-      categoriasMenuGlobal.forEach((c, idx) => {
-        container.innerHTML += `
-          <div style="padding:10px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
-            <strong>${c}</strong>
-            <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="eliminarCategoriaLista(${idx})">❌</button>
-          </div>
-        `;
-      });
-    }
-
-    function agregarCategoriaNueva() {
-      const input = document.getElementById('nueva-categoria-input');
-      const val = input.value.trim().toUpperCase();
-      if(val && !categoriasMenuGlobal.includes(val)) {
-        categoriasMenuGlobal.push(val);
-        input.value = "";
-        guardarCategoriasRemoto();
-      }
-    }
-
-    function eliminarCategoriaLista(idx) {
-      if(confirm("¿Seguro que deseas eliminar esta categoría?")) {
-        categoriasMenuGlobal.splice(idx, 1);
-        guardarCategoriasRemoto();
-      }
-    }
-
-    function guardarCategoriasRemoto() {
-      renderListaCategoriasModal(); 
-      actualizarDropdownCategorias();
-      apiCall('guardarCategorias', [categoriasMenuGlobal], res => {
-        if(!res.success) alert("Error guardando categorías: " + res.error);
-      });
-    }
-
-    function cargarCatalogoInicial() {
-      apiCall('obtenerProductos', [], res => {
-        if(res.success) {
-          listadoProductos = res.data;
-          renderFiltrosCategorias();
-          renderMenuPlatillos();
-          renderTablaProductos(); 
-        }
-      });
-    }
-
-    function renderFiltrosCategorias() {
-      const cats = ["TODOS", ...new Set(listadoProductos.filter(p => p.activo === "SÍ").map(p => p.categoria))];
-      const container = document.getElementById('cat-filters');
-      container.innerHTML = "";
-      cats.forEach(c => {
-        const act = c === filtroCategoriaActivo ? 'active' : '';
-        container.innerHTML += `<div class="filter-chip ${act}" onclick="filtrarCat('${c}')">${c}</div>`;
-      });
-    }
-
-    function filtrarCat(cat) { filtroCategoriaActivo = cat; renderFiltrosCategorias(); renderMenuPlatillos(); }
-
-    function renderMenuPlatillos() {
-      const container = document.getElementById('menu-container');
-      container.innerHTML = "";
-      const filtrados = listadoProductos.filter(p => (filtroCategoriaActivo === "TODOS" || p.categoria === filtroCategoriaActivo) && p.activo === "SÍ");
-      
-      filtrados.forEach(p => {
-        container.innerHTML += `
-          <div class="product-card" onclick="agregarAlCarrito('${p.id}')">
-            <div class="product-cat">${p.categoria}</div>
-            <div class="product-name">${p.nombre}</div>
-            <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 5px; max-height: 28px; overflow: hidden; font-style: italic;">${p.descripcion || ''}</div>
-            <div class="product-price">$${p.precio.toFixed(2)}</div>
-          </div>
-        `;
-      });
-    }
-
-    function agregarAlCarrito(idProd) {
-      const prod = listadoProductos.find(p => p.id === idProd);
-      const existe = carritoActual.find(i => i.id === idProd);
-      if(existe) { existe.cantidad++; } 
-      else { carritoActual.push({ id: prod.id, nombre: prod.nombre, precio: prod.precio, margin: 1, cantidad: 1, notas: '' }); }
-      renderCarrito();
-    }
-
-    function cambiarCantCarrito(idx, cambio) {
-      carritoActual[idx].cantidad += cambio;
-      if(carritoActual[idx].cantidad <= 0) { carritoActual.splice(idx, 1); }
-      renderCarrito();
-    }
-
-    function renderCarrito() {
-      const tbody = document.getElementById('cart-items-body');
-      const totalLabel = document.getElementById('cart-total-val');
-      tbody.innerHTML = "";
-      if(carritoActual.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted);">El pedido está vacío.</td></tr>`;
-        totalLabel.innerText = "$0.00";
-        return;
-      }
-      let total = 0;
-      carritoActual.forEach((item, idx) => {
-        let sub = item.precio * item.cantidad;
-        total += sub;
-        tbody.innerHTML += `
-          <tr>
-            <td>
-              <button class="btn" style="padding:2px 6px; background:#ddd;" onclick="cambiarCantCarrito(${idx}, -1)">-</button>
-              <strong>${item.cantidad}</strong>
-              <button class="btn" style="padding:2px 6px; background:#ddd;" onclick="cambiarCantCarrito(${idx}, 1)">+</button>
-            </td>
-            <td>
-              ${item.nombre}<br>
-              <input type="text" placeholder="Nota..." value="${item.notas || ''}" style="font-size:11px; width:100%; border:none; border-bottom:1px solid #ccc;" onchange="carritoActual[${idx}].notas = this.value">
-            </td>
-            <td>$${item.precio.toFixed(2)}</td>
-            <td>$${sub.toFixed(2)}</td>
-            <td><button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="carritoActual.splice(${idx},1); renderCarrito();">❌</button></td>
-          </tr>
-        `;
-      });
-      totalLabel.innerText = "$" + total.toFixed(2);
-    }
-
-    function enviarPedidoCaja() {
-      if (rolGlobal !== "Admin" && rolGlobal !== "Mesero" && rolGlobal !== "Cajero") {
-        alert("No tienes permiso para registrar nuevas órdenes.");
-        return;
-      }
-
-      const mesa = document.getElementById('cart-mesa').value.trim();
-      const notas = document.getElementById('cart-notas').value.trim();
-      if(!mesa || carritoActual.length === 0) { alert("Completa el nombre de la mesa y agrega productos."); return; }
-
-      apiCall('levantarPedido', [mesa, carritoActual, notas, usuarioGlobal], res => {
-        if(res.success) {
-          alert("¡Pedido enviado a cocina!");
-          carritoActual = [];
-          document.getElementById('cart-mesa').value = "";
-          document.getElementById('cart-notas').value = "";
-          renderCarrito();
-        } else {
-          alert("Error al procesar el pedido: " + res.error);
-        }
-      });
-    }
-
-    function cargarCocina() {
-      apiCall('obtenerOrdenesActivas', [], res => {
-        if(res.success) {
-          const container = document.getElementById('kitchen-tickets-container');
-          container.innerHTML = "";
-          res.data.forEach(orden => {
-            if (orden.estado === "Cobrado" || orden.estado === "Archivado") return; 
-
-            let cardClass = orden.estado.replace(/\s+/g, '-');
-            let itemsHtml = orden.items.map(i => `
-              <div class="ticket-item">
-                <span class="ticket-item-qty">${i.cantidad}x</span> ${i.nombre}
-                ${i.notas ? `<div class="ticket-notes">Nota: ${i.notas}</div>` : ''}
-              </div>
-            `).join('');
-
-            let usuarioRegistro = orden.usuarioRastreo ? orden.usuarioRastreo.replace('Registrado por: ', '').split(' | ')[0] : 'Desconocido';
-
-            let botones = "";
-            if (orden.estado === "Pendiente") {
-                botones = `<button class="btn btn-primary btn-block" onclick="cambiarEstado('${orden.id}', 'En proceso')">Marcar En Proceso</button>`;
-            } else if (orden.estado === "En proceso") {
-                botones = `<button class="btn btn-success btn-block" onclick="cambiarEstado('${orden.id}', 'Listo')">Marcar Listo</button>`;
-            } else if (orden.estado === "Listo") {
-                botones = `<button class="btn btn-secondary btn-block" onclick="cambiarEstado('${orden.id}', 'Listo en Barra')">A Barra</button>`;
-            } else {
-                botones = `<span style="font-size:12px; font-weight:bold; color:var(--text-muted);">Esperando Cobro/Entrega</span>`;
-            }
-
-            container.innerHTML += `
-              <div class="ticket-card ${cardClass}">
-                <div class="ticket-header">
-                  <span class="ticket-id">${orden.id}</span>
-                  <span class="ticket-time">${orden.hora}</span>
-                  <div class="ticket-mesa">${orden.mesa}</div>
-                  <div style="font-size:11px; color:var(--text-muted); margin-top:3px;">Atendió: <strong>${usuarioRegistro}</strong></div>
-                </div>
-                <div class="ticket-body">${itemsHtml}</div>
-                <div class="ticket-footer">
-                  <div style="font-weight:bold; margin-bottom:8px; font-size:12px; color:var(--primary-color);">ESTADO: ${orden.estado.toUpperCase()}</div>
-                  ${botones}
-                </div>
-              </div>
-            `;
-          });
-        }
-      });
-    }
-
-    function cambiarEstado(id, estado) {
-      apiCall('cambiarEstadoOrden', [id, estado, usuarioGlobal], res => {
-        if(res.success) { cargarCocina(); cargarCaja(); }
-      });
-    }
-
-    function cargarCaja() {
-      apiCall('obtenerOrdenesActivas', [], res => {
-        if(res.success) {
-          const tbodyAbiertas = document.getElementById('caja-table-body');
-          const tbodyCobrados = document.getElementById('caja-cobrados-table-body');
-          tbodyAbiertas.innerHTML = "";
-          tbodyCobrados.innerHTML = "";
-
-          res.data.forEach(orden => {
-             let usuarioRegistro = orden.usuarioRastreo ? orden.usuarioRastreo.replace('Registrado por: ', '').split(' | ')[0] : 'Desconocido';
-
-             if (orden.estado === "Cobrado" || orden.estadoPago === "Cobrado") {
-                 tbodyCobrados.innerHTML += `
-                   <tr>
-                     <td>${orden.id}</td>
-                     <td>${orden.hora}</td>
-                     <td>${orden.mesa}</td>
-                     <td>$${orden.total.toFixed(2)}</td>
-                     <td>${orden.metodoPago || 'N/A'}</td>
-                     <td><span style="color:var(--success-color); font-weight:bold;">Cobrado</span></td>
-                     <td><strong>${usuarioRegistro}</strong></td>
-                     <td>
-                        <button class="btn btn-primary" style="padding:4px 8px; font-size:11px;" onclick="imprimirTicket('${orden.id}')">🖨️ Ticket</button>
-                        <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="cancelarOrden('${orden.id}')">❌ Cancelar</button>
-                     </td>
-                   </tr>
-                 `;
-             } else {
-                 let btnCobrar = `<button class="btn btn-success" style="padding:6px 12px; font-size:12px;" onclick="abrirModalCobro('${orden.id}', '${orden.mesa}', ${orden.total})">💲 Cobrar</button>`;
-                 tbodyAbiertas.innerHTML += `
-                   <tr>
-                     <td>${orden.id}</td>
-                     <td>${orden.hora}</td>
-                     <td>${orden.mesa}</td>
-                     <td>$${orden.total.toFixed(2)}</td>
-                     <td>${orden.estado}</td>
-                     <td>${btnCobrar} <button class="btn btn-danger" style="padding:6px 12px; font-size:12px;" onclick="cancelarOrden('${orden.id}')">❌</button></td>
-                   </tr>
-                 `;
-             }
-          });
-        }
-      });
-    }
-
-    function abrirModalCobro(id, mesa, total) {
-      document.getElementById('modal-cobro-id').value = id;
-      document.getElementById('modal-cobro-mesa').innerText = mesa;
-      document.getElementById('modal-cobro-total').innerText = "$" + total.toFixed(2);
-      totalOrdenActual = total;
-      document.getElementById('modal-cobro-recibido').value = total.toFixed(2);
-      document.getElementById('modal-cobro-cambio').innerText = "$0.00";
-      pagosAcumulados = [];
-      actualizarUIpagosMultiples();
-      document.getElementById('modal-cobro').classList.add('active');
-    }
-
-    function cerrarModalCobro() { 
-      document.getElementById('modal-cobro').classList.remove('active'); 
-    }
-
-    function agregarMetodoPagoLista() {
-      let metodo = document.getElementById('modal-cobro-metodo').value;
-      let montoInput = parseFloat(document.getElementById('modal-cobro-recibido').value) || 0;
-      
-      if(montoInput <= 0) {
-        alert("Ingrese un monto válido a abonar.");
-        return;
-      }
-
-      let totalAbonado = pagosAcumulados.reduce((sum, p) => sum + p.monto, 0);
-      let restante = totalOrdenActual - totalAbonado;
-
-      if(montoInput > restante + 0.01) {
-        if(confirm("El monto ingresado es mayor al restante. ¿Ajustar al restante exacto de $" + restante.toFixed(2) + "?")) {
-          montoInput = restante;
-        }
-      }
-
-      pagosAcumulados.push({ metodo: metodo, monto: montoInput });
-      document.getElementById('modal-cobro-recibido').value = "";
-      actualizarUIpagosMultiples();
-    }
-
-    function eliminarPagoLista(idx) {
-      pagosAcumulados.splice(idx, 1);
-      actualizarUIpagosMultiples();
-    }
-
-    function actualizarUIpagosMultiples() {
-      let container = document.getElementById('modal-cobro-lista-pagos');
-      let restanteSpan = document.getElementById('modal-cobro-restante');
-      
-      let totalAbonado = pagosAcumulados.reduce((sum, p) => sum + p.monto, 0);
-      let restante = totalOrdenActual - totalAbonado;
-      if(restante < 0) restante = 0;
-
-      restanteSpan.innerText = "$" + restante.toFixed(2);
-
-      if(pagosAcumulados.length > 0) {
-        container.style.display = 'block';
-        container.innerHTML = "<strong>Pagos agregados:</strong><br>";
-        pagosAcumulados.forEach((p, idx) => {
-          container.innerHTML += `${p.metodo}: $${p.monto.toFixed(2)} <button style="color:red; border:none; background:none; cursor:pointer;" onclick="eliminarPagoLista(${idx})">❌</button><br>`;
-        });
-      } else {
-        container.style.display = 'none';
-        container.innerHTML = "";
-      }
-
-      let recibidoActual = parseFloat(document.getElementById('modal-cobro-recibido').value) || 0;
-      if(pagosAcumulados.length === 0) {
-        let cambio = recibidoActual - totalOrdenActual;
-        document.getElementById('modal-cobro-cambio').innerText = cambio > 0 ? "$" + cambio.toFixed(2) : "$0.00";
-      } else {
-        let cambio = recibidoActual - restante;
-        document.getElementById('modal-cobro-cambio').innerText = cambio > 0 ? "$" + cambio.toFixed(2) : "$0.00";
-      }
-    }
-
-    function calcularCambioCaja() {
-      actualizarUIpagosMultiples();
-    }
-
-    function confirmarCobroFinal() {
-      let id = document.getElementById('modal-cobro-id').value;
-      let metodoFinal = "";
-
-      let totalAbonado = pagosAcumulados.reduce((sum, p) => sum + p.monto, 0);
-      
-      if(pagosAcumulados.length === 0) {
-        let metodoUnico = document.getElementById('modal-cobro-metodo').value;
-        metodoFinal = metodoUnico;
-      } else {
-        let montoActual = parseFloat(document.getElementById('modal-cobro-recibido').value) || 0;
-        if(montoActual > 0) {
-           let metodoActualSelect = document.getElementById('modal-cobro-metodo').value;
-           let restante = totalOrdenActual - totalAbonado;
-           if(montoActual > restante) montoActual = restante;
-           pagosAcumulados.push({ metodo: metodoActualSelect, monto: montoActual });
-        }
-        
-        totalAbonado = pagosAcumulados.reduce((sum, p) => sum + p.monto, 0);
-        if(totalAbonado < totalOrdenActual - 0.05) {
-           alert("El total abonado ($" + totalAbonado.toFixed(2) + ") es menor al total de la orden ($" + totalOrdenActual.toFixed(2) + "). Falta cubrir $" + (totalOrdenActual - totalAbonado).toFixed(2));
-           return;
-        }
-
-        let partes = pagosAcumulados.map(p => p.metodo + ":" + p.monto.toFixed(2));
-        metodoFinal = partes.join("; ");
-      }
-
-      apiCall('realizarCobro', [id, metodoFinal, usuarioGlobal], res => {
-        if(res.success) {
-           cerrarModalCobro();
-           cargarCaja();
-           alert("Cobro realizado con éxito.");
-        } else {
-           alert("Error al procesar el cobro: " + res.error);
-        }
-      });
-    }
-
-    function cancelarOrden(id) {
-       let m = prompt("Indique el motivo de la cancelación:");
-       if(m) {
-          apiCall('cancelarOrdenCaja', [id, m, usuarioGlobal], r => { if(r.success) cargarCaja(); });
-       }
-    }
-
-    // ==========================================
-    // GESTIÓN DE PRODUCTOS E INVENTARIO
-    // ==========================================
-    function cargarInventario() {
-      cargarCatalogoInicial();
-    }
-
-    function renderTablaProductos() {
-      const tbody = document.getElementById('productos-table-body');
-      tbody.innerHTML = "";
-      listadoProductos.forEach(p => {
-        tbody.innerHTML += `
-          <tr class="fila-producto">
-            <td class="td-cat">${p.categoria}</td>
-            <td class="td-nom">${p.nombre}</td>
-            <td>${p.descripcion || ''}</td>
-            <td class="td-pre">$${p.precio.toFixed(2)}</td>
-            <td>${p.activo}</td>
-            <td>
-              <button class="btn btn-primary" style="padding:4px 8px; font-size:11px;" onclick="editarProducto('${p.id}')">✏️ Editar</button>
-              <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="eliminarProductoConfirm('${p.id}')">❌ Eliminar</button>
-            </td>
-          </tr>
-        `;
-      });
-    }
-
-    function editarProducto(id) {
-      const p = listadoProductos.find(x => x.id === id);
-      if(p) {
-        document.getElementById('prod-id').value = p.id;
-        document.getElementById('prod-cat').value = p.categoria;
-        document.getElementById('prod-nombre').value = p.nombre;
-        document.getElementById('prod-descripcion').value = p.descripcion || "";
-        document.getElementById('prod-precio').value = p.precio;
-        document.getElementById('prod-activo').value = p.activo;
-        document.getElementById('prod-form-title').innerText = "Editar Producto";
-      }
-    }
-
-    function limpiarFormProducto() {
-      document.getElementById('prod-id').value = "";
-      document.getElementById('prod-cat').selectedIndex = 0;
-      document.getElementById('prod-nombre').value = "";
-      document.getElementById('prod-descripcion').value = "";
-      document.getElementById('prod-precio').value = "";
-      document.getElementById('prod-activo').value = "SÍ";
-      document.getElementById('prod-form-title').innerText = "Agregar / Editar Producto";
-    }
-
-    function guardarFormProducto() {
-      const prod = {
-        id: document.getElementById('prod-id').value,
-        categoria: document.getElementById('prod-cat').value,
-        nombre: document.getElementById('prod-nombre').value.trim(),
-        descripcion: document.getElementById('prod-descripcion').value.trim(),
-        precio: parseFloat(document.getElementById('prod-precio').value) || 0,
-        activo: document.getElementById('prod-activo').value
-      };
-      
-      if(!prod.nombre || prod.precio <= 0) {
-        alert("Completa el nombre y un precio válido."); return;
-      }
-      
-      apiCall('guardarProducto', [prod, usuarioGlobal], res => {
-        if(res.success) {
-          limpiarFormProducto();
-          cargarCatalogoInicial();
-          alert("Producto guardado con éxito");
-        } else {
-          alert("Error: " + res.error);
-        }
-      });
-    }
-
-    function eliminarProductoConfirm(id) {
-      if(confirm("¿Seguro que deseas eliminar este producto (se marcará como inactivo)?")) {
-        apiCall('eliminarProducto', [id, usuarioGlobal], res => {
-          if(res.success) {
-            cargarCatalogoInicial();
-          } else {
-            alert("Error al eliminar: " + res.error);
-          }
-        });
-      }
-    }
-
-    function filtrarTablaProductos() {
-      const filtroCat = document.getElementById('filtro-tabla-cat').value.toUpperCase();
-      const filtroNom = document.getElementById('filtro-tabla-nom').value.toUpperCase();
-      const filtroPre = document.getElementById('filtro-tabla-pre').value.toUpperCase();
-      
-      const filas = document.querySelectorAll('.fila-producto');
-      filas.forEach(fila => {
-        const cat = fila.querySelector('.td-cat').innerText.toUpperCase();
-        const nom = fila.querySelector('.td-nom').innerText.toUpperCase();
-        const pre = fila.querySelector('.td-pre').innerText.toUpperCase();
-        
-        if(cat.includes(filtroCat) && nom.includes(filtroNom) && pre.includes(filtroPre)) {
-          fila.style.display = '';
-        } else {
-          fila.style.display = 'none';
-        }
-      });
-    }
-
-    // ==========================================
-    // CARGAR USUARIOS Y GENERAR PDF DE MOVIMIENTOS
-    // ==========================================
-    function cargarUsuarios() {
-      apiCall('obtenerUsuarios', [], res => {
-        if(res.success) {
-          const tbody = document.getElementById('usuarios-table-body');
-          tbody.innerHTML = "";
-          res.data.forEach(u => {
-            tbody.innerHTML += `
-              <tr>
-                <td>${u.usuario}</td>
-                <td>${u.rol}</td>
-                <td>
-                  <button class="btn btn-primary" style="padding:4px 8px; font-size:11px;" onclick="editarUsuario('${u.usuario}', '${u.rol}')">✏️ Editar</button>
-                  <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="eliminarUsuarioConfirm('${u.usuario}')">❌ Eliminar</button>
-                  <button class="btn btn-secondary" style="padding:4px 8px; font-size:11px; margin-left:5px; background-color: var(--accent-color); color: #000;" onclick="generarPDFMovimientos('${u.usuario}')">📄 Ver PDF de Movimientos</button>
-                </td>
-              </tr>
-            `;
-          });
-        }
-      });
-    }
-
-    function editarUsuario(usuario, rol) {
-      document.getElementById('usu-id-original').value = usuario;
-      document.getElementById('usu-nombre').value = usuario;
-      document.getElementById('usu-rol').value = rol;
-      document.getElementById('usu-pass').value = "";
-      document.getElementById('usu-form-title').innerText = "Editar Usuario";
-    }
-
-    function limpiarFormUsuario() {
-      document.getElementById('usu-id-original').value = "";
-      document.getElementById('usu-nombre').value = "";
-      document.getElementById('usu-rol').value = "Cajero";
-      document.getElementById('usu-pass').value = "";
-      document.getElementById('usu-form-title').innerText = "Agregar / Editar Usuario";
-    }
-
-    function guardarFormUsuario() {
-      const idOrig = document.getElementById('usu-id-original').value;
-      const usu = document.getElementById('usu-nombre').value.trim();
-      const pass = document.getElementById('usu-pass').value.trim();
-      const rol = document.getElementById('usu-rol').value;
-
-      if(!usu) { alert("El nombre de usuario es obligatorio"); return; }
-      if(!idOrig && !pass) { alert("Para un nuevo usuario, la contraseña es obligatoria"); return; }
-
-      const data = { idOriginal: idOrig, usuario: usu, password: pass, rol: rol };
-      apiCall('guardarUsuario', [data, usuarioGlobal], res => {
-        if(res.success) {
-          alert(res.message);
-          limpiarFormUsuario();
-          cargarUsuarios();
-        } else {
-          alert("Error: " + res.error);
-        }
-      });
-    }
-
-    function eliminarUsuarioConfirm(usuarioId) {
-      if(confirm("¿Seguro que deseas eliminar al usuario " + usuarioId + "?")) {
-        apiCall('eliminarUsuarioInfo', [usuarioId, usuarioGlobal], res => {
-          if(res.success) {
-            alert(res.message);
-            cargarUsuarios();
-          } else {
-            alert("Error al eliminar: " + res.error);
-          }
-        });
-      }
-    }
-
-    function generarPDFMovimientos(usuario) {
-      alert("Generando PDF de movimientos para el usuario '" + usuario + "'. Por favor espere...");
-      apiCall('generarReporteMovimientosUsuarioPDF', [usuario], res => {
-        if(res.success) {
-          abrirPDFBase64(res.data);
-        } else {
-          alert("Error al generar el PDF: " + res.error);
-        }
-      });
-    }
-
-    // ==========================================
-    // IMPRESIÓN DE TICKETS DE VENTA
-    // ==========================================
-    function imprimirTicket(id) {
-      alert("Generando ticket PDF para la orden " + id + "...");
-      apiCall('obtenerTicketPDF', [id], res => {
-        if(res.success) {
-          abrirPDFBase64(res.data);
-        } else {
-          alert("Error al generar el ticket: " + res.error);
-        }
-      });
-    }
-
-    // ==========================================
-    // MÓDULO DE CORTES Y REPORTES DE VENTAS
-    // ==========================================
-    function cargarReportes() {
-      apiCall('obtenerReporteFinanciero', [], res => {
-        if(res.success) {
-          const d = res.data;
-          document.getElementById('rep-caja-inicial').innerText = "$" + d.cajaInicial.toFixed(2);
-          document.getElementById('rep-dia').innerText = "$" + d.corteDia.toFixed(2);
-          document.getElementById('rep-total-caja').innerText = "$" + (d.corteDia + d.cajaInicial).toFixed(2);
-          document.getElementById('rep-semana').innerText = "$" + d.corteSemanal.toFixed(2);
-          document.getElementById('rep-mes').innerText = "$" + d.corteMensual.toFixed(2);
-
-          const efec = d.distribucionPagoHoy["Efectivo"] || 0;
-          const tarj = d.distribucionPagoHoy["Tarjeta"] || 0;
-          const trans = d.distribucionPagoHoy["Transferencia"] || 0;
-
-          document.getElementById('rep-pago-efectivo').innerText = "$" + efec.toFixed(2);
-          document.getElementById('rep-pago-tarjeta').innerText = "$" + tarj.toFixed(2);
-          document.getElementById('rep-pago-transf').innerText = "$" + trans.toFixed(2);
-        } else {
-          alert("Error al obtener reporte financiero: " + res.error);
-        }
-      });
-    }
-
-    function ejecutarCierreVentaReal() {
-      let efectivoStr = prompt("Ingrese el monto total de dinero físico en efectivo contado en caja:");
-      if (efectivoStr === null) return;
-      let efectivoReal = parseFloat(efectivoStr);
-      if (isNaN(efectivoReal)) {
-        alert("Por favor ingrese un número válido.");
-        return;
-      }
-
-      let reiniciarSemana = confirm("¿Desea reiniciar el acumulado de 'Venta Semanal'?");
-      let reiniciarMes = confirm("¿Desea reiniciar el acumulado de 'Venta Mensual'?");
-
-      apiCall('registrarCierreCaja', [efectivoReal, usuarioGlobal, reiniciarSemana, reiniciarMes], res => {
-        if(res.success) {
-          alert("Cierre de caja procesado correctamente.\n\n" + res.message);
-          
-          // FIX: Pedir el inicio de caja para reiniciar todo a cero
-          let nuevoFondoStr = prompt("Ingrese el fondo de caja inicial para el nuevo turno:");
-          let nuevoFondo = parseFloat(nuevoFondoStr) || 0;
-          
-          apiCall('establecerCajaInicial', [nuevoFondo], resFondo => {
-            cargarReportes();
-            cargarHistorialCortes();
-            cargarCaja();
-          });
-          
-        } else {
-          alert("Error al realizar cierre de caja: " + res.error);
-        }
-      });
-    }
-
-    function cargarHistorialCortes() {
-      apiCall('obtenerHistorialCortes', [], res => {
-        if(res.success) {
-          datosHistorialCortes = res.data;
-          renderTablaHistorialCortes(datosHistorialCortes);
-        } else {
-          alert("Error al cargar historial de cortes: " + res.error);
-        }
-      });
-    }
-
-    function renderTablaHistorialCortes(lista) {
-      const tbody = document.getElementById('historial-cortes-body');
-      tbody.innerHTML = "";
-      if (lista.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; color:var(--text-muted);">No hay registros de cierre de caja.</td></tr>`;
-        return;
-      }
-      lista.forEach(c => {
-        tbody.innerHTML += `
-          <tr>
-            <td>${c.fecha}</td>
-            <td>${c.hora}</td>
-            <td>$${c.cajaInicial.toFixed(2)}</td>
-            <td>$${c.ventaTotal.toFixed(2)}</td>
-            <td>$${c.ventasEfectivoSistema.toFixed(2)}</td>
-            <td>$${c.ventasTarjeta.toFixed(2)}</td>
-            <td>$${c.ventasTransferencia.toFixed(2)}</td>
-            <td>$${c.efectivoReal.toFixed(2)}</td>
-            <td style="font-weight:bold; color:${c.diferencia < 0 ? 'red' : (c.diferencia > 0 ? 'orange' : 'green')};">$${c.diferencia.toFixed(2)}</td>
-            <td>
-              <button class="btn btn-secondary" style="padding:4px 8px; font-size:11px;" onclick="descargarReporteCortePDF(\`${c.reporteTexto.replace(/`/g, '\\`').replace(/'/g, "\\'")}\`)">📄 PDF</button>
-            </td>
-          </tr>
-        `;
-      });
-    }
-
-    function descargarReporteCortePDF(textoReporte) {
-      alert("Generando PDF de corte de caja...");
-      apiCall('obtenerReporteCortePDF', [textoReporte], res => {
-        if(res.success) {
-          abrirPDFBase64(res.data);
-        } else {
-          alert("Error al generar el PDF: " + res.error);
-        }
-      });
-    }
-
-    function descargarHistoricoHojasPDF() {
-      alert("Generando Histórico Completo en PDF...");
-      apiCall('obtenerHistoricoHojasPDF', [], res => {
-         if(res.success) {
-            abrirPDFBase64(res.data);
-         } else {
-            alert("Error al generar Histórico: " + res.error);
-         }
-      });
-    }
-
-    function filtrarHistorialCortes() {
-      const inicio = document.getElementById('filtro-fecha-cierre-inicio').value;
-      const fin = document.getElementById('filtro-fecha-cierre-fin').value;
-      if (!inicio && !fin) return;
-      
-      const listaFiltrada = datosHistorialCortes.filter(c => {
-         const fechaC = new Date(c.fecha);
-         let pasa = true;
-         if (inicio) {
-            const fechaI = new Date(inicio);
-            if (fechaC < fechaI) pasa = false;
-         }
-         if (fin) {
-            const fechaF = new Date(fin);
-            if (fechaC > fechaF) pasa = false;
-         }
-         return pasa;
-      });
-      renderTablaHistorialCortes(listaFiltrada);
-    }
-
-    function cargarRegistrosEliminados() {
-      apiCall('obtenerRegistrosEliminados', [], res => {
-        if(res.success) {
-          datosRegistrosEliminados = res.data;
-          renderTablaRegistrosEliminados(datosRegistrosEliminados);
-        }
-      });
-    }
-
-    function renderTablaRegistrosEliminados(lista) {
-      const tbody = document.getElementById('registros-eliminados-body');
-      tbody.innerHTML = "";
-      if(lista.length === 0) {
-         tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">No hay registros eliminados.</td></tr>`;
-         return;
-      }
-      lista.forEach(e => {
-        tbody.innerHTML += `
-          <tr>
-            <td>${e.id}</td>
-            <td>${e.fecha}</td>
-            <td>${e.hora}</td>
-            <td>${e.mesa}</td>
-            <td>$${e.total.toFixed(2)}</td>
-            <td>${e.motivo}<br><span style="font-size:11px; color:#666;">${e.usuario}</span></td>
-          </tr>
-        `;
-      });
-    }
-
-    function filtrarRegistrosEliminados() {
-      const inicio = document.getElementById('filtro-fecha-elim-inicio').value;
-      const fin = document.getElementById('filtro-fecha-elim-fin').value;
-      if (!inicio && !fin) return;
-      
-      const listaFiltrada = datosRegistrosEliminados.filter(e => {
-         const fechaE = new Date(e.fecha);
-         let pasa = true;
-         if (inicio) {
-            const fechaI = new Date(inicio);
-            if (fechaE < fechaI) pasa = false;
-         }
-         if (fin) {
-            const fechaF = new Date(fin);
-            if (fechaE > fechaF) pasa = false;
-         }
-         return pasa;
-      });
-      renderTablaRegistrosEliminados(listaFiltrada);
-    }
-  </script>
+    editingOrderId = null;
+    const btn = document.getElementById('btn-send-order');
+    if(btn) btn.innerHTML = '🚀 Enviar a Cocina';
+  } else {
+    const o={id:uid(),number:nextNum(),clientName:cEl.value.trim(),
+      items:cart.map(i=>({...i})),generalNote:gEl?gEl.value.trim():'',
+      workerName:CU.name,workerId:CU.id,status:'pending',total:tot,
+      discount:{type:'none',value:0,reason:'',finalTotal:tot},
+      payment:{cash:0,card:0,transfer:0,tip:0,status:'pending'},
+      timestamp:new Date().toISOString(),paidAt:null};
+    orders.push(o);LS.set('be_orders',orders);
+    logAct(CU.id,`Creó pedido #${o.number} - ${o.clientName} - ${fc(tot)}`);
+    notify('✅','¡Pedido enviado!',`Pedido #${o.number} enviado a cocina.`,4000);
+  }
+  
+  cart=[];cEl.value='';if(gEl)gEl.value='';
+  buildCart();
+  const mo=document.getElementById('my-orders');if(mo)mo.innerHTML=buildMyOrders();
+  updBadges();
+}
+function markDel(oid){
+  const orders=LS.get('be_orders');
+  const i=orders.findIndex(o=>o.id===oid);if(i===-1)return;
+  orders[i].status='delivered';LS.set('be_orders',orders);
+  logAct(CU.id,`Marcó pedido #${orders[i].number} como Entregado`);
+  notify('✅','Pedido Entregado',`Pedido #${orders[i].number} entregado al cliente.`,3000);
+  go('orders');
+}
+
+// ═══════════════════════════════════════════
+// KITCHEN VIEW
+// ═══════════════════════════════════════════
+function rKitchen(c){
+  const all=LS.get('be_orders');
+  let filtered=kFilter==='all'?all:kFilter==='active'?all.filter(o=>!['paid','cancelled'].includes(o.status)):all.filter(o=>o.status===kFilter);
+  const sorted=[...filtered].sort((a,b)=>{
+    const s={pending:0,'in-process':1,ready:2,bar:3,delivered:4,paid:5};
+    return((s[a.status]||9)-(s[b.status]||9))||new Date(a.timestamp)-new Date(b.timestamp);
+  });
+  const cnt={pending:all.filter(o=>o.status==='pending').length,'in-process':all.filter(o=>o.status==='in-process').length,ready:all.filter(o=>o.status==='ready').length,bar:all.filter(o=>o.status==='bar').length};
+  c.innerHTML=`
+  <div class="fpills">
+    <button class="fpill ${kFilter==='active'?'active':''}" onclick="kFilter='active';go('kitchen')">🔥 Activos (${cnt.pending+cnt['in-process']+cnt.ready+cnt.bar})</button>
+    <button class="fpill ${kFilter==='pending'?'active':''}" onclick="kFilter='pending';go('kitchen')">⏳ Espera (${cnt.pending})</button>
+    <button class="fpill ${kFilter==='in-process'?'active':''}" onclick="kFilter='in-process';go('kitchen')">👨‍🍳 Proceso (${cnt['in-process']})</button>
+    <button class="fpill ${kFilter==='ready'?'active':''}" onclick="kFilter='ready';go('kitchen')">✅ Listos (${cnt.ready})</button>
+    <button class="fpill ${kFilter==='bar'?'active':''}" onclick="kFilter='bar';go('kitchen')">🍺 Barra (${cnt.bar})</button>
+    <button class="fpill ${kFilter==='all'?'active':''}" onclick="kFilter='all';go('kitchen')">📋 Todos</button>
+  </div>
+  ${!sorted.length?'<div class="card"><div class="empty"><div class="ei">👨‍🍳</div><h3>Sin pedidos</h3><p>No hay pedidos en esta categoría.</p></div></div>':
+  `<div class="kgrid">${sorted.map(o=>buildKCard(o)).join('')}</div>`}`;
+}
+function buildKCard(o){
+  const el=Math.floor((Date.now()-new Date(o.timestamp))/60000);
+  const btns={
+    pending:`<button class="btn bi btn-sm" onclick="updStatus('${o.id}','in-process')">▶️ En Proceso</button>`,
+    'in-process':`<button class="btn bs btn-sm" onclick="updStatus('${o.id}','ready')">✅ Listo</button>`,
+    ready:`<button class="btn bpu btn-sm" onclick="updStatus('${o.id}','bar')">🍺 En Barra</button>`,
+    bar:`<span style="font-size:12px;color:var(--purple);font-weight:600">🔔 Esperando mesero...</span>`,
+  };
+  return`<div class="ocard" data-s="${o.status}">
+    <div class="och">
+      <div><div class="oid">ORDEN #${o.number}</div><div class="oclient">${o.clientName}</div></div>
+      <div style="text-align:right"><span class="badge ${SB[o.status]}">${SL[o.status]}</span><div style="font-size:11px;color:var(--muted);margin-top:3px">⏱️ ${el}min</div></div>
+    </div>
+    <div class="ocb">
+      <ul class="oitems">
+        ${o.items.map(i=>`<li><span class="oq">${i.qty}×</span> ${i.name}${i.note?`<div class="inotice">📝 ${i.note}</div>`:''}</li>`).join('')}
+      </ul>
+      ${o.generalNote?`<div style="margin-top:8px;font-size:12px;background:#FFF5F0;padding:7px 10px;border-radius:6px;color:var(--birria)">📝 ${o.generalNote}</div>`:''}
+      <div class="owrk">👤 ${o.workerName}</div>
+    </div>
+    <div class="ocf"><div class="sbts">
+      ${btns[o.status]||''}
+      ${!['pending','paid','delivered','cancelled'].includes(o.status)?`<button class="btn bo btn-sm" onclick="updStatus('${o.id}','pending')">⏪ Regresar</button>`:''}
+      ${['delivered','paid','cancelled'].includes(o.status)?`<span style="font-size:12px;color:var(--muted)">Pedido completado o cancelado</span>`:''}
+    </div></div>
+  </div>`;
+}
+function updStatus(oid,ns){
+  const orders=LS.get('be_orders');
+  const i=orders.findIndex(o=>o.id===oid);if(i===-1)return;
+  const os=orders[i].status;orders[i].status=ns;LS.set('be_orders',orders);
+  logAct(CU.id,`Cambió pedido #${orders[i].number} de "${SL[os]}" a "${SL[ns]}"`);
+  if(ns==='bar')notify('🍺',`¡Pedido #${orders[i].number} en Barra!`,`${orders[i].clientName} — listo para entregar.`,6000,'nbar');
+  go('kitchen');
+}
+
+// ═══════════════════════════════════════════
+// CASHIER VIEW
+// ═══════════════════════════════════════════
+function rCashier(c){
+  const orders=LS.get('be_orders');
+  // Se excluyen los pagados y cancelados. Caja ve desde pendiente (recién enviado)
+  const list=orders.filter(o=>!['paid','cancelled'].includes(o.status)).sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));
+  c.innerHTML=`<div class="cslayout">
+    <div>
+      <div class="card">
+        <div class="ch"><div class="ct">📋 Pedidos Activos</div><span style="font-size:12px;color:var(--muted)">${list.length} pedido(s)</span></div>
+        <div class="scrl">
+          ${!list.length?'<div class="empty"><div class="ei">🏧</div><p>Sin pedidos</p></div>':
+          list.map(o=>`<div class="cord ${selOrder?.id===o.id?'sel':''}" onclick="selCsOrder('${o.id}')">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+              <span style="font-weight:700;font-size:15px">#${o.number} – ${o.clientName}</span>
+              <span class="badge ${SB[o.status]}">${SL[o.status]}</span>
+            </div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:4px">👤 ${o.workerName} · ⏰ ${fd(o.timestamp)}</div>
+            <div style="font-size:13px">${o.items.map(i=>`${i.qty}× ${i.name}`).join(' | ')}</div>
+            <div style="text-align:right;margin-top:6px;font-size:18px;font-weight:900;color:var(--birria)">${fc(o.discount?.finalTotal??o.total)}</div>
+          </div>`).join('')}
+        </div>
+      </div>
+    </div>
+    <div id="pay-panel" style="position:sticky;top:80px">
+      ${selOrder?buildPayPanel():`<div class="card"><div class="empty"><div class="ei">👆</div><h3>Selecciona un pedido</h3><p>Haz clic en un pedido para cobrar.</p></div></div>`}
+    </div>
+  </div>`;
+}
+function selCsOrder(oid){
+  const o=LS.get('be_orders').find(x=>x.id===oid);
+  selOrder=o;csPayments={cash:0,card:0,transfer:0};
+  csDisc=o?.discount||{type:'none',value:0,reason:'',finalTotal:o?.total};
+  go('cashier');
+}
+function buildPayPanel(){
+  const o=selOrder;if(!o)return;
+  const d=csDisc;
+  let da=0,ta=0;
+  if(d.type==='pct')da=o.total*(d.value/100);
+  else if(d.type==='amt')da=d.value;
+  else if(d.type==='tip')ta=d.value;
+  const ft=Math.max(0,o.total-da+ta);
+  const paid=(csPayments.cash||0)+(csPayments.card||0)+(csPayments.transfer||0);
+  const rem=ft-paid;const chg=paid>ft?paid-ft:0;
+  return`<div class="card">
+    <div class="ch">
+      <div><div class="ct">#${o.number} – ${o.clientName}</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:3px"><span class="badge ${SB[o.status]}">${SL[o.status]}</span> · 👤 ${o.workerName}</div></div>
+      <button class="btn bo btn-sm" onclick="selOrder=null;go('cashier')">✕</button>
+    </div>
+    <div style="margin-bottom:14px">
+      ${o.items.map(i=>`<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0">
+        <span>${i.qty}× ${i.name}${i.note?` <em style="color:var(--muted)">(${i.note})</em>`:''}</span>
+        <span style="font-weight:600">${fc(i.price*i.qty)}</span></div>`).join('')}
+      ${o.generalNote?`<div style="font-size:11px;color:var(--muted);margin-top:5px">📝 ${o.generalNote}</div>`:''}
+    </div>
+    <div style="margin-bottom:14px">
+      <button class="btn bo btn-sm" onclick="openDisc()">
+        🏷️ ${d.type!=='none'?`${d.type==='tip'?'+ Propina':'- Descuento'}: ${d.type==='pct'?d.value+'%':fc(d.value)}`:'Descuento / Propina'}
+      </button>
+      ${d.type!=='none'&&d.reason?`<div class="itext">Motivo: ${d.reason}</div>`:''}
+    </div>
+    <div style="margin-bottom:14px">
+      <div class="fl" style="margin-bottom:8px">MÉTODO DE PAGO</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;align-items:center;gap:10px"><span class="pil">💵 Efectivo</span>
+          <input type="number" class="payinp" id="py-cash" value="${csPayments.cash||''}" placeholder="0.00" min="0" step="0.01"
+            oninput="csPayments.cash=parseFloat(this.value)||0;updPaySum()"/></div>
+        <div style="display:flex;align-items:center;gap:10px"><span class="pil">💳 Tarjeta</span>
+          <input type="number" class="payinp" id="py-card" value="${csPayments.card||''}" placeholder="0.00" min="0" step="0.01"
+            oninput="csPayments.card=parseFloat(this.value)||0;updPaySum()"/></div>
+        <div style="display:flex;align-items:center;gap:10px"><span class="pil">📱 Transferencia</span>
+          <input type="number" class="payinp" id="py-tf" value="${csPayments.transfer||''}" placeholder="0.00" min="0" step="0.01"
+            oninput="csPayments.transfer=parseFloat(this.value)||0;updPaySum()"/></div>
+      </div>
+    </div>
+    <div class="psum" id="psum">
+      ${buildPaySum(o.total,da,ta,ft,paid,chg,rem,d)}
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+      <button class="btn bo" onclick="showTicket()">🧾 Ver Ticket</button>
+      <button class="btn bo" style="color:var(--err);border-color:var(--err)" onclick="cancelOrder('${o.id}')">🚫 Cancelar</button>
+      <button class="btn bs" style="flex:1" onclick="doPay()">✅ Cobrar</button>
+    </div>
+  </div>`;
+}
+function buildPaySum(base,da,ta,ft,paid,chg,rem,d){
+  return`<div class="prow"><span>Subtotal:</span><span>${fc(base)}</span></div>
+  ${da>0?`<div class="prow" style="color:var(--ok)"><span>Descuento${d.type==='pct'?' ('+d.value+'%)':''}:</span><span>-${fc(da)}</span></div>`:''}
+  ${ta>0?`<div class="prow" style="color:var(--info)"><span>Propina:</span><span>+${fc(ta)}</span></div>`:''}
+  <div class="prow total"><span>TOTAL A PAGAR:</span><span>${fc(ft)}</span></div>
+  <div class="prow"><span>Pagado:</span><span>${fc(paid)}</span></div>
+  ${chg>0?`<div class="prow change"><span>💵 Cambio:</span><span>${fc(chg)}</span></div>`:''}
+  ${rem>0&&paid>0?`<div class="prow pend"><span>⚠️ Falta:</span><span>${fc(rem)}</span></div>`:''}`;
+}
+function updPaySum(){
+  const o=selOrder;if(!o)return;
+  const d=csDisc;let da=0,ta=0;
+  if(d.type==='pct')da=o.total*(d.value/100);
+  else if(d.type==='amt')da=d.value;
+  else if(d.type==='tip')ta=d.value;
+  const ft=Math.max(0,o.total-da+ta);
+  const paid=(csPayments.cash||0)+(csPayments.card||0)+(csPayments.transfer||0);
+  const rem=ft-paid;const chg=paid>ft?paid-ft:0;
+  const el=document.getElementById('psum');
+  if(el)el.innerHTML=buildPaySum(o.total,da,ta,ft,paid,chg,rem,d);
+}
+function openDisc(){
+  document.getElementById('dc-type').value=csDisc.type||'none';
+  document.getElementById('dc-val').value=csDisc.value||'';
+  document.getElementById('dc-reason').value=csDisc.reason||'';
+  updDiscCalc();om('m-disc');
+}
+function updDiscCalc(){
+  const type=document.getElementById('dc-type').value;
+  const val=parseFloat(document.getElementById('dc-val').value)||0;
+  const lbl=document.getElementById('dc-lbl');const prev=document.getElementById('dc-prev');
+  const map={pct:'Porcentaje (%)',amt:'Monto ($)',tip:'Propina ($)',none:'Valor'};
+  if(lbl)lbl.textContent=map[type]||'Valor';
+  if(!prev||!selOrder){return}
+  const base=selOrder.total;
+  if(type==='pct')prev.innerHTML=`<div class="itext">Descuento: ${fc(base*val/100)} · Nuevo total: ${fc(base-base*val/100)}</div>`;
+  else if(type==='amt')prev.innerHTML=`<div class="itext">Nuevo total: ${fc(Math.max(0,base-val))}</div>`;
+  else if(type==='tip')prev.innerHTML=`<div class="itext">Total con propina: ${fc(base+val)}</div>`;
+  else prev.innerHTML='';
+}
+function applyDisc(){
+  if(!selOrder)return;
+  const type=document.getElementById('dc-type').value;
+  const value=parseFloat(document.getElementById('dc-val').value)||0;
+  const reason=document.getElementById('dc-reason').value.trim();
+  let da=0,ta=0;
+  if(type==='pct')da=selOrder.total*(value/100);
+  else if(type==='amt')da=value;
+  else if(type==='tip')ta=value;
+  const ft=Math.max(0,selOrder.total-da+ta);
+  csDisc={type,value,reason,finalTotal:ft};
+  cm('m-disc');
+  document.getElementById('pay-panel').innerHTML=buildPayPanel();
+}
+function doPay(){
+  if(!selOrder)return;
+  const d=csDisc;let da=0,ta=0;
+  if(d.type==='pct')da=selOrder.total*(d.value/100);
+  else if(d.type==='amt')da=d.value;
+  else if(d.type==='tip')ta=d.value;
+  const ft=Math.max(0,selOrder.total-da+ta);
+  const paid=(csPayments.cash||0)+(csPayments.card||0)+(csPayments.transfer||0);
+  if(paid===0){notify('⚠️','Ingresa el pago','Por favor ingresa al menos un monto de pago.',3000);return}
+  if(paid<ft){
+    confirm2('¿Pago incompleto?',`Falta ${fc(ft-paid)} por cubrir. ¿Deseas continuar?`,()=>finalizePay(ft,paid,da,ta),'Cobrar igual','bw');
+    return;
+  }
+  finalizePay(ft,paid,da,ta);
+}
+function finalizePay(ft,paid,da,ta){
+  const orders=LS.get('be_orders');
+  const i=orders.findIndex(o=>o.id===selOrder.id);if(i===-1)return;
+  const chg=Math.max(0,paid-ft);
+  const d=csDisc;
+  orders[i].status='paid';
+  orders[i].payment={cash:csPayments.cash||0,card:csPayments.card||0,transfer:csPayments.transfer||0,
+    tip:ta,paid,finalTotal:ft,change:chg,status:'paid'};
+  orders[i].discount={...d,finalTotal:ft,discAmt:da};
+  orders[i].paidAt=new Date().toISOString();
+  LS.set('be_orders',orders);
+  
+  // Guardar en la pestaña de Caja
+  const cajaList = LS.get('be_caja') || [];
+  cajaList.push({
+    id: orders[i].id,
+    number: orders[i].number,
+    clientName: orders[i].clientName,
+    total: ft,
+    cash: csPayments.cash || 0,
+    card: csPayments.card || 0,
+    transfer: csPayments.transfer || 0,
+    workerName: CU.name,
+    timestamp: new Date().toISOString()
+  });
+  LS.set('be_caja', cajaList);
+
+  // Sales
+  const addSales=(key)=>{const s=LS.obj(key,{total:0,cash:0,card:0,transfer:0});
+    s.total+=ft;s.cash+=csPayments.cash||0;s.card+=csPayments.card||0;s.transfer+=csPayments.transfer||0;
+    LS.set(key,s)};
+  addSales('be_sd');addSales('be_sw');addSales('be_sm');
+  logAct(CU.id,`Cobró pedido #${orders[i].number} - ${orders[i].clientName} - ${fc(ft)}`);
+  notify('✅','¡Pago exitoso!',`Pedido #${orders[i].number}. Cambio: ${fc(chg)}`,4000);
+  showTicket(orders[i]);
+  selOrder=null;csPayments={cash:0,card:0,transfer:0};csDisc={type:'none',value:0,reason:''};
+  updBadges();
+}
+function showTicket(oArg){
+  const o=oArg||selOrder;if(!o)return;
+  const pd=o.payment||{};const dc=o.discount||csDisc;
+  const da=dc.discAmt||0;const ta=pd.tip||0;
+  const ft=pd.finalTotal||o.total;const paid=pd.paid||0;const chg=pd.change||0;
+  const now=new Date();
+  document.getElementById('mb-ticket').innerHTML=`<div class="ticket">
+    <div class="tcenter"><div class="ttitle">🔥 BIRRIA EXPRESS</div><div>Sistema de Gestión</div></div>
+    <hr class="tdiv">
+    <div>Fecha: ${now.toLocaleDateString('es-MX')} ${now.toLocaleTimeString('es-MX')}</div>
+    <div>Orden: #${o.number}</div>
+    <div>Mesa/Cliente: ${o.clientName}</div>
+    <div>Atendido: ${o.workerName}</div>
+    <hr class="tdiv">
+    <div><strong>PRODUCTOS</strong></div>
+    ${o.items.map(i=>`<div style="display:flex;justify-content:space-between"><span>${i.qty}× ${i.name}</span><span>${fc(i.price*i.qty)}</span></div>${i.note?`<div style="padding-left:14px;font-size:11px;color:#666">→ ${i.note}</div>`:''}`).join('')}
+    <hr class="tdiv">
+    <div style="display:flex;justify-content:space-between"><span>Subtotal:</span><span>${fc(o.total)}</span></div>
+    ${da>0?`<div style="display:flex;justify-content:space-between"><span>Descuento${dc.reason?' ('+dc.reason+')':''}:</span><span>-${fc(da)}</span></div>`:''}
+    ${ta>0?`<div style="display:flex;justify-content:space-between"><span>Propina:</span><span>+${fc(ta)}</span></div>`:''}
+    <div style="display:flex;justify-content:space-between;font-weight:bold;font-size:15px"><span>TOTAL:</span><span>${fc(ft)}</span></div>
+    <hr class="tdiv">
+    ${pd.cash>0?`<div style="display:flex;justify-content:space-between"><span>Efectivo:</span><span>${fc(pd.cash)}</span></div>`:''}
+    ${pd.card>0?`<div style="display:flex;justify-content:space-between"><span>Tarjeta:</span><span>${fc(pd.card)}</span></div>`:''}
+    ${pd.transfer>0?`<div style="display:flex;justify-content:space-between"><span>Transferencia:</span><span>${fc(pd.transfer)}</span></div>`:''}
+    ${chg>0?`<div style="display:flex;justify-content:space-between"><span>Cambio:</span><span>${fc(chg)}</span></div>`:''}
+    <hr class="tdiv">
+    ${o.generalNote?`<div>Nota: ${o.generalNote}</div><hr class="tdiv">`:''}
+    <div class="tcenter"><div>¡Gracias por su preferencia!</div><div style="font-size:11px;color:#999">Vuelva pronto 🔥</div></div>
+  </div>`;
+  om('m-ticket');
+}
+function printTicket(){
+  const c=document.getElementById('mb-ticket');if(!c)return;
+  const w=window.open('','_blank','width=420,height=640');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Ticket</title>
+  <style>body{font-family:'Courier New',monospace;font-size:12px;margin:0;padding:20px;line-height:1.7}
+  .tcenter{text-align:center}.ttitle{font-size:16px;font-weight:bold}hr{border:none;border-top:1px dashed #999;margin:8px 0}
+  @media print{body{margin:0}}</style></head><body>
+  ${c.innerHTML}
+  <script>window.onload=()=>{window.print();window.close()}<\/script></body></html>`);
+  w.document.close();
+}
+
+// ═══════════════════════════════════════════
+// PRODUCTS VIEW
+// ═══════════════════════════════════════════
+function rProducts(c){
+  const prods=LS.get('be_products');
+  const cats=[...new Set(prods.map(p=>p.category))].sort();
+  const dl=document.getElementById('dl-cats');
+  if(dl)dl.innerHTML=cats.map(c=>`<option value="${c}">`).join('');
+  c.innerHTML=`<div class="card">
+    <div class="ch"><div class="ct">🍖 Productos del Menú</div>
+      <button class="btn bp" onclick="openProd()">+ Nuevo Producto</button></div>
+    <div class="pflt">
+      <div><label class="fl">Buscar Nombre</label>
+        <input type="text" class="fc" id="pf-name" placeholder="Nombre..." value="${pFlt.name}"
+          oninput="pFlt.name=this.value;filterProds()"/></div>
+      <div><label class="fl">Filtrar Categoría</label>
+        <select class="fc" id="pf-cat" onchange="pFlt.cat=this.value;filterProds()">
+          <option value="">Todas</option>
+          ${cats.map(x=>`<option value="${x}" ${pFlt.cat===x?'selected':''}>${x}</option>`).join('')}
+        </select></div>
+      ${pFlt.name||pFlt.cat?`<div style="display:flex;align-items:flex-end">
+        <button class="btn bo" onclick="pFlt={name:'',cat:''};go('products')">✕ Limpiar</button></div>`:''}
+    </div>
+    <div class="tw">
+      <table id="prod-table">
+        <thead><tr><th>Nombre</th><th>Descripción</th><th>Categoría</th><th>Precio</th><th>Estado</th><th>Acciones</th></tr></thead>
+        <tbody id="prod-tbody">${buildProdRows(prods)}</tbody>
+      </table>
+    </div>
+    <div class="itext" id="prod-count">${prods.length} producto(s)</div>
+  </div>`;
+  filterProds();
+}
+function buildProdRows(prods){
+  return prods.map(p=>`<tr data-name="${p.name.toLowerCase()}" data-cat="${(p.category||'').toLowerCase()}">
+    <td><strong>${p.name}</strong></td>
+    <td><span style="font-size:12px;color:var(--muted)">${p.description||'—'}</span></td>
+    <td><span class="badge b-waiter">${p.category}</span></td>
+    <td><strong style="color:var(--birria)">${fc(p.price)}</strong></td>
+    <td><span class="badge ${p.active===false?'':'br'}" style="${p.active===false?'background:#F3F4F6;color:#6B7280':''}">
+      ${p.active===false?'Inactivo':'Activo'}</span></td>
+    <td><div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="btn bo btn-sm" onclick="openProd('${p.id}')">✏️ Editar</button>
+      <button class="btn btn-sm ${p.active===false?'bs':'bw'}" onclick="togProd('${p.id}')">
+        ${p.active===false?'✅ Activar':'🚫 Desactivar'}</button>
+      <button class="btn bd btn-sm" onclick="delProd('${p.id}')">🗑️</button>
+    </div></td>
+  </tr>`).join('');
+}
+function filterProds(){
+  const nm=(document.getElementById('pf-name')?.value||pFlt.name).toLowerCase();
+  const ct=(document.getElementById('pf-cat')?.value||pFlt.cat).toLowerCase();
+  const rows=document.querySelectorAll('#prod-tbody tr');
+  let vis=0;
+  rows.forEach(r=>{
+    const rn=r.dataset.name||'',rc=r.dataset.cat||'';
+    const show=(!nm||rn.includes(nm))&&(!ct||rc===ct);
+    r.style.display=show?'':'none';if(show)vis++;
+  });
+  const el=document.getElementById('prod-count');
+  if(el)el.textContent=`${vis} de ${rows.length} producto(s)`;
+}
+function openProd(pid){
+  document.getElementById('pe-id').value=pid||'';
+  if(pid){
+    const p=LS.get('be_products').find(x=>x.id===pid);if(!p)return;
+    document.getElementById('mt-product').textContent='Editar Producto';
+    document.getElementById('pe-name').value=p.name;
+    document.getElementById('pe-desc').value=p.description||'';
+    document.getElementById('pe-cat').value=p.category;
+    document.getElementById('pe-price').value=p.price;
+  }else{
+    document.getElementById('mt-product').textContent='Nuevo Producto';
+    ['pe-name','pe-desc','pe-cat','pe-price'].forEach(id=>document.getElementById(id).value='');
+  }
+  const cats=[...new Set(LS.get('be_products').map(p=>p.category))].sort();
+  const dl=document.getElementById('dl-cats');
+  if(dl)dl.innerHTML=cats.map(c=>`<option value="${c}">`).join('');
+  om('m-product');
+}
+function saveProduct(){
+  const name=document.getElementById('pe-name').value.trim();
+  const desc=document.getElementById('pe-desc').value.trim();
+  const cat=document.getElementById('pe-cat').value.trim();
+  const price=parseFloat(document.getElementById('pe-price').value);
+  const eid=document.getElementById('pe-id').value;
+  if(!name||!cat||isNaN(price)||price<0){notify('⚠️','Campos requeridos','Nombre, categoría y precio son obligatorios.',3000);return}
+  const prods=LS.get('be_products');
+  if(eid){
+    const i=prods.findIndex(p=>p.id===eid);
+    if(i!==-1){prods[i]={...prods[i],name,description:desc,category:cat,price};
+      logAct(CU.id,`Editó producto "${name}"`);}
+  }else{
+    prods.push({id:uid(),name,description:desc,category:cat,price,active:true});
+    logAct(CU.id,`Creó producto "${name}" - ${fc(price)}`);
+  }
+  LS.set('be_products',prods);cm('m-product');
+  notify('✅',eid?'Producto actualizado':'Producto creado',name,3000);go('products');
+}
+function togProd(pid){
+  const prods=LS.get('be_products');const i=prods.findIndex(p=>p.id===pid);if(i===-1)return;
+  prods[i].active=prods[i].active===false?true:false;LS.set('be_products',prods);
+  logAct(CU.id,`${prods[i].active?'Activó':'Desactivó'} producto "${prods[i].name}"`);go('products');
+}
+function delProd(pid){
+  const p=LS.get('be_products').find(x=>x.id===pid);if(!p)return;
+  confirm2(`¿Eliminar "${p.name}"?`,'Esta acción no se puede deshacer.',()=>{
+    LS.set('be_products',LS.get('be_products').filter(x=>x.id!==pid));
+    logAct(CU.id,`Eliminó producto "${p.name}"`);
+    notify('✅','Producto eliminado',p.name,3000);go('products');
+  });
+}
+
+// ═══════════════════════════════════════════
+// CORTE VIEW
+// ═══════════════════════════════════════════
+function rCorte(c){
+  const sd=LS.obj('be_sd',{total:0,cash:0,card:0,transfer:0,date:today()});
+  const sw=LS.obj('be_sw',{total:0,cash:0,card:0,transfer:0});
+  const sm=LS.obj('be_sm',{total:0,cash:0,card:0,transfer:0});
+  const cuts=LS.get('be_cuts');
+  c.innerHTML=`
+  <div class="g3" style="margin-bottom:20px">
+    ${buildSaleCard('Venta del Día',sd,'var(--birria)',sd.date||today(),`<button class="btn bp" style="width:100%;margin-top:12px" onclick="openCierre()">🔒 Cerrar Caja</button>`)}
+    ${buildSaleCard('Venta de la Semana',sw,'var(--info)',sw.weekStart?'Desde '+sw.weekStart:'',`<button class="btn bo" style="width:100%;margin-top:12px" onclick="resetSales('sw','la semana')">🔄 Reiniciar Semana</button>`)}
+    ${buildSaleCard('Venta del Mes',sm,'var(--purple)',sm.monthStart?'Desde '+sm.monthStart:'',`<button class="btn bo" style="width:100%;margin-top:12px" onclick="resetSales('sm','el mes')">🔄 Reiniciar Mes</button>`)}
+  </div>
+  <div class="card">
+    <div class="ch"><div class="ct">📋 Historial de Cortes</div>
+      ${cuts.length?`<div style="display:flex;gap:8px">
+        <button class="btn bo btn-sm" onclick="printCuts('day')">📄 PDF Hoy</button>
+        <button class="btn bo btn-sm" onclick="printCuts('all')">📄 PDF Historial</button>
+      </div>`:''}
+    </div>
+    ${!cuts.length?'<div class="empty"><div class="ei">📊</div><p>Sin cortes registrados aún.</p></div>':
+    `<div class="tw"><table>
+      <thead><tr><th>Fecha</th><th>Cajero</th><th>C. Inicial</th><th>Ventas</th><th>Efectivo</th><th>Tarjeta</th><th>Transfer.</th><th>Esperado</th><th>Físico</th><th>Diferencia</th></tr></thead>
+      <tbody>${cuts.slice().reverse().map(ct=>`<tr>
+        <td>${fds(ct.timestamp)}</td><td>${ct.workerName}</td>
+        <td>${fc(ct.initCash)}</td><td>${fc(ct.salesTotal)}</td>
+        <td>${fc(ct.cash)}</td><td>${fc(ct.card)}</td><td>${fc(ct.transfer)}</td>
+        <td>${fc(ct.expectedCash)}</td><td>${fc(ct.physicalCash)}</td>
+        <td style="color:${ct.diff===0?'var(--ok)':ct.diff>0?'var(--warn)':'var(--err)'}">
+          <strong>${ct.diff>0?'+':''}${fc(ct.diff)}</strong>
+          <span style="font-size:11px"> ${ct.diff===0?'✅ Cuadra':ct.diff>0?'⬆️ Sobra':'⬇️ Falta'}</span>
+        </td></tr>`).join('')}</tbody>
+    </table></div>`}
+  </div>`;
+}
+function buildSaleCard(ttl,s,color,sub,extra){
+  return`<div class="stat" style="border-top:4px solid ${color}">
+    <div class="stl">${ttl}</div>
+    <div class="stv">${fc(s.total)}</div>
+    <div class="sts">${sub}</div>
+    <div class="cmeths">
+      <div class="mcard mc"><div class="mamt">${fc(s.cash)}</div><div class="mlbl">💵 Efectivo</div></div>
+      <div class="mcard mk"><div class="mamt">${fc(s.card)}</div><div class="mlbl">💳 Tarjeta</div></div>
+      <div class="mcard mt"><div class="mamt">${fc(s.transfer)}</div><div class="mlbl">📱 Transfer.</div></div>
+    </div>
+    ${extra}
+  </div>`;
+}
+function openCierre(){
+  const sd=LS.obj('be_sd',{});
+  document.getElementById('ci-ini').value=sd.initCash||'';
+  document.getElementById('ci-fis').value='';
+  document.getElementById('ci-res').style.display='none';
+  document.getElementById('btn-corte').style.display='none';
+  cierreData=null;om('m-cierre');
+}
+function calcCierre(){
+  const ini=parseFloat(document.getElementById('ci-ini').value)||0;
+  const fis=parseFloat(document.getElementById('ci-fis').value);
+  if(isNaN(fis)){notify('⚠️','Ingresa el monto','Por favor ingresa el dinero físico contado.',3000);return}
+  const sd=LS.obj('be_sd',{cash:0});
+  const cashSales=sd.cash||0;
+  const expected=ini+cashSales;
+  const diff=fis-expected;
+  cierreData={ini,fis,expected,diff,cashSales};
+  const cls=diff===0?'ok':diff>0?'over':'short';
+  const msg=diff===0?'✅ La caja cuadra perfectamente.':diff>0?`⬆️ Sobran ${fc(Math.abs(diff))}`:(`⬇️ Faltan ${fc(Math.abs(diff))}`);
+  const resEl=document.getElementById('ci-res');
+  resEl.innerHTML=`<div class="chkbox ${cls}">
+    <div class="prow"><span>Caja Inicial:</span><strong>${fc(ini)}</strong></div>
+    <div class="prow"><span>Ventas en Efectivo:</span><strong>${fc(cashSales)}</strong></div>
+    <div class="prow" style="border-top:1px solid var(--border);margin-top:4px;padding-top:8px">
+      <span>Efectivo Esperado:</span><strong>${fc(expected)}</strong></div>
+    <div class="prow"><span>Efectivo Físico:</span><strong>${fc(fis)}</strong></div>
+    <div class="prow" style="font-size:16px;font-weight:900;border-top:2px solid var(--border);margin-top:6px;padding-top:10px">
+      <span>Diferencia:</span>
+      <span style="color:${cls==='ok'?'var(--ok)':cls==='over'?'var(--warn)':'var(--err)'}">
+        ${diff>0?'+':''}${fc(diff)}</span></div>
+    <div style="margin-top:6px;font-weight:700">${msg}</div>
+  </div>`;
+  resEl.style.display='block';
+  document.getElementById('btn-corte').style.display='block';
+}
+function doCorte(){
+  if(!cierreData)return;
+  const sd=LS.obj('be_sd');
+  const cuts=LS.get('be_cuts');
+  const c={id:uid(),timestamp:new Date().toISOString(),workerName:CU.name,workerId:CU.id,
+    initCash:cierreData.ini,salesTotal:sd.total,cash:sd.cash,card:sd.card,transfer:sd.transfer,
+    expectedCash:cierreData.expected,physicalCash:cierreData.fis,diff:cierreData.diff};
+  cuts.push(c);LS.set('be_cuts',cuts);
+  LS.set('be_sd',{total:0,cash:0,card:0,transfer:0,date:today(),initCash:cierreData.fis});
+  logAct(CU.id,`Realizó corte de caja. Ventas: ${fc(sd.total)} · Diferencia: ${fc(cierreData.diff)}`);
+  cm('m-cierre');notify('✅','Corte Exitoso',`El corte se guardó correctamente.`,4000);
+  go('corte');
+}
+function resetSales(key,name){
+  confirm2(`¿Reiniciar ventas de ${name}?`,`Esto pondrá en $0 las ventas acumuladas de ${name}.`,()=>{
+    const d=key==='sw'?{weekStart:today()}:{monthStart:today()};
+    LS.set(key,{total:0,cash:0,card:0,transfer:0,...d});
+    logAct(CU.id,`Reinició ventas de ${name}`);
+    notify('✅','Reinicio exitoso',`Ventas de ${name} puestas a $0.`,3000);
+    go('corte');
+  });
+}
+function printCuts(type){
+  const cuts=LS.get('be_cuts');
+  const f=type==='day'?cuts.filter(c=>c.timestamp.startsWith(today())):cuts;
+  if(!f.length){notify('⚠️','Sin cortes','No hay cortes para imprimir en este rango.',3000);return}
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Reporte de Cortes</title>
+  <style>body{font-family:sans-serif;padding:20px}table{width:100%;border-collapse:collapse;margin-top:20px;font-size:12px}th,td{border:1px solid #ddd;padding:8px;text-align:left}th{background:#f5f5f5}</style></head><body>
+  <h2>Reporte de Cortes ${type==='day'?'(Hoy)':'(Histórico)'}</h2>
+  <table>
+    <thead><tr><th>Fecha</th><th>Cajero</th><th>C. Inicial</th><th>Ventas</th><th>Efectivo</th><th>Tarjeta</th><th>Transfer.</th><th>Esperado</th><th>Físico</th><th>Diferencia</th></tr></thead>
+    <tbody>${f.slice().reverse().map(ct=>`<tr><td>${fds(ct.timestamp)}</td><td>${ct.workerName}</td><td>${fc(ct.initCash)}</td><td>${fc(ct.salesTotal)}</td><td>${fc(ct.cash)}</td><td>${fc(ct.card)}</td><td>${fc(ct.transfer)}</td><td>${fc(ct.expectedCash)}</td><td>${fc(ct.physicalCash)}</td><td>${ct.diff===0?'Cuadra':ct.diff>0?'+'+fc(ct.diff):fc(ct.diff)}</td></tr>`).join('')}</tbody>
+  </table><script>window.onload=()=>{window.print();window.close()}<\/script></body></html>`);
+  w.document.close();
+}
+
+// ═══════════════════════════════════════════
+// USERS VIEW
+// ═══════════════════════════════════════════
+function rUsers(c){
+  const users=LS.get('be_users');
+  c.innerHTML=`<div class="card">
+    <div class="ch"><div class="ct">👥 Usuarios del Sistema</div>
+      <button class="btn bp" onclick="openUser()">+ Nuevo Usuario</button></div>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Nombre</th><th>Rol</th><th>Estado</th><th>Última Actividad</th><th>Acciones</th></tr></thead>
+        <tbody>${users.map(u=>{
+          const hist=u.history||[];
+          const lAct=hist.length?fd(hist[0].timestamp):'—';
+          return`<tr>
+            <td><strong>${u.name}</strong></td>
+            <td><span class="badge ${u.role==='admin'?'b-admin':u.role==='waiter'?'b-waiter':u.role==='cook'?'b-cook':'b-cashier'}">
+              ${ROLES[u.role]||u.role}</span></td>
+            <td><span class="badge ${u.active===false?'':'br'}" style="${u.active===false?'background:#F3F4F6;color:#6B7280':''}">
+              ${u.active===false?'Inactivo':'Activo'}</span></td>
+            <td style="font-size:12px;color:var(--muted)">${lAct}</td>
+            <td><div style="display:flex;gap:6px;flex-wrap:wrap">
+              <button class="btn bo btn-sm" onclick="openUser('${u.id}')">✏️ Editar</button>
+              <button class="btn bo btn-sm" onclick="showHist('${u.id}')">📋 Historial</button>
+              ${u.id!==CU.id?`<button class="btn btn-sm ${u.active===false?'bs':'bw'}" onclick="togUser('${u.id}')">
+                ${u.active===false?'✅ Activar':'🚫 Desactivar'}</button>`:''}
+            </div></td>
+          </tr>`}).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+}
+function openUser(uidVal){
+  document.getElementById('ue-id').value=uidVal||'';
+  if(uidVal){
+    const u=LS.get('be_users').find(x=>x.id===uidVal);if(!u)return;
+    document.getElementById('mt-user').textContent='Editar Usuario';
+    document.getElementById('ue-name').value=u.name;
+    document.getElementById('ue-pass').value=u.password;
+    document.getElementById('ue-role').value=u.role;
+  }else{
+    document.getElementById('mt-user').textContent='Nuevo Usuario';
+    ['ue-name','ue-pass'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('ue-role').value='waiter';
+  }
+  om('m-user');
+}
+function saveUser(){
+  const name=document.getElementById('ue-name').value.trim();
+  const pass=document.getElementById('ue-pass').value.trim();
+  const role=document.getElementById('ue-role').value;
+  const eid=document.getElementById('ue-id').value;
+  if(!name||!pass){notify('⚠️','Campos requeridos','Nombre y contraseña obligatorios.',3000);return}
+  const users=LS.get('be_users');
+  if(eid){
+    const i=users.findIndex(u=>u.id===eid);
+    if(i!==-1){users[i]={...users[i],name,password:pass,role};
+      logAct(CU.id,`Editó usuario "${name}"`);}
+  }else{
+    if(users.find(u=>u.name.toLowerCase()===name.toLowerCase())){notify('⚠️','Error','El nombre ya existe.',3000);return}
+    users.push({id:uid(),name,password:pass,role,active:true,createdAt:new Date().toISOString(),history:[]});
+    logAct(CU.id,`Creó usuario "${name}" (${ROLES[role]})`);
+  }
+  LS.set('be_users',users);cm('m-user');
+  notify('✅',eid?'Usuario actualizado':'Usuario creado',name,3000);go('users');
+}
+function togUser(uidVal){
+  const users=LS.get('be_users');const i=users.findIndex(u=>u.id===uidVal);if(i===-1||users[i].id===CU.id)return;
+  users[i].active=users[i].active===false?true:false;LS.set('be_users',users);
+  logAct(CU.id,`${users[i].active?'Activó':'Desactivó'} usuario "${users[i].name}"`);go('users');
+}
+function showHist(uidVal){
+  const u=LS.get('be_users').find(x=>x.id===uidVal);if(!u)return;
+  document.getElementById('mt-hist').innerHTML=`Historial: <span style="color:var(--birria)">${u.name}</span>`;
+  const h=u.history||[];
+  document.getElementById('mb-hist').innerHTML=h.length?
+    `<div class="scrl"><ul style="list-style:none;padding:0;margin:0">${h.map(x=>`<li style="padding:10px 0;border-bottom:1px solid var(--border);display:flex;gap:12px"><div style="font-size:11px;color:var(--muted);white-space:nowrap;width:120px">${fd(x.timestamp)}</div><div style="font-size:13px;flex:1">${x.action}</div></li>`).join('')}</ul></div>`
+    :'<div class="empty"><p>Sin historial registrado.</p></div>';
+  om('m-hist');
+}
+</script>
 </body>
 </html>
