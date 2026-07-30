@@ -485,14 +485,20 @@ const LS = {
   get: (k, d = []) => { return LCache[k] !== undefined ? LCache[k] : d },
   set: (k, v) => { 
     LCache[k] = v; 
-    if (typeof google !== 'undefined' && google.script && google.script.run) {
-      google.script.run.saveData(k, v); 
-    } else if (SCRIPT_URL && SCRIPT_URL !== 'https://script.google.com/macros/s/AKfycbyjJ6ulXsOvjJim8fRB6xgRZDRyJDHNnC7bU14wgE26cyZv_at_-ndUy1RGpocz2jKDCw/exec') {
+    
+    // CORRECCIÓN APLICADA: Siempre se intenta el guardado mediante API Fetch para ignorar restricciones de permisos del entorno de visualización y sin la condición bloqueante de SCRIPT_URL
+    if (SCRIPT_URL) {
       fetch(SCRIPT_URL, {
         method: 'POST',
+        mode: 'no-cors', // Evita errores de navegador al responder el servidor de Google
         body: JSON.stringify({ action: 'save', key: k, value: v }),
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' } // Text/plain para evadir CORS preflight
-      }).catch(e => console.error("Error de guardado:", e));
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+      }).catch(e => console.error("Error de guardado fetch:", e));
+    }
+    
+    // Método original si se está usando desde el portal nativo de Apps Script
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run.saveData(k, v); 
     }
   },
   obj: (k, d = {}) => { return LCache[k] !== undefined && Object.keys(LCache[k]).length > 0 ? LCache[k] : d }
@@ -1193,336 +1199,272 @@ function showTicket(oArg){
     ${pd.transfer>0?`<div style="display:flex;justify-content:space-between"><span>Transferencia:</span><span>${fc(pd.transfer)}</span></div>`:''}
     ${chg>0?`<div style="display:flex;justify-content:space-between"><span>Cambio:</span><span>${fc(chg)}</span></div>`:''}
     <hr class="tdiv">
-    ${o.generalNote?`<div>Nota: ${o.generalNote}</div><hr class="tdiv">`:''}
-    <div class="tcenter"><div>¡Gracias por su preferencia!</div><div style="font-size:11px;color:#999">Vuelva pronto 🔥</div></div>
   </div>`;
   om('m-ticket');
 }
 function printTicket(){
-  const c=document.getElementById('mb-ticket');if(!c)return;
-  const w=window.open('','_blank','width=420,height=640');
-  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Ticket</title>
-  <style>body{font-family:'Courier New',monospace;font-size:12px;margin:0;padding:20px;line-height:1.7}
-  .tcenter{text-align:center}.ttitle{font-size:16px;font-weight:bold}hr{border:none;border-top:1px dashed #999;margin:8px 0}
-  @media print{body{margin:0}}</style></head><body>
-  ${c.innerHTML}
-  <script>window.onload=()=>{window.print();window.close()}<\/script></body></html>`);
+  const w=window.open('','_blank','width=400,height=600');
+  w.document.write(`<html><head><style>body{font-family:'Courier New',monospace;font-size:12px;padding:10px}</style></head><body>${document.getElementById('mb-ticket').innerHTML}</body></html>`);
   w.document.close();
+  setTimeout(()=>{w.print();w.close()},500);
+}
+
+// ═══════════════════════════════════════════
+// CORTE DE CAJA
+// ═══════════════════════════════════════════
+function rCorte(c){
+  const sd=LS.obj('be_sd',{total:0,cash:0,card:0,transfer:0,date:today(),initCash:0});
+  const prevCuts=LS.get('be_cuts').sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp)).slice(0,5);
+  
+  c.innerHTML=`<div class="g2">
+    <div>
+      <div class="card">
+        <div class="ch"><div class="ct">📊 Ventas del Día</div><div class="badge bp_">${fds(sd.date)}</div></div>
+        <div class="stat"><div class="stl">Total Vendido</div><div class="stv" style="color:var(--birria)">${fc(sd.total)}</div></div>
+        <div class="cmeths">
+          <div class="mcard mc"><div class="mamt">${fc(sd.cash)}</div><div class="mlbl">Efectivo</div></div>
+          <div class="mcard mk"><div class="mamt">${fc(sd.card)}</div><div class="mlbl">Tarjeta</div></div>
+          <div class="mcard mt"><div class="mamt">${fc(sd.transfer)}</div><div class="mlbl">Transf.</div></div>
+        </div>
+        <button class="btn bp" style="width:100%;margin-top:20px;padding:12px;font-size:16px" onclick="om('m-cierre')">🔒 Realizar Corte de Caja</button>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="ch"><div class="ct">📜 Últimos Cortes</div></div>
+        ${!prevCuts.length?'<div class="empty"><p>No hay cortes registrados</p></div>':
+        `<div style="display:flex;flex-direction:column;gap:10px">
+          ${prevCuts.map(x=>`<div style="padding:12px;border:1px solid var(--border);border-radius:var(--rs);background:#FDFAF8">
+            <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+              <strong>Corte #${x.number}</strong><span style="font-size:12px;color:var(--muted)">${fd(x.timestamp)}</span>
+            </div>
+            <div style="font-size:13px;display:flex;justify-content:space-between"><span>Venta Total:</span><strong>${fc(x.sales.total)}</strong></div>
+            <div style="font-size:13px;display:flex;justify-content:space-between;color:${x.diff>=0?'var(--ok)':'var(--err)'}">
+              <span>Diferencia (Efectivo):</span><strong>${x.diff>0?'+':''}${fc(x.diff)}</strong>
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin-top:6px">👤 ${x.workerName}</div>
+          </div>`).join('')}
+        </div>`}
+      </div>
+    </div>
+  </div>`;
+  // Reset fields
+  document.getElementById('ci-ini').value='';
+  document.getElementById('ci-fis').value='';
+  document.getElementById('ci-res').style.display='none';
+  document.getElementById('btn-corte').style.display='none';
+}
+function calcCierre(){
+  const sd=LS.obj('be_sd',{total:0,cash:0,card:0,transfer:0});
+  const ini=parseFloat(document.getElementById('ci-ini').value)||0;
+  const fis=parseFloat(document.getElementById('ci-fis').value)||0;
+  const esp=ini+(sd.cash||0);
+  const diff=fis-esp;
+  
+  cierreData={ini,fis,esp,diff,sd};
+  const el=document.getElementById('ci-res');
+  el.style.display='block';
+  const cls=diff===0?'ok':diff>0?'over':'short';
+  const msg=diff===0?'✅ Cuadre perfecto':diff>0?'⚠️ Sobrante en caja':'❌ Faltante en caja';
+  
+  el.innerHTML=`<div class="chkbox ${cls}">
+    <div style="font-size:14px;font-weight:700;margin-bottom:12px;text-align:center">${msg}</div>
+    <div class="prow"><span>Fondo Inicial:</span><span>${fc(ini)}</span></div>
+    <div class="prow"><span>Ventas (Efectivo):</span><span>+${fc(sd.cash)}</span></div>
+    <div class="prow total"><span>Efectivo Esperado:</span><span>${fc(esp)}</span></div>
+    <div class="prow" style="margin-top:8px"><span>Efectivo Físico:</span><span>${fc(fis)}</span></div>
+    <div class="prow ${cls==='ok'?'change':'pend'}" style="font-size:16px;border-top:1px dashed var(--border);padding-top:6px;margin-top:6px">
+      <span>Diferencia:</span><span>${diff>0?'+':''}${fc(diff)}</span>
+    </div>
+  </div>`;
+  document.getElementById('btn-corte').style.display='inline-flex';
+}
+function doCorte(){
+  confirm2('¿Finalizar Corte?', 'Al hacer el corte, las ventas del día se reiniciarán a $0.00. Asegúrate de tener los datos correctos.', () => {
+    const cuts=LS.get('be_cuts');
+    const cd=cierreData;
+    const c={id:uid(),number:String(cuts.length+1).padStart(4,'0'),
+      sales:cd.sd,initCash:cd.ini,physicalCash:cd.fis,expectedCash:cd.esp,diff:cd.diff,
+      workerName:CU.name,workerId:CU.id,timestamp:new Date().toISOString()};
+    
+    cuts.push(c);LS.set('be_cuts',cuts);
+    LS.set('be_sd',{total:0,cash:0,card:0,transfer:0,date:today(),initCash:0}); // Reiniciar ventas diarias
+    
+    logAct(CU.id,`Realizó corte #${c.number}. Venta: ${fc(cd.sd.total)} | Diff: ${fc(cd.diff)}`);
+    notify('✅','Corte realizado',`Corte #${c.number} guardado correctamente.`,4000);
+    cm('m-cierre');go('corte');
+  });
 }
 
 // ═══════════════════════════════════════════
 // PRODUCTS VIEW
 // ═══════════════════════════════════════════
 function rProducts(c){
-  const prods=LS.get('be_products');
-  const cats=[...new Set(prods.map(p=>p.category))].sort();
-  const dl=document.getElementById('dl-cats');
-  if(dl)dl.innerHTML=cats.map(c=>`<option value="${c}">`).join('');
+  const p=LS.get('be_products');
+  const cats=[...new Set(p.map(x=>x.category))].sort();
+  const dl=document.getElementById('dl-cats');if(dl)dl.innerHTML=cats.map(c=>`<option value="${c}">`).join('');
+  
+  let fp=p;
+  if(pFlt.name) fp=fp.filter(x=>x.name.toLowerCase().includes(pFlt.name.toLowerCase()));
+  if(pFlt.cat) fp=fp.filter(x=>x.category===pFlt.cat);
+  
   c.innerHTML=`<div class="card">
-    <div class="ch"><div class="ct">🍖 Productos del Menú</div>
-      <button class="btn bp" onclick="openProd()">+ Nuevo Producto</button></div>
+    <div class="ch">
+      <div class="ct">🍖 Inventario de Productos</div>
+      <button class="btn bp" onclick="opProd(null)">+ Nuevo Producto</button>
+    </div>
     <div class="pflt">
-      <div><label class="fl">Buscar Nombre</label>
-        <input type="text" class="fc" id="pf-name" placeholder="Nombre..." value="${pFlt.name}"
-          oninput="pFlt.name=this.value;filterProds()"/></div>
-      <div><label class="fl">Filtrar Categoría</label>
-        <select class="fc" id="pf-cat" onchange="pFlt.cat=this.value;filterProds()">
-          <option value="">Todas</option>
-          ${cats.map(x=>`<option value="${x}" ${pFlt.cat===x?'selected':''}>${x}</option>`).join('')}
-        </select></div>
-      ${pFlt.name||pFlt.cat?`<div style="display:flex;align-items:flex-end">
-        <button class="btn bo" onclick="pFlt={name:'',cat:''};go('products')">✕ Limpiar</button></div>`:''}
+      <div class="fg" style="margin:0"><input type="text" class="fc" placeholder="🔍 Buscar producto..." value="${pFlt.name}" oninput="pFlt.name=this.value;rProducts(document.getElementById('content'))"/></div>
+      <div class="fg" style="margin:0"><select class="fc" onchange="pFlt.cat=this.value;rProducts(document.getElementById('content'))">
+        <option value="">Todas las categorías</option>
+        ${cats.map(cat=>`<option value="${cat}" ${pFlt.cat===cat?'selected':''}>${cat}</option>`).join('')}
+      </select></div>
     </div>
     <div class="tw">
-      <table id="prod-table">
-        <thead><tr><th>Nombre</th><th>Descripción</th><th>Categoría</th><th>Precio</th><th>Estado</th><th>Acciones</th></tr></thead>
-        <tbody id="prod-tbody">${buildProdRows(prods)}</tbody>
+      <table>
+        <thead><tr><th>Producto</th><th>Categoría</th><th>Precio</th><th>Estado</th><th>Acciones</th></tr></thead>
+        <tbody>
+          ${!fp.length?'<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">No se encontraron productos</td></tr>':
+          fp.map(x=>`<tr>
+            <td><div><strong>${x.name}</strong></div>${x.description?`<div style="font-size:11px;color:var(--muted)">${x.description}</div>`:''}</td>
+            <td><span class="badge" style="background:#F3E8FF;color:#6B21A8">${x.category}</span></td>
+            <td><strong>${fc(x.price)}</strong></td>
+            <td><span class="badge ${x.active!==false?'bs':'bd'}">${x.active!==false?'Activo':'Inactivo'}</span></td>
+            <td>
+              <button class="btn bo btn-xs" onclick="opProd('${x.id}')">✏️ Editar</button>
+              <button class="btn bo btn-xs" onclick="tglProd('${x.id}')">${x.active!==false?'🚫 Desactivar':'✅ Activar'}</button>
+            </td>
+          </tr>`).join('')}
+        </tbody>
       </table>
     </div>
-    <div class="itext" id="prod-count">${prods.length} producto(s)</div>
   </div>`;
-  filterProds();
 }
-function buildProdRows(prods){
-  return prods.map(p=>`<tr data-name="${p.name.toLowerCase()}" data-cat="${(p.category||'').toLowerCase()}">
-    <td><strong>${p.name}</strong></td>
-    <td><span style="font-size:12px;color:var(--muted)">${p.description||'—'}</span></td>
-    <td><span class="badge b-waiter">${p.category}</span></td>
-    <td><strong style="color:var(--birria)">${fc(p.price)}</strong></td>
-    <td><span class="badge ${p.active===false?'':'br'}" style="${p.active===false?'background:#F3F4F6;color:#6B7280':''}">
-      ${p.active===false?'Inactivo':'Activo'}</span></td>
-    <td><div style="display:flex;gap:6px;flex-wrap:wrap">
-      <button class="btn bo btn-sm" onclick="openProd('${p.id}')">✏️ Editar</button>
-      <button class="btn btn-sm ${p.active===false?'bs':'bw'}" onclick="togProd('${p.id}')">
-        ${p.active===false?'✅ Activar':'🚫 Desactivar'}</button>
-      <button class="btn bd btn-sm" onclick="delProd('${p.id}')">🗑️</button>
-    </div></td>
-  </tr>`).join('');
-}
-function filterProds(){
-  const nm=(document.getElementById('pf-name')?.value||pFlt.name).toLowerCase();
-  const ct=(document.getElementById('pf-cat')?.value||pFlt.cat).toLowerCase();
-  const rows=document.querySelectorAll('#prod-tbody tr');
-  let vis=0;
-  rows.forEach(r=>{
-    const rn=r.dataset.name||'',rc=r.dataset.cat||'';
-    const show=(!nm||rn.includes(nm))&&(!ct||rc===ct);
-    r.style.display=show?'':'none';if(show)vis++;
-  });
-  const el=document.getElementById('prod-count');
-  if(el)el.textContent=`${vis} de ${rows.length} producto(s)`;
-}
-function openProd(pid){
-  document.getElementById('pe-id').value=pid||'';
-  if(pid){
-    const p=LS.get('be_products').find(x=>x.id===pid);if(!p)return;
-    document.getElementById('mt-product').textContent='Editar Producto';
-    document.getElementById('pe-name').value=p.name;
-    document.getElementById('pe-desc').value=p.description||'';
-    document.getElementById('pe-cat').value=p.category;
-    document.getElementById('pe-price').value=p.price;
+function opProd(id){
+  const elI=document.getElementById('pe-id');const elN=document.getElementById('pe-name');
+  const elD=document.getElementById('pe-desc');const elC=document.getElementById('pe-cat');
+  const elP=document.getElementById('pe-price');
+  document.getElementById('mt-product').textContent=id?'Editar Producto':'Nuevo Producto';
+  if(id){
+    const p=LS.get('be_products').find(x=>x.id===id);if(!p)return;
+    elI.value=p.id;elN.value=p.name;elD.value=p.description||'';elC.value=p.category;elP.value=p.price;
   }else{
-    document.getElementById('mt-product').textContent='Nuevo Producto';
-    ['pe-name','pe-desc','pe-cat','pe-price'].forEach(id=>document.getElementById(id).value='');
+    elI.value='';elN.value='';elD.value='';elC.value='';elP.value='';
   }
-  const cats=[...new Set(LS.get('be_products').map(p=>p.category))].sort();
-  const dl=document.getElementById('dl-cats');
-  if(dl)dl.innerHTML=cats.map(c=>`<option value="${c}">`).join('');
   om('m-product');
 }
 function saveProduct(){
+  const id=document.getElementById('pe-id').value;
   const name=document.getElementById('pe-name').value.trim();
   const desc=document.getElementById('pe-desc').value.trim();
   const cat=document.getElementById('pe-cat').value.trim();
-  const price=parseFloat(document.getElementById('pe-price').value);
-  const eid=document.getElementById('pe-id').value;
-  if(!name||!cat||isNaN(price)||price<0){notify('⚠️','Campos requeridos','Nombre, categoría y precio son obligatorios.',3000);return}
-  const prods=LS.get('be_products');
-  if(eid){
-    const i=prods.findIndex(p=>p.id===eid);
-    if(i!==-1){prods[i]={...prods[i],name,description:desc,category:cat,price};
-      logAct(CU.id,`Editó producto "${name}"`);}
+  const price=parseFloat(document.getElementById('pe-price').value)||0;
+  
+  if(!name||!cat||price<=0){notify('⚠️','Faltan datos','Nombre, categoría y precio (>0) son obligatorios.',3000);return}
+  
+  const ps=LS.get('be_products');
+  if(id){
+    const i=ps.findIndex(x=>x.id===id);if(i===-1)return;
+    ps[i]={...ps[i],name,description:desc,category:cat,price};
+    logAct(CU.id,`Editó producto: ${name}`);
+    notify('✅','Actualizado','Producto guardado.',3000);
   }else{
-    prods.push({id:uid(),name,description:desc,category:cat,price,active:true});
-    logAct(CU.id,`Creó producto "${name}" - ${fc(price)}`);
+    ps.push({id:uid(),name,description:desc,category:cat,price,active:true});
+    logAct(CU.id,`Creó producto: ${name}`);
+    notify('✅','Creado','Nuevo producto registrado.',3000);
   }
-  LS.set('be_products',prods);cm('m-product');
-  notify('✅',eid?'Producto actualizado':'Producto creado',name,3000);go('products');
+  LS.set('be_products',ps);cm('m-product');go('products');
 }
-function togProd(pid){
-  const prods=LS.get('be_products');const i=prods.findIndex(p=>p.id===pid);if(i===-1)return;
-  prods[i].active=prods[i].active===false?true:false;LS.set('be_products',prods);
-  logAct(CU.id,`${prods[i].active?'Activó':'Desactivó'} producto "${prods[i].name}"`);go('products');
-}
-function delProd(pid){
-  const p=LS.get('be_products').find(x=>x.id===pid);if(!p)return;
-  confirm2(`¿Eliminar "${p.name}"?`,'Esta acción no se puede deshacer.',()=>{
-    LS.set('be_products',LS.get('be_products').filter(x=>x.id!==pid));
-    logAct(CU.id,`Eliminó producto "${p.name}"`);
-    notify('✅','Producto eliminado',p.name,3000);go('products');
-  });
-}
-
-// ═══════════════════════════════════════════
-// CORTE VIEW
-// ═══════════════════════════════════════════
-function rCorte(c){
-  const sd=LS.obj('be_sd',{total:0,cash:0,card:0,transfer:0,date:today()});
-  const sw=LS.obj('be_sw',{total:0,cash:0,card:0,transfer:0});
-  const sm=LS.obj('be_sm',{total:0,cash:0,card:0,transfer:0});
-  const cuts=LS.get('be_cuts');
-  c.innerHTML=`
-  <div class="g3" style="margin-bottom:20px">
-    ${buildSaleCard('Venta del Día',sd,'var(--birria)',sd.date||today(),`<button class="btn bp" style="width:100%;margin-top:12px" onclick="openCierre()">🔒 Cerrar Caja</button>`)}
-    ${buildSaleCard('Venta de la Semana',sw,'var(--info)',sw.weekStart?'Desde '+sw.weekStart:'',`<button class="btn bo" style="width:100%;margin-top:12px" onclick="resetSales('sw','la semana')">🔄 Reiniciar Semana</button>`)}
-    ${buildSaleCard('Venta del Mes',sm,'var(--purple)',sm.monthStart?'Desde '+sm.monthStart:'',`<button class="btn bo" style="width:100%;margin-top:12px" onclick="resetSales('sm','el mes')">🔄 Reiniciar Mes</button>`)}
-  </div>
-  <div class="card">
-    <div class="ch"><div class="ct">📋 Historial de Cortes</div>
-      ${cuts.length?`<div style="display:flex;gap:8px">
-        <button class="btn bo btn-sm" onclick="printCuts('day')">📄 PDF Hoy</button>
-        <button class="btn bo btn-sm" onclick="printCuts('all')">📄 PDF Historial</button>
-      </div>`:''}
-    </div>
-    ${!cuts.length?'<div class="empty"><div class="ei">📊</div><p>Sin cortes registrados aún.</p></div>':
-    `<div class="tw"><table>
-      <thead><tr><th>Fecha</th><th>Cajero</th><th>C. Inicial</th><th>Ventas</th><th>Efectivo</th><th>Tarjeta</th><th>Transfer.</th><th>Esperado</th><th>Físico</th><th>Diferencia</th></tr></thead>
-      <tbody>${cuts.slice().reverse().map(ct=>`<tr>
-        <td>${fds(ct.timestamp)}</td><td>${ct.workerName}</td>
-        <td>${fc(ct.initCash)}</td><td>${fc(ct.salesTotal)}</td>
-        <td>${fc(ct.cash)}</td><td>${fc(ct.card)}</td><td>${fc(ct.transfer)}</td>
-        <td>${fc(ct.expectedCash)}</td><td>${fc(ct.physicalCash)}</td>
-        <td style="color:${ct.diff===0?'var(--ok)':ct.diff>0?'var(--warn)':'var(--err)'}">
-          <strong>${ct.diff>0?'+':''}${fc(ct.diff)}</strong>
-          <span style="font-size:11px"> ${ct.diff===0?'✅ Cuadra':ct.diff>0?'⬆️ Sobra':'⬇️ Falta'}</span>
-        </td></tr>`).join('')}</tbody>
-    </table></div>`}
-  </div>`;
-}
-function buildSaleCard(ttl,s,color,sub,extra){
-  return`<div class="stat" style="border-top:4px solid ${color}">
-    <div class="stl">${ttl}</div>
-    <div class="stv">${fc(s.total)}</div>
-    <div class="sts">${sub}</div>
-    <div class="cmeths">
-      <div class="mcard mc"><div class="mamt">${fc(s.cash)}</div><div class="mlbl">💵 Efectivo</div></div>
-      <div class="mcard mk"><div class="mamt">${fc(s.card)}</div><div class="mlbl">💳 Tarjeta</div></div>
-      <div class="mcard mt"><div class="mamt">${fc(s.transfer)}</div><div class="mlbl">📱 Transfer.</div></div>
-    </div>
-    ${extra}
-  </div>`;
-}
-function openCierre(){
-  const sd=LS.obj('be_sd',{});
-  document.getElementById('ci-ini').value=sd.initCash||'';
-  document.getElementById('ci-fis').value='';
-  document.getElementById('ci-res').style.display='none';
-  document.getElementById('btn-corte').style.display='none';
-  cierreData=null;om('m-cierre');
-}
-function calcCierre(){
-  const ini=parseFloat(document.getElementById('ci-ini').value)||0;
-  const fis=parseFloat(document.getElementById('ci-fis').value);
-  if(isNaN(fis)){notify('⚠️','Ingresa el monto','Por favor ingresa el dinero físico contado.',3000);return}
-  const sd=LS.obj('be_sd',{cash:0});
-  const cashSales=sd.cash||0;
-  const expected=ini+cashSales;
-  const diff=fis-expected;
-  cierreData={ini,fis,expected,diff,cashSales};
-  const cls=diff===0?'ok':diff>0?'over':'short';
-  const msg=diff===0?'✅ La caja cuadra perfectamente.':diff>0?`⬆️ Sobran ${fc(Math.abs(diff))}`:(`⬇️ Faltan ${fc(Math.abs(diff))}`);
-  const resEl=document.getElementById('ci-res');
-  resEl.innerHTML=`<div class="chkbox ${cls}">
-    <div class="prow"><span>Caja Inicial:</span><strong>${fc(ini)}</strong></div>
-    <div class="prow"><span>Ventas en Efectivo:</span><strong>${fc(cashSales)}</strong></div>
-    <div class="prow" style="border-top:1px solid var(--border);margin-top:4px;padding-top:8px">
-      <span>Efectivo Esperado:</span><strong>${fc(expected)}</strong></div>
-    <div class="prow"><span>Efectivo Físico:</span><strong>${fc(fis)}</strong></div>
-    <div class="prow" style="font-size:16px;font-weight:900;border-top:2px solid var(--border);margin-top:6px;padding-top:10px">
-      <span>Diferencia:</span>
-      <span style="color:${cls==='ok'?'var(--ok)':cls==='over'?'var(--warn)':'var(--err)'}">
-        ${diff>0?'+':''}${fc(diff)}</span></div>
-    <div style="margin-top:6px;font-weight:700">${msg}</div>
-  </div>`;
-  resEl.style.display='block';
-  document.getElementById('btn-corte').style.display='block';
-}
-function doCorte(){
-  if(!cierreData)return;
-  const sd=LS.obj('be_sd');
-  const cuts=LS.get('be_cuts');
-  const c={id:uid(),timestamp:new Date().toISOString(),workerName:CU.name,workerId:CU.id,
-    initCash:cierreData.ini,salesTotal:sd.total,cash:sd.cash,card:sd.card,transfer:sd.transfer,
-    expectedCash:cierreData.expected,physicalCash:cierreData.fis,diff:cierreData.diff};
-  cuts.push(c);LS.set('be_cuts',cuts);
-  LS.set('be_sd',{total:0,cash:0,card:0,transfer:0,date:today(),initCash:cierreData.fis});
-  logAct(CU.id,`Realizó corte de caja. Ventas: ${fc(sd.total)} · Diferencia: ${fc(cierreData.diff)}`);
-  cm('m-cierre');notify('✅','Corte Exitoso',`El corte se guardó correctamente.`,4000);
-  go('corte');
-}
-function resetSales(key,name){
-  confirm2(`¿Reiniciar ventas de ${name}?`,`Esto pondrá en $0 las ventas acumuladas de ${name}.`,()=>{
-    const d=key==='sw'?{weekStart:today()}:{monthStart:today()};
-    LS.set(key,{total:0,cash:0,card:0,transfer:0,...d});
-    logAct(CU.id,`Reinició ventas de ${name}`);
-    notify('✅','Reinicio exitoso',`Ventas de ${name} puestas a $0.`,3000);
-    go('corte');
-  });
-}
-function printCuts(type){
-  const cuts=LS.get('be_cuts');
-  const f=type==='day'?cuts.filter(c=>c.timestamp.startsWith(today())):cuts;
-  if(!f.length){notify('⚠️','Sin cortes','No hay cortes para imprimir en este rango.',3000);return}
-  const w=window.open('','_blank');
-  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Reporte de Cortes</title>
-  <style>body{font-family:sans-serif;padding:20px}table{width:100%;border-collapse:collapse;margin-top:20px;font-size:12px}th,td{border:1px solid #ddd;padding:8px;text-align:left}th{background:#f5f5f5}</style></head><body>
-  <h2>Reporte de Cortes ${type==='day'?'(Hoy)':'(Histórico)'}</h2>
-  <table>
-    <thead><tr><th>Fecha</th><th>Cajero</th><th>C. Inicial</th><th>Ventas</th><th>Efectivo</th><th>Tarjeta</th><th>Transfer.</th><th>Esperado</th><th>Físico</th><th>Diferencia</th></tr></thead>
-    <tbody>${f.slice().reverse().map(ct=>`<tr><td>${fds(ct.timestamp)}</td><td>${ct.workerName}</td><td>${fc(ct.initCash)}</td><td>${fc(ct.salesTotal)}</td><td>${fc(ct.cash)}</td><td>${fc(ct.card)}</td><td>${fc(ct.transfer)}</td><td>${fc(ct.expectedCash)}</td><td>${fc(ct.physicalCash)}</td><td>${ct.diff===0?'Cuadra':ct.diff>0?'+'+fc(ct.diff):fc(ct.diff)}</td></tr>`).join('')}</tbody>
-  </table><script>window.onload=()=>{window.print();window.close()}<\/script></body></html>`);
-  w.document.close();
+function tglProd(id){
+  const ps=LS.get('be_products');const i=ps.findIndex(x=>x.id===id);if(i===-1)return;
+  ps[i].active=ps[i].active===false?true:false;
+  LS.set('be_products',ps);
+  logAct(CU.id,`${ps[i].active?'Activó':'Desactivó'} producto: ${ps[i].name}`);
+  go('products');
 }
 
 // ═══════════════════════════════════════════
 // USERS VIEW
 // ═══════════════════════════════════════════
 function rUsers(c){
-  const users=LS.get('be_users');
+  const us=LS.get('be_users');
   c.innerHTML=`<div class="card">
-    <div class="ch"><div class="ct">👥 Usuarios del Sistema</div>
-      <button class="btn bp" onclick="openUser()">+ Nuevo Usuario</button></div>
+    <div class="ch">
+      <div class="ct">👥 Gestión de Usuarios</div>
+      <button class="btn bp" onclick="opUser(null)">+ Nuevo Usuario</button>
+    </div>
     <div class="tw">
       <table>
-        <thead><tr><th>Nombre</th><th>Rol</th><th>Estado</th><th>Última Actividad</th><th>Acciones</th></tr></thead>
-        <tbody>${users.map(u=>{
-          const hist=u.history||[];
-          const lAct=hist.length?fd(hist[0].timestamp):'—';
-          return`<tr>
-            <td><strong>${u.name}</strong></td>
-            <td><span class="badge ${u.role==='admin'?'b-admin':u.role==='waiter'?'b-waiter':u.role==='cook'?'b-cook':'b-cashier'}">
-              ${ROLES[u.role]||u.role}</span></td>
-            <td><span class="badge ${u.active===false?'':'br'}" style="${u.active===false?'background:#F3F4F6;color:#6B7280':''}">
-              ${u.active===false?'Inactivo':'Activo'}</span></td>
-            <td style="font-size:12px;color:var(--muted)">${lAct}</td>
-            <td><div style="display:flex;gap:6px;flex-wrap:wrap">
-              <button class="btn bo btn-sm" onclick="openUser('${u.id}')">✏️ Editar</button>
-              <button class="btn bo btn-sm" onclick="showHist('${u.id}')">📋 Historial</button>
-              ${u.id!==CU.id?`<button class="btn btn-sm ${u.active===false?'bs':'bw'}" onclick="togUser('${u.id}')">
-                ${u.active===false?'✅ Activar':'🚫 Desactivar'}</button>`:''}
-            </div></td>
-          </tr>`}).join('')}
+        <thead><tr><th>Nombre</th><th>Rol</th><th>Estado</th><th>Acciones</th></tr></thead>
+        <tbody>
+          ${us.map(u=>`<tr>
+            <td><strong>${u.name}</strong> ${u.id===CU.id?'<span style="font-size:11px;color:var(--birria)">(Tú)</span>':''}</td>
+            <td><span class="badge b-${u.role}">${ROLES[u.role]||u.role}</span></td>
+            <td><span class="badge ${u.active!==false?'bs':'bd'}">${u.active!==false?'Activo':'Inactivo'}</span></td>
+            <td>
+              <button class="btn bo btn-xs" onclick="opUser('${u.id}')">✏️ Editar</button>
+              <button class="btn bo btn-xs" onclick="showHist('${u.id}')">📜 Historial</button>
+              ${u.id!==CU.id?`<button class="btn bo btn-xs" onclick="tglUser('${u.id}')">${u.active!==false?'🚫 Desactivar':'✅ Activar'}</button>`:''}
+            </td>
+          </tr>`).join('')}
         </tbody>
       </table>
     </div>
   </div>`;
 }
-function openUser(uidVal){
-  document.getElementById('ue-id').value=uidVal||'';
-  if(uidVal){
-    const u=LS.get('be_users').find(x=>x.id===uidVal);if(!u)return;
-    document.getElementById('mt-user').textContent='Editar Usuario';
-    document.getElementById('ue-name').value=u.name;
-    document.getElementById('ue-pass').value=u.password;
-    document.getElementById('ue-role').value=u.role;
+function opUser(id){
+  const elI=document.getElementById('ue-id');const elN=document.getElementById('ue-name');
+  const elP=document.getElementById('ue-pass');const elR=document.getElementById('ue-role');
+  document.getElementById('mt-user').textContent=id?'Editar Usuario':'Nuevo Usuario';
+  if(id){
+    const u=LS.get('be_users').find(x=>x.id===id);if(!u)return;
+    elI.value=u.id;elN.value=u.name;elP.value=u.password;elR.value=u.role;
   }else{
-    document.getElementById('mt-user').textContent='Nuevo Usuario';
-    ['ue-name','ue-pass'].forEach(id=>document.getElementById(id).value='');
-    document.getElementById('ue-role').value='waiter';
+    elI.value='';elN.value='';elP.value='';elR.value='waiter';
   }
   om('m-user');
 }
 function saveUser(){
+  const id=document.getElementById('ue-id').value;
   const name=document.getElementById('ue-name').value.trim();
-  const pass=document.getElementById('ue-pass').value.trim();
+  const pass=document.getElementById('ue-pass').value;
   const role=document.getElementById('ue-role').value;
-  const eid=document.getElementById('ue-id').value;
-  if(!name||!pass){notify('⚠️','Campos requeridos','Nombre y contraseña obligatorios.',3000);return}
-  const users=LS.get('be_users');
-  if(eid){
-    const i=users.findIndex(u=>u.id===eid);
-    if(i!==-1){users[i]={...users[i],name,password:pass,role};
-      logAct(CU.id,`Editó usuario "${name}"`);}
+  
+  if(!name||!pass){notify('⚠️','Faltan datos','Nombre y contraseña son obligatorios.',3000);return}
+  const us=LS.get('be_users');
+  
+  if(id){
+    const i=us.findIndex(x=>x.id===id);if(i===-1)return;
+    us[i]={...us[i],name,password:pass,role};
+    logAct(CU.id,`Editó usuario: ${name}`);
+    notify('✅','Actualizado','Usuario guardado.',3000);
   }else{
-    if(users.find(u=>u.name.toLowerCase()===name.toLowerCase())){notify('⚠️','Error','El nombre ya existe.',3000);return}
-    users.push({id:uid(),name,password:pass,role,active:true,createdAt:new Date().toISOString(),history:[]});
-    logAct(CU.id,`Creó usuario "${name}" (${ROLES[role]})`);
+    if(us.find(u=>u.name.toLowerCase()===name.toLowerCase())){notify('⚠️','Error','El nombre de usuario ya existe.',3000);return}
+    us.push({id:uid(),name,password:pass,role,active:true,createdAt:new Date().toISOString(),history:[]});
+    logAct(CU.id,`Creó usuario: ${name}`);
+    notify('✅','Creado','Nuevo usuario registrado.',3000);
   }
-  LS.set('be_users',users);cm('m-user');
-  notify('✅',eid?'Usuario actualizado':'Usuario creado',name,3000);go('users');
+  LS.set('be_users',us);cm('m-user');go('users');
 }
-function togUser(uidVal){
-  const users=LS.get('be_users');const i=users.findIndex(u=>u.id===uidVal);if(i===-1||users[i].id===CU.id)return;
-  users[i].active=users[i].active===false?true:false;LS.set('be_users',users);
-  logAct(CU.id,`${users[i].active?'Activó':'Desactivó'} usuario "${users[i].name}"`);go('users');
+function tglUser(id){
+  if(id===CU.id){notify('🚫','Acción denegada','No puedes desactivar tu propia cuenta.',3000);return}
+  const us=LS.get('be_users');const i=us.findIndex(x=>x.id===id);if(i===-1)return;
+  us[i].active=us[i].active===false?true:false;
+  LS.set('be_users',us);
+  logAct(CU.id,`${us[i].active?'Activó':'Desactivó'} usuario: ${us[i].name}`);
+  go('users');
 }
-function showHist(uidVal){
-  const u=LS.get('be_users').find(x=>x.id===uidVal);if(!u)return;
-  document.getElementById('mt-hist').innerHTML=`Historial: <span style="color:var(--birria)">${u.name}</span>`;
+function showHist(id){
+  const u=LS.get('be_users').find(x=>x.id===id);if(!u)return;
   const h=u.history||[];
-  document.getElementById('mb-hist').innerHTML=h.length?
-    `<div class="scrl"><ul style="list-style:none;padding:0;margin:0">${h.map(x=>`<li style="padding:10px 0;border-bottom:1px solid var(--border);display:flex;gap:12px"><div style="font-size:11px;color:var(--muted);white-space:nowrap;width:120px">${fd(x.timestamp)}</div><div style="font-size:13px;flex:1">${x.action}</div></li>`).join('')}</ul></div>`
-    :'<div class="empty"><p>Sin historial registrado.</p></div>';
+  document.getElementById('mt-hist').textContent=`Historial: ${u.name}`;
+  document.getElementById('mb-hist').innerHTML=`<div class="scrl">
+    ${!h.length?'<p class="empty">Sin historial registrado.</p>':
+    '<ul style="list-style:none">'+h.slice(0,50).map(x=>`<li style="padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="font-size:13px">${x.action}</div>
+      <div style="font-size:11px;color:var(--muted)">⏰ ${fd(x.timestamp)}</div>
+    </li>`).join('')+'</ul>'}
+  </div>`;
   om('m-hist');
 }
 </script>
