@@ -442,6 +442,33 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#FDFAF8}
     <div class="mf"><button class="btn bo" onclick="cm('m-disc')">Cancelar</button><button class="btn bp" onclick="applyDisc()">Aplicar</button></div>
   </div>
 </div>
+<!-- Cancel Reason -->
+<div class="mov" id="m-cancel-reason">
+  <div class="modal" style="max-width:420px">
+    <div class="mh"><div class="mt">🚫 Cancelar Pedido</div><button class="mc" onclick="cm('m-cancel-reason')">✕</button></div>
+    <div class="mb">
+      <p style="font-size:14px;color:var(--muted);margin-bottom:14px">El pedido será marcado como cancelado. Esta acción no se puede deshacer.</p>
+      <div class="fg"><label class="fl">Motivo de Cancelación *</label>
+        <select class="fc" id="cr-preset" onchange="if(this.value){document.getElementById('cr-reason').value=this.value;this.value=''}">
+          <option value="">— Selecciona un motivo rápido —</option>
+          <option value="Cliente canceló el pedido">Cliente canceló el pedido</option>
+          <option value="Error en el pedido">Error en el pedido</option>
+          <option value="Producto no disponible">Producto no disponible</option>
+          <option value="Tiempo de espera muy largo">Tiempo de espera muy largo</option>
+          <option value="Otro">Otro</option>
+        </select>
+      </div>
+      <div class="fg"><label class="fl">Descripción del motivo</label>
+        <textarea class="fc" id="cr-reason" placeholder="Describe el motivo de la cancelación..." rows="3"></textarea>
+      </div>
+      <input type="hidden" id="cr-oid"/>
+    </div>
+    <div class="mf">
+      <button class="btn bo" onclick="cm('m-cancel-reason')">Regresar</button>
+      <button class="btn bd" onclick="confirmCancelOrder()">🚫 Confirmar Cancelación</button>
+    </div>
+  </div>
+</div>
 <!-- Confirm -->
 <div class="cov" id="m-confirm">
   <div class="cbox">
@@ -466,6 +493,7 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyjJ6ulXsOvjJim8fRB6
 // CONSTANTS
 // ═══════════════════════════════════════════
 const ROLES={admin:'Administrador',waiter:'Mesero',cook:'Cocinero',cashier:'Cajero'};
+const ROLE_VIEWS={admin:['orders','kitchen','cashier','products','corte','users'],waiter:['orders'],cook:['kitchen'],cashier:['cashier','corte']};
 const SL={pending:'En Espera','in-process':'En Proceso',ready:'Listo',bar:'En Barra',delivered:'Entregado',paid:'Pagado',cancelled:'Cancelado'};
 const SB={pending:'bp_','in-process':'bip',ready:'br',bar:'bbar',delivered:'bdel',paid:'bpaid',cancelled:'bd'};
 const VIEW_T={'orders':'📋 Pedidos','kitchen':'👨‍🍳 Cocina','cashier':'🏧 Caja','products':'🍖 Productos','corte':'📊 Corte','users':'👥 Usuarios'};
@@ -536,6 +564,8 @@ window.onload = () => {
 // ═══════════════════════════════════════════
 // UTILS
 // ═══════════════════════════════════════════
+const $=(id)=>document.getElementById(id);
+const debounce=(fn,ms)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms)}};
 const uid=()=>'id-'+Date.now().toString(36)+'-'+Math.random().toString(36).substr(2,5);
 const fc=(n)=>'$'+(parseFloat(n)||0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
 const fd=(iso)=>{if(!iso)return'';const d=new Date(iso);return d.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'})+' '+d.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})};
@@ -576,18 +606,29 @@ function initData(){
 // CANCELAR Y EDITAR PEDIDOS
 // ═══════════════════════════════════════════
 function cancelOrder(oid){
-  confirm2('¿Cancelar pedido?', 'El pedido será marcado como cancelado.', () => {
-    const orders = LS.get('be_orders');
-    const i = orders.findIndex(o => o.id === oid);
-    if(i > -1) {
-      orders[i].status = 'cancelled';
-      LS.set('be_orders', orders);
-      logAct(CU.id, `Canceló pedido #${orders[i].number}`);
-      notify('🚫', 'Pedido cancelado', `Pedido #${orders[i].number} ha sido cancelado.`, 4000);
-      selOrder = null;
-      go(CV);
-    }
-  }, 'Cancelar', 'bd');
+  document.getElementById('cr-oid').value = oid;
+  document.getElementById('cr-reason').value = '';
+  document.getElementById('cr-preset').value = '';
+  om('m-cancel-reason');
+}
+function confirmCancelOrder(){
+  const oid = document.getElementById('cr-oid').value;
+  const reason = document.getElementById('cr-reason').value.trim();
+  if(!reason){ notify('⚠️','Motivo requerido','Por favor indica el motivo de la cancelación.',3000); return; }
+  const orders = LS.get('be_orders');
+  const i = orders.findIndex(o => o.id === oid);
+  if(i > -1){
+    orders[i].status = 'cancelled';
+    orders[i].cancelReason = reason;
+    orders[i].cancelledAt = new Date().toISOString();
+    orders[i].cancelledBy = CU.name;
+    LS.set('be_orders', orders);
+    logAct(CU.id, `Canceló pedido #${orders[i].number} — Motivo: ${reason}`);
+    notify('🚫','Pedido cancelado',`Pedido #${orders[i].number} cancelado. Motivo: ${reason}`,5000);
+    selOrder = null;
+    cm('m-cancel-reason');
+    go(CV);
+  }
 }
 
 function editOrder(oid){
@@ -647,7 +688,12 @@ function startApp(){
   document.getElementById('uname').textContent=CU.name;
   document.getElementById('urole').textContent=ROLES[CU.role]||CU.role;
   document.getElementById('tb-chip').textContent=CU.name+' · '+(ROLES[CU.role]||'');
-  go('orders');
+  // Mostrar solo las vistas permitidas en el sidebar según el rol
+  const allowed=ROLE_VIEWS[CU.role]||['orders'];
+  document.querySelectorAll('.ni[data-v]').forEach(el=>{
+    el.style.display=allowed.includes(el.dataset.v)?'':'none';
+  });
+  go(allowed[0]);
   startClock();
   setInterval(updBadges,6000);
   window.addEventListener('storage',e=>{if(e.key&&e.key.startsWith('be_'))updBadges()});
@@ -676,6 +722,8 @@ function updBadges(){
 // NAVIGATION
 // ═══════════════════════════════════════════
 function go(v){
+  const allowed=CU?ROLE_VIEWS[CU.role]||['orders']:['orders'];
+  if(!allowed.includes(v)){notify('🚫','Acceso restringido','No tienes permiso para ver esta sección.',3000);v=allowed[0];}
   CV=v;
   document.getElementById('tb-title').textContent=VIEW_T[v]||v;
   document.querySelectorAll('.ni').forEach(el=>el.classList.toggle('active',el.dataset.v===v));
@@ -875,9 +923,12 @@ function sendOrder(){
       orders[i].generalNote = gEl ? gEl.value.trim() : '';
       orders[i].total = tot;
       if(orders[i].discount) orders[i].discount.finalTotal = tot;
+      orders[i].lastEditAt = new Date().toISOString();
+      orders[i].lastEditBy = CU.name;
       LS.set('be_orders', orders);
       logAct(CU.id, `Editó pedido #${orders[i].number}`);
       notify('✅','¡Pedido editado!',`Pedido #${orders[i].number} ha sido actualizado.`,4000);
+      notify('⚠️','⚙️ Aviso Cocina & Caja',`El pedido #${orders[i].number} — ${orders[i].clientName} fue modificado por ${CU.name}. Revisa los cambios.`,7000);
     }
     editingOrderId = null;
     const btn = document.getElementById('btn-send-order');
@@ -949,6 +1000,8 @@ function buildKCard(o){
         ${o.items.map(i=>`<li><span class="oq">${i.qty}×</span> ${i.name}${i.note?`<div class="inotice">📝 ${i.note}</div>`:''}</li>`).join('')}
       </ul>
       ${o.generalNote?`<div style="margin-top:8px;font-size:12px;background:#FFF5F0;padding:7px 10px;border-radius:6px;color:var(--birria)">📝 ${o.generalNote}</div>`:''}
+      ${o.lastEditAt?`<div style="margin-top:6px;font-size:11px;background:#FEF9C3;padding:5px 8px;border-radius:6px;color:#92400E;font-weight:600">⚙️ Modificado por ${o.lastEditBy}</div>`:''}
+      ${o.cancelReason?`<div style="margin-top:6px;font-size:11px;background:#FEE2E2;padding:5px 8px;border-radius:6px;color:#991B1B;font-weight:600">🚫 Cancelado: ${o.cancelReason}</div>`:''}
       <div class="owrk">👤 ${o.workerName}</div>
     </div>
     <div class="ocf"><div class="sbts">
@@ -1219,7 +1272,7 @@ function rProducts(c){
     <div class="pflt">
       <div><label class="fl">Buscar Nombre</label>
         <input type="text" class="fc" id="pf-name" placeholder="Nombre..." value="${pFlt.name}"
-          oninput="pFlt.name=this.value;filterProds()"/></div>
+          oninput="pFlt.name=this.value;debouncedFilterProds()"/></div>
       <div><label class="fl">Filtrar Categoría</label>
         <select class="fc" id="pf-cat" onchange="pFlt.cat=this.value;filterProds()">
           <option value="">Todas</option>
@@ -1255,8 +1308,8 @@ function buildProdRows(prods){
   </tr>`).join('');
 }
 function filterProds(){
-  const nm=(document.getElementById('pf-name')?.value||pFlt.name).toLowerCase();
-  const ct=(document.getElementById('pf-cat')?.value||pFlt.cat).toLowerCase();
+  const nm=($('pf-name')?.value||pFlt.name).toLowerCase();
+  const ct=($('pf-cat')?.value||pFlt.cat).toLowerCase();
   const rows=document.querySelectorAll('#prod-tbody tr');
   let vis=0;
   rows.forEach(r=>{
@@ -1264,9 +1317,10 @@ function filterProds(){
     const show=(!nm||rn.includes(nm))&&(!ct||rc===ct);
     r.style.display=show?'':'none';if(show)vis++;
   });
-  const el=document.getElementById('prod-count');
+  const el=$('prod-count');
   if(el)el.textContent=`${vis} de ${rows.length} producto(s)`;
 }
+const debouncedFilterProds=debounce(filterProds,200);
 function openProd(pid){
   document.getElementById('pe-id').value=pid||'';
   if(pid){
