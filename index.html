@@ -560,36 +560,47 @@ function _send(k, v, retries) {
 window.onload = () => {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'none';
-  
+
+  let _done = false;
+
+  const proceed = (data) => {
+    if (_done) return;
+    _done = true;
+    clearTimeout(_safetyTimer);
+    LCache = data || {};
+    document.getElementById('loader').style.display = 'none';
+    initData();
+    document.getElementById('login-screen').style.display = 'flex';
+  };
+
+  const fallback = (msg) => {
+    if (_done) return;
+    _done = true;
+    clearTimeout(_safetyTimer);
+    document.getElementById('loader').style.display = 'none';
+    initData();
+    document.getElementById('login-screen').style.display = 'flex';
+    if (msg) notify('⚠️', 'Sin conexión', msg, 6000);
+  };
+
+  // Tiempo límite global: si en 10s no responde, entra en modo local
+  const _safetyTimer = setTimeout(() =>
+    fallback('Tiempo de espera agotado. Entrando en modo local.'), 10000);
+
   if (typeof google !== 'undefined' && google.script && google.script.run) {
     google.script.run
-      .withFailureHandler(err => {
-        document.getElementById('loader').style.display = 'none';
-        initData();
-        document.getElementById('login-screen').style.display = 'flex';
-        notify('⚠️', 'Aviso', 'Problema al sincronizar con Sheets. Entrando en modo local.', 5000);
-      })
-      .withSuccessHandler(data => {
-        LCache = data || {};
-        document.getElementById('loader').style.display = 'none';
-        initData();
-        document.getElementById('login-screen').style.display = 'flex';
-      }).loadAllData();
-  } else {
-    fetch(SCRIPT_URL + '?action=load')
+      .withFailureHandler(() => fallback('No se pudo conectar con Sheets. Modo local activo.'))
+      .withSuccessHandler(data => proceed(data))
+      .loadAllData();
+  } else if (SCRIPT_URL && SCRIPT_URL.trim() !== '') {
+    const ctrl = new AbortController();
+    setTimeout(() => ctrl.abort(), 9000); // abortar fetch antes del safety timer
+    fetch(SCRIPT_URL + '?action=load', { signal: ctrl.signal })
       .then(res => res.json())
-      .then(data => {
-        LCache = data || {};
-        document.getElementById('loader').style.display = 'none';
-        initData();
-        document.getElementById('login-screen').style.display = 'flex';
-      })
-      .catch(err => {
-        document.getElementById('loader').style.display = 'none';
-        initData();
-        document.getElementById('login-screen').style.display = 'flex';
-        notify('⚠️', 'Aviso', 'Falla de conexión a Apps Script. Entrando en modo local.', 5000);
-      });
+      .then(data => proceed(data))
+      .catch(() => fallback('Falla de conexión. Entrando en modo local.'));
+  } else {
+    fallback(); // sin URL configurada, modo local directo
   }
 
   // Auto-sync silencioso cada 5 minutos (solo si hay sesión activa)
