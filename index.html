@@ -251,13 +251,6 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#FDFAF8}
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-thumb{background:rgba(200,64,10,.3);border-radius:3px}
 ::-webkit-scrollbar-thumb:hover{background:rgba(200,64,10,.6)}
-.sched-cell{min-height:38px;display:flex;align-items:center;justify-content:center;border-radius:6px;transition:all .15s}
-.sched-cell.editable{cursor:pointer}.sched-cell.editable:hover{filter:brightness(.93);transform:scale(.97)}
-.sched-work{background:#D1FAE5;color:#065F46;font-size:11px;font-weight:700;text-align:center;padding:5px 7px;border-radius:6px;line-height:1.3}
-.sched-rest{background:#FEE2E2;color:#991B1B;font-size:11px;font-weight:700;text-align:center;padding:5px 7px;border-radius:6px}
-.sched-empty{color:rgba(0,0,0,.15);font-size:18px}
-.analy-bar{height:9px;background:var(--border);border-radius:6px;overflow:hidden;margin-top:4px}
-.analy-bar-fill{height:100%;border-radius:6px;transition:width .7s ease}
 /* ── RESPONSIVE ── */
 @media(max-width:960px){
   .order-layout{grid-template-columns:1fr}
@@ -324,8 +317,6 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#FDFAF8}
         <button class="ni" data-v="cashier" onclick="go('cashier')"><span class="ico">🏧</span>Caja<span class="nbadge" id="b-cas"></span></button>
         <button class="ni" data-v="products" onclick="go('products')"><span class="ico">🍖</span>Productos</button>
         <button class="ni" data-v="corte" onclick="go('corte')"><span class="ico">📊</span>Corte</button>
-        <button class="ni" data-v="analytics" onclick="go('analytics')"><span class="ico">📈</span>Analítica</button>
-        <button class="ni" data-v="schedule" onclick="go('schedule')"><span class="ico">📅</span>Horarios</button>
         <button class="ni" data-v="users" onclick="go('users')"><span class="ico">👥</span>Usuarios</button>
       </nav>
       <div class="sb-bot">
@@ -454,27 +445,27 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#FDFAF8}
 <!-- Cancel Reason -->
 <div class="mov" id="m-cancel-reason">
   <div class="modal" style="max-width:420px">
-    <div class="mh"><div class="mt">🚫 Cancelar Pedido</div><button class="mc" onclick="cm('m-cancel-reason')">✕</button></div>
+    <div class="mh"><div class="mt">Cancelar Pedido</div><button class="mc" onclick="cm('m-cancel-reason')">&#x2715;</button></div>
     <div class="mb">
-      <p style="font-size:14px;color:var(--muted);margin-bottom:14px">El pedido será marcado como cancelado. Esta acción no se puede deshacer.</p>
-      <div class="fg"><label class="fl">Motivo de Cancelación *</label>
+      <p style="font-size:14px;color:var(--muted);margin-bottom:14px">El pedido sera marcado como cancelado. Esta accion no se puede deshacer.</p>
+      <div class="fg"><label class="fl">Motivo de Cancelacion *</label>
         <select class="fc" id="cr-preset" onchange="if(this.value){document.getElementById('cr-reason').value=this.value;this.value=''}">
-          <option value="">— Selecciona un motivo rápido —</option>
-          <option value="Cliente canceló el pedido">Cliente canceló el pedido</option>
+          <option value="">Selecciona un motivo rapido</option>
+          <option value="Cliente cancelo el pedido">Cliente cancelo el pedido</option>
           <option value="Error en el pedido">Error en el pedido</option>
           <option value="Producto no disponible">Producto no disponible</option>
           <option value="Tiempo de espera muy largo">Tiempo de espera muy largo</option>
           <option value="Otro">Otro</option>
         </select>
       </div>
-      <div class="fg"><label class="fl">Descripción del motivo</label>
-        <textarea class="fc" id="cr-reason" placeholder="Describe el motivo de la cancelación..." rows="3"></textarea>
+      <div class="fg"><label class="fl">Descripcion del motivo</label>
+        <textarea class="fc" id="cr-reason" placeholder="Describe el motivo de la cancelacion..." rows="3"></textarea>
       </div>
       <input type="hidden" id="cr-oid"/>
     </div>
     <div class="mf">
       <button class="btn bo" onclick="cm('m-cancel-reason')">Regresar</button>
-      <button class="btn bd" onclick="confirmCancelOrder()">🚫 Confirmar Cancelación</button>
+      <button class="btn bd" onclick="confirmCancelOrder()">Confirmar Cancelacion</button>
     </div>
   </div>
 </div>
@@ -502,117 +493,93 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyjJ6ulXsOvjJim8fRB6
 // CONSTANTS
 // ═══════════════════════════════════════════
 const ROLES={admin:'Administrador',waiter:'Mesero',cook:'Cocinero',cashier:'Cajero'};
-const ROLE_VIEWS={admin:['orders','kitchen','cashier','products','corte','analytics','schedule','users'],waiter:['orders','schedule'],cook:['kitchen','schedule'],cashier:['cashier','corte','schedule']};
+const ROLE_VIEWS={admin:['orders','kitchen','cashier','products','corte','users'],waiter:['orders'],cook:['kitchen'],cashier:['cashier','corte']};
 const SL={pending:'En Espera','in-process':'En Proceso',ready:'Listo',bar:'En Barra',delivered:'Entregado',paid:'Pagado',cancelled:'Cancelado'};
 const SB={pending:'bp_','in-process':'bip',ready:'br',bar:'bbar',delivered:'bdel',paid:'bpaid',cancelled:'bd'};
-const VIEW_T={'orders':'📋 Pedidos','kitchen':'👨‍🍳 Cocina','cashier':'🏧 Caja','products':'🍖 Productos','corte':'📊 Corte','analytics':'📈 Analítica','schedule':'📅 Horarios','users':'👥 Usuarios'};
+const VIEW_T={'orders':'📋 Pedidos','kitchen':'👨‍🍳 Cocina','cashier':'🏧 Caja','products':'🍖 Productos','corte':'📊 Corte','users':'👥 Usuarios'};
 
 // ═══════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════
-let CU=null,CV='orders',cart=[],selOrder=null,csPayments={cash:0,card:0,transfer:0},csDisc={type:'none',value:0,reason:''},cierreData=null,cfCB=null,kFilter='active',pFlt={name:'',cat:''},editingOrderId=null,schedWeek=null;
+let CU=null,CV='orders',cart=[],selOrder=null,csPayments={cash:0,card:0,transfer:0},csDisc={type:'none',value:0,reason:''},cierreData=null,cfCB=null,kFilter='active',pFlt={name:'',cat:''},editingOrderId=null;
 
 // ═══════════════════════════════════════════
 // DATOS EN APP SCRIPT (Sincronización Dual)
-// Cola de guardado: agrupa escrituras rápidas en una sola petición
 // ═══════════════════════════════════════════
 let LCache = {};
-const _sq = {};   // save queue: { key -> valor más reciente }
-const _st = {};   // save timers por clave
 
 const LS = {
-  get: (k, d = []) => LCache[k] !== undefined ? LCache[k] : d,
+  get: (k, d = []) => { return LCache[k] !== undefined ? LCache[k] : d },
   set: (k, v) => {
     LCache[k] = v;
-    _sq[k] = v;
-    clearTimeout(_st[k]);
-    _st[k] = setTimeout(() => _flush(k), 350); // espera 350ms de inactividad
+    _syncToServer(k, v);
   },
-  obj: (k, d = {}) => (LCache[k] !== undefined && Object.keys(LCache[k]).length > 0) ? LCache[k] : d
+  // Guarda múltiples claves en una sola petición (evita condición de carrera)
+  setBatch: (pairs) => {
+    pairs.forEach(([k,v]) => { LCache[k] = v; });
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      pairs.forEach(([k,v]) => google.script.run.saveData(k, v));
+    } else if (SCRIPT_URL && SCRIPT_URL.trim() !== '') {
+      const updates = pairs.map(([key,value]) => ({key,value}));
+      fetch(SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'saveBatch', updates }),
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+      }).catch(() => pairs.forEach(([k,v]) => _syncToServer(k,v)));
+    }
+  },
+  obj: (k, d = {}) => { return LCache[k] !== undefined && Object.keys(LCache[k]).length > 0 ? LCache[k] : d }
 };
-
-// Envía la versión más reciente de una clave al backend (con reintentos)
-function _flush(k) {
-  const v = _sq[k];
-  if (v === undefined) return;
-  delete _sq[k];
-  _send(k, v, 2); // hasta 2 reintentos
-}
-
-function _send(k, v, retries) {
-  const onFail = () => {
-    if (retries > 0) setTimeout(() => _send(k, v, retries - 1), 2500);
-    else console.warn('Guardado fallido definitivamente:', k);
-  };
+function _syncToServer(k, v) {
   if (typeof google !== 'undefined' && google.script && google.script.run) {
-    google.script.run
-      .withFailureHandler(onFail)
-      .saveData(k, v);
+    google.script.run.saveData(k, v);
   } else if (SCRIPT_URL && SCRIPT_URL.trim() !== '') {
-    fetch(SCRIPT_URL, {
+    let retries = 2;
+    const attempt = () => fetch(SCRIPT_URL, {
       method: 'POST',
       body: JSON.stringify({ action: 'save', key: k, value: v }),
       headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-    }).catch(onFail);
+    }).then(r => r.json()).then(r => { if(!r.success) throw new Error(); })
+      .catch(() => { if(retries-- > 0) setTimeout(attempt, 1500); });
+    attempt();
   }
 }
 
 window.onload = () => {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'none';
-
-  let _done = false;
-
-  const proceed = (data) => {
-    if (_done) return;
-    _done = true;
-    clearTimeout(_safetyTimer);
-    LCache = data || {};
-    document.getElementById('loader').style.display = 'none';
-    initData();
-    document.getElementById('login-screen').style.display = 'flex';
-  };
-
-  const fallback = (msg) => {
-    if (_done) return;
-    _done = true;
-    clearTimeout(_safetyTimer);
-    document.getElementById('loader').style.display = 'none';
-    initData();
-    document.getElementById('login-screen').style.display = 'flex';
-    if (msg) notify('⚠️', 'Sin conexión', msg, 6000);
-  };
-
-  // Tiempo límite global: si en 10s no responde, entra en modo local
-  const _safetyTimer = setTimeout(() =>
-    fallback('Tiempo de espera agotado. Entrando en modo local.'), 10000);
-
+  
   if (typeof google !== 'undefined' && google.script && google.script.run) {
     google.script.run
-      .withFailureHandler(() => fallback('No se pudo conectar con Sheets. Modo local activo.'))
-      .withSuccessHandler(data => proceed(data))
-      .loadAllData();
-  } else if (SCRIPT_URL && SCRIPT_URL.trim() !== '') {
-    const ctrl = new AbortController();
-    setTimeout(() => ctrl.abort(), 9000); // abortar fetch antes del safety timer
-    fetch(SCRIPT_URL + '?action=load', { signal: ctrl.signal })
-      .then(res => res.json())
-      .then(data => proceed(data))
-      .catch(() => fallback('Falla de conexión. Entrando en modo local.'));
+      .withFailureHandler(err => {
+        document.getElementById('loader').style.display = 'none';
+        initData();
+        document.getElementById('login-screen').style.display = 'flex';
+        notify('⚠️', 'Aviso', 'Problema al sincronizar con Sheets. Entrando en modo local.', 5000);
+      })
+      .withSuccessHandler(data => {
+        LCache = (data && data.data) ? data.data : (data || {});
+        document.getElementById('loader').style.display = 'none';
+        initData();
+        document.getElementById('login-screen').style.display = 'flex';
+      }).loadAllData();
   } else {
-    fallback(); // sin URL configurada, modo local directo
+    fetch(SCRIPT_URL + '?action=load')
+      .then(res => res.json())
+      .then(res => {
+        const data = (res && res.data) ? res.data : (res || {});
+        LCache = data || {};
+        document.getElementById('loader').style.display = 'none';
+        initData();
+        document.getElementById('login-screen').style.display = 'flex';
+      })
+      .catch(err => {
+        document.getElementById('loader').style.display = 'none';
+        initData();
+        document.getElementById('login-screen').style.display = 'flex';
+        notify('⚠️', 'Aviso', 'Falla de conexión a Apps Script. Entrando en modo local.', 5000);
+      });
   }
-
-  // Auto-sync silencioso cada 5 minutos (solo si hay sesión activa)
-  setInterval(() => {
-    if (!CU) return;
-    const onData = (data) => { if (data) { LCache = data; updBadges(); } };
-    if (typeof google !== 'undefined' && google.script && google.script.run) {
-      google.script.run.withSuccessHandler(onData).withFailureHandler(()=>{}).loadAllData();
-    } else if (SCRIPT_URL && SCRIPT_URL.trim() !== '') {
-      fetch(SCRIPT_URL + '?action=load').then(r => r.json()).then(onData).catch(() => {});
-    }
-  }, 5 * 60 * 1000);
 };
 
 // ═══════════════════════════════════════════
@@ -624,13 +591,15 @@ const uid=()=>'id-'+Date.now().toString(36)+'-'+Math.random().toString(36).subst
 const fc=(n)=>'$'+(parseFloat(n)||0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
 const fd=(iso)=>{if(!iso)return'';const d=new Date(iso);return d.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'})+' '+d.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})};
 const fds=(iso)=>{if(!iso)return'';return new Date(iso).toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'})};
-// today() con caché: evita crear un Date en cada llamada dentro de loops
-let _todayVal='',_todayTs=0;
-const today=()=>{const n=Date.now();if(n-_todayTs>60000){_todayVal=new Date().toISOString().split('T')[0];_todayTs=n;}return _todayVal;};
+const today=()=>new Date().toISOString().split('T')[0];
 const weekStart=()=>{const d=new Date();d.setDate(d.getDate()-d.getDay());return d.toISOString().split('T')[0]};
 const monthStart=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`};
-// nextNum() usa el máximo real en lugar de length, evita colisiones si se borran pedidos
-const nextNum=()=>{const orders=LS.get('be_orders');const max=orders.reduce((m,o)=>Math.max(m,parseInt(o.number)||0),0);return String(max+1).padStart(4,'0');};
+const nextNum=()=>{
+  const _ords=LS.get('be_orders');
+  if(!_ords||_ords.length===0)return'0001';
+  const _max=_ords.reduce((m,o)=>{const n=parseInt(o.number,10);return(!isNaN(n)&&n>m)?n:m;},0);
+  return String(_max+1).padStart(4,'0');
+};
 
 // ═══════════════════════════════════════════
 // INIT DATA
@@ -654,7 +623,6 @@ function initData(){
   if(!LCache['be_orders']) LS.set('be_orders',[]);
   if(!LCache['be_cuts']) LS.set('be_cuts',[]);
   if(!LCache['be_caja']) LS.set('be_caja',[]);
-  if(!LCache['be_schedule']) LS.set('be_schedule',[]);
   if(!LCache['be_sd'] || !LCache['be_sd'].date) LS.set('be_sd',{total:0,cash:0,card:0,transfer:0,date:today(),initCash:0});
   if(!LCache['be_sw'] || !LCache['be_sw'].weekStart) LS.set('be_sw',{total:0,cash:0,card:0,transfer:0,weekStart:weekStart()});
   if(!LCache['be_sm'] || !LCache['be_sm'].monthStart) LS.set('be_sm',{total:0,cash:0,card:0,transfer:0,monthStart:monthStart()});
@@ -672,7 +640,7 @@ function cancelOrder(oid){
 function confirmCancelOrder(){
   const oid = document.getElementById('cr-oid').value;
   const reason = document.getElementById('cr-reason').value.trim();
-  if(!reason){ notify('⚠️','Motivo requerido','Por favor indica el motivo de la cancelación.',3000); return; }
+  if(!reason){ notify('⚠️','Motivo requerido','Por favor indica el motivo de la cancelacion.',3000); return; }
   const orders = LS.get('be_orders');
   const i = orders.findIndex(o => o.id === oid);
   if(i > -1){
@@ -681,8 +649,8 @@ function confirmCancelOrder(){
     orders[i].cancelledAt = new Date().toISOString();
     orders[i].cancelledBy = CU.name;
     LS.set('be_orders', orders);
-    logAct(CU.id, `Canceló pedido #${orders[i].number} — Motivo: ${reason}`);
-    notify('🚫','Pedido cancelado',`Pedido #${orders[i].number} cancelado. Motivo: ${reason}`,5000);
+    logAct(CU.id, 'Cancelo pedido #'+orders[i].number+' - Motivo: '+reason);
+    notify('🚫','Pedido cancelado','Pedido #'+orders[i].number+' cancelado. Motivo: '+reason,5000);
     selOrder = null;
     cm('m-cancel-reason');
     go(CV);
@@ -733,6 +701,7 @@ function logAct(uid,action){
   if(i===-1)return;
   if(!users[i].history)users[i].history=[];
   users[i].history.unshift({action,timestamp:new Date().toISOString()});
+  if(users[i].history.length>100)users[i].history=users[i].history.slice(0,100);
   LS.set('be_users',users);
 }
 
@@ -746,7 +715,6 @@ function startApp(){
   document.getElementById('uname').textContent=CU.name;
   document.getElementById('urole').textContent=ROLES[CU.role]||CU.role;
   document.getElementById('tb-chip').textContent=CU.name+' · '+(ROLES[CU.role]||'');
-  // Mostrar solo las vistas permitidas en el sidebar según el rol
   const allowed=ROLE_VIEWS[CU.role]||['orders'];
   document.querySelectorAll('.ni[data-v]').forEach(el=>{
     el.style.display=allowed.includes(el.dataset.v)?'':'none';
@@ -761,10 +729,12 @@ function startClock(){
   const tick=()=>el.textContent=new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
   tick();setInterval(tick,1000);
 }
+let _lastBadgeHash='';
 function updBadges(){
   const orders=LS.get('be_orders');
   const kc=orders.filter(o=>['pending','in-process'].includes(o.status)).length;
   const cc=orders.filter(o=>['ready','bar','delivered'].includes(o.status)).length;
+  const _bh=`${kc}-${cc}`; if(_bh===_lastBadgeHash)return; _lastBadgeHash=_bh;
   const kb=document.getElementById('b-kit');
   const cb=document.getElementById('b-cas');
   const bb=document.getElementById('b-bar');
@@ -779,9 +749,10 @@ function updBadges(){
 // ═══════════════════════════════════════════
 // NAVIGATION
 // ═══════════════════════════════════════════
-function go(v){
+function go(v,force){
   const allowed=CU?ROLE_VIEWS[CU.role]||['orders']:['orders'];
-  if(!allowed.includes(v)){notify('🚫','Acceso restringido','No tienes permiso para ver esta sección.',3000);v=allowed[0];}
+  if(!allowed.includes(v)){notify('🚫','Acceso restringido','No tienes permiso para ver esta seccion.',3000);v=allowed[0];}
+  if(v===CV&&!force)return;
   CV=v;
   document.getElementById('tb-title').textContent=VIEW_T[v]||v;
   document.querySelectorAll('.ni').forEach(el=>el.classList.toggle('active',el.dataset.v===v));
@@ -793,8 +764,6 @@ function go(v){
     case'cashier':rCashier(c);break;
     case'products':rProducts(c);break;
     case'corte':rCorte(c);break;
-    case'analytics':rAnalytics(c);break;
-    case'schedule':rSchedule(c);break;
     case'users':rUsers(c);break;
   }
   updBadges();
@@ -988,7 +957,7 @@ function sendOrder(){
       LS.set('be_orders', orders);
       logAct(CU.id, `Editó pedido #${orders[i].number}`);
       notify('✅','¡Pedido editado!',`Pedido #${orders[i].number} ha sido actualizado.`,4000);
-      notify('⚠️','⚙️ Aviso Cocina & Caja',`El pedido #${orders[i].number} — ${orders[i].clientName} fue modificado por ${CU.name}. Revisa los cambios.`,7000);
+      notify('⚠️','Aviso Cocina y Caja','Pedido #'+orders[i].number+' de '+orders[i].clientName+' fue modificado por '+CU.name+'. Revisa los cambios.',7000);
     }
     editingOrderId = null;
     const btn = document.getElementById('btn-send-order');
@@ -1060,8 +1029,8 @@ function buildKCard(o){
         ${o.items.map(i=>`<li><span class="oq">${i.qty}×</span> ${i.name}${i.note?`<div class="inotice">📝 ${i.note}</div>`:''}</li>`).join('')}
       </ul>
       ${o.generalNote?`<div style="margin-top:8px;font-size:12px;background:#FFF5F0;padding:7px 10px;border-radius:6px;color:var(--birria)">📝 ${o.generalNote}</div>`:''}
-      ${o.lastEditAt?`<div style="margin-top:6px;font-size:11px;background:#FEF9C3;padding:5px 8px;border-radius:6px;color:#92400E;font-weight:600">⚙️ Modificado por ${o.lastEditBy}</div>`:''}
-      ${o.cancelReason?`<div style="margin-top:6px;font-size:11px;background:#FEE2E2;padding:5px 8px;border-radius:6px;color:#991B1B;font-weight:600">🚫 Cancelado: ${o.cancelReason}</div>`:''}
+      ${o.lastEditAt?`<div style="margin-top:6px;font-size:11px;background:#FEF9C3;padding:5px 8px;border-radius:6px;color:#92400E;font-weight:600">Modificado por ${o.lastEditBy}</div>`:''}
+      ${o.cancelReason?`<div style="margin-top:6px;font-size:11px;background:#FEE2E2;padding:5px 8px;border-radius:6px;color:#991B1B;font-weight:600">Cancelado: ${o.cancelReason}</div>`:''}
       <div class="owrk">👤 ${o.workerName}</div>
     </div>
     <div class="ocf"><div class="sbts">
@@ -1077,7 +1046,7 @@ function updStatus(oid,ns){
   const os=orders[i].status;orders[i].status=ns;LS.set('be_orders',orders);
   logAct(CU.id,`Cambió pedido #${orders[i].number} de "${SL[os]}" a "${SL[ns]}"`);
   if(ns==='bar')notify('🍺',`¡Pedido #${orders[i].number} en Barra!`,`${orders[i].clientName} — listo para entregar.`,6000,'nbar');
-  go('kitchen');
+  go('kitchen',true);
 }
 
 // ═══════════════════════════════════════════
@@ -1086,21 +1055,6 @@ function updStatus(oid,ns){
 function rCashier(c){
   const orders=LS.get('be_orders');
   const list=orders.filter(o=>!['paid','cancelled'].includes(o.status)).sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));
-
-  // ── Cobros del turno ──
-  const allCaja=LS.get('be_caja')||[];
-  const t=today();
-  const cobros=allCaja
-    .filter(cb=>cb.timestamp&&cb.timestamp.startsWith(t)&&cb.workerName===CU.name)
-    .sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
-  const sumCobros=(k)=>cobros.reduce((s,cb)=>s+(cb[k]||0),0);
-  const totCobrado=sumCobros('total');
-  const totCash=sumCobros('cash');
-  const totCard=sumCobros('card');
-  const totTf=sumCobros('transfer');
-  const totTip=sumCobros('tip');
-  const totDisc=sumCobros('discAmt');
-
   c.innerHTML=`<div class="cslayout">
     <div>
       <div class="card">
@@ -1122,72 +1076,7 @@ function rCashier(c){
     <div id="pay-panel" style="position:sticky;top:80px">
       ${selOrder?buildPayPanel():`<div class="card"><div class="empty"><div class="ei">👆</div><h3>Selecciona un pedido</h3><p>Haz clic en un pedido para cobrar.</p></div></div>`}
     </div>
-  </div>
-
-  <!-- ══ COBROS DEL TURNO ══ -->
-  <div class="card" style="margin-top:20px">
-    <div class="ch" style="flex-wrap:wrap;gap:12px">
-      <div class="ct">🧾 Mis Cobros del Turno</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <span style="background:#D1FAE5;color:#065F46;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:700">
-          💰 ${fc(totCobrado)}
-        </span>
-        ${totCash>0?`<span style="background:#F0FDF4;color:#166534;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600">💵 ${fc(totCash)}</span>`:''}
-        ${totCard>0?`<span style="background:#EFF6FF;color:#1D4ED8;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600">💳 ${fc(totCard)}</span>`:''}
-        ${totTf>0?`<span style="background:#F5F3FF;color:#6D28D9;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600">📱 ${fc(totTf)}</span>`:''}
-        ${totTip>0?`<span style="background:#FEF3C7;color:#92400E;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600">🤝 Propina: ${fc(totTip)}</span>`:''}
-        ${totDisc>0?`<span style="background:#FEE2E2;color:#991B1B;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600">🏷️ Desc: −${fc(totDisc)}</span>`:''}
-        <span style="font-size:12px;color:var(--muted)">${cobros.length} cobro(s)</span>
-      </div>
-    </div>
-    ${!cobros.length?
-      `<div class="empty" style="padding:28px">
-        <div class="ei" style="font-size:36px">🧾</div>
-        <p>Sin cobros en este turno todavía.</p>
-      </div>`:
-      `<div class="tw">
-        <table>
-          <thead>
-            <tr>
-              <th>Hora</th><th>Orden</th><th>Cliente</th><th>Mesero</th>
-              <th>Total</th><th>Efectivo</th><th>Tarjeta</th><th>Transferencia</th>
-              <th>Propina</th><th>Descuento</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            ${cobros.map(cb=>{
-              const dash='<span style="color:var(--border)">—</span>';
-              const discLbl=cb.discAmt>0
-                ?(cb.discType==='pct'
-                  ?`<span style="color:var(--err);font-size:12px">−${fc(cb.discAmt)}<br><em style="color:var(--muted);font-size:10px">${cb.discValue}%${cb.discReason?' · '+cb.discReason:''}</em></span>`
-                  :`<span style="color:var(--err);font-size:12px">−${fc(cb.discAmt)}${cb.discReason?`<br><em style="color:var(--muted);font-size:10px">${cb.discReason}</em>`:''}</span>`)
-                :dash;
-              return`<tr>
-              <td style="white-space:nowrap;color:var(--muted);font-size:13px">
-                ${new Date(cb.timestamp).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})}
-              </td>
-              <td><strong>#${cb.number}</strong></td>
-              <td>${cb.clientName}</td>
-              <td><span style="font-size:12px">👤 ${cb.waiterName||'—'}</span></td>
-              <td><strong style="color:var(--birria)">${fc(cb.total)}</strong></td>
-              <td>${cb.cash>0?fc(cb.cash):dash}</td>
-              <td>${cb.card>0?fc(cb.card):dash}</td>
-              <td>${cb.transfer>0?fc(cb.transfer):dash}</td>
-              <td>${cb.tip>0?`<span style="color:var(--warn);font-weight:600">${fc(cb.tip)}</span>`:dash}</td>
-              <td>${discLbl}</td>
-              <td><button class="btn bo btn-xs" onclick="showTicketByCajaId('${cb.id}')">🧾 Ticket</button></td>
-            </tr>`;}).join('')}
-          </tbody>
-        </table>
-      </div>`
-    }
   </div>`;
-}
-function showTicketByCajaId(oid){
-  const o=LS.get('be_orders').find(x=>x.id===oid);
-  if(o)showTicket(o);
-  else notify('⚠️','No encontrado','No se pudo recuperar el ticket de este cobro.',3000);
 }
 function selCsOrder(oid){
   const o=LS.get('be_orders').find(x=>x.id===oid);
@@ -1326,8 +1215,6 @@ function finalizePay(ft,paid,da,ta){
     tip:ta,paid,finalTotal:ft,change:chg,status:'paid'};
   orders[i].discount={...d,finalTotal:ft,discAmt:da};
   orders[i].paidAt=new Date().toISOString();
-  LS.set('be_orders',orders);
-  
   // Guardar en la pestaña de Caja
   const cajaList = LS.get('be_caja') || [];
   cajaList.push({
@@ -1338,28 +1225,25 @@ function finalizePay(ft,paid,da,ta){
     cash: csPayments.cash || 0,
     card: csPayments.card || 0,
     transfer: csPayments.transfer || 0,
-    tip: ta || 0,
-    discAmt: da || 0,
-    discType: d.type || 'none',
-    discValue: d.value || 0,
-    discReason: d.reason || '',
-    waiterName: orders[i].workerName,
     workerName: CU.name,
     timestamp: new Date().toISOString()
   });
-  LS.set('be_caja', cajaList);
-
   // Ventas acumuladas
   const addSales=(key)=>{const s=LS.obj(key,{total:0,cash:0,card:0,transfer:0});
     s.total+=ft;s.cash+=csPayments.cash||0;s.card+=csPayments.card||0;s.transfer+=csPayments.transfer||0;
-    LS.set(key,s)};
-  addSales('be_sd');addSales('be_sw');addSales('be_sm');
+    return s;};
+  LS.setBatch([
+    ['be_orders', orders],
+    ['be_caja',   cajaList],
+    ['be_sd',     addSales('be_sd')],
+    ['be_sw',     addSales('be_sw')],
+    ['be_sm',     addSales('be_sm')]
+  ]);
   logAct(CU.id,`Cobró pedido #${orders[i].number} - ${orders[i].clientName} - ${fc(ft)}`);
   notify('✅','¡Pago exitoso!',`Pedido #${orders[i].number}. Cambio: ${fc(chg)}`,4000);
   showTicket(orders[i]);
   selOrder=null;csPayments={cash:0,card:0,transfer:0};csDisc={type:'none',value:0,reason:''};
   updBadges();
-  go('cashier'); // Refrescar vista para mostrar el cobro en el historial
 }
 function showTicket(oArg){
   const o=oArg||selOrder;if(!o)return;
@@ -1800,411 +1684,7 @@ function viewUserHist(uid){
       </li>`).join('')}
     </ul>`;
   om('m-hist');
-
-// ═══════════════════════════════════════════
-// ANALYTICS VIEW (Solo Admin)
-// ═══════════════════════════════════════════
-function rAnalytics(c){
-  const orders=LS.get('be_orders');
-  const paid=orders.filter(o=>o.status==='paid');
-  const cancelled=orders.filter(o=>o.status==='cancelled');
-  const active=orders.filter(o=>!['paid','cancelled'].includes(o.status));
-  const sd=LS.obj('be_sd',{total:0,cash:0,card:0,transfer:0,date:today()});
-  const sw=LS.obj('be_sw',{total:0,cash:0,card:0,transfer:0});
-  const sm=LS.obj('be_sm',{total:0,cash:0,card:0,transfer:0});
-  const cuts=LS.get('be_cuts');
-  const caja=LS.get('be_caja');
-
-  // Ticket promedio
-  const avgTicket=paid.length>0?paid.reduce((s,o)=>s+(o.payment?.finalTotal||o.total),0)/paid.length:0;
-
-  // Cancelaciones
-  const totalFin=paid.length+cancelled.length;
-  const cancelRate=totalFin>0?(cancelled.length/totalFin*100):0;
-
-  // Productos más vendidos (global histórico)
-  const prodMap={};
-  paid.forEach(o=>o.items.forEach(item=>{
-    if(!prodMap[item.name])prodMap[item.name]={qty:0,rev:0};
-    prodMap[item.name].qty+=item.qty;
-    prodMap[item.name].rev+=item.price*item.qty;
-  }));
-  const topProds=Object.entries(prodMap).sort((a,b)=>b[1].qty-a[1].qty).slice(0,6);
-  const maxQty=topProds[0]?.[1].qty||1;
-
-  // Categorías
-  const catMap={};
-  const allProds=LS.get('be_products');
-  paid.forEach(o=>o.items.forEach(item=>{
-    const p=allProds.find(x=>x.name===item.name);
-    const cat=p?.category||'Sin categoría';
-    catMap[cat]=(catMap[cat]||0)+item.qty;
-  }));
-  const topCats=Object.entries(catMap).sort((a,b)=>b[1]-a[1]);
-
-  // Meseros
-  const waiterMap={};
-  paid.forEach(o=>{
-    const n=o.workerName||'—';
-    if(!waiterMap[n])waiterMap[n]={orders:0,rev:0};
-    waiterMap[n].orders++;
-    waiterMap[n].rev+=(o.payment?.finalTotal||o.total);
-  });
-  const topWaiters=Object.entries(waiterMap).sort((a,b)=>b[1].orders-a[1].orders);
-  const maxOrd=topWaiters[0]?.[1].orders||1;
-
-  // Métodos de pago hoy
-  const sdTotal=sd.cash+sd.card+sd.transfer||1;
-  const cashPct=Math.round((sd.cash||0)/sdTotal*100);
-  const cardPct=Math.round((sd.card||0)/sdTotal*100);
-  const tfPct=Math.round((sd.transfer||0)/sdTotal*100);
-
-  // Propinas y descuentos de hoy
-  const todayCaja=caja.filter(cb=>cb.timestamp?.startsWith(today()));
-  const todayTips=todayCaja.reduce((s,cb)=>s+(cb.tip||0),0);
-  const todayDisc=todayCaja.reduce((s,cb)=>s+(cb.discAmt||0),0);
-
-  // Score de salud
-  let score=100;
-  if(cancelRate>15)score-=25;else if(cancelRate>8)score-=12;
-  if(sd.total===0)score-=20;
-  if(paid.length<3)score-=10;
-  if(todayDisc>sd.total*0.15)score-=10;
-  score=Math.max(0,score);
-  const hColor=score>=80?'#16A34A':score>=55?'#D97706':'#DC2626';
-  const hLabel=score>=80?'🟢 Excelente':score>=55?'🟡 Regular':'🔴 Requiere atención';
-
-  c.innerHTML=`
-  <!-- KPIs -->
-  <div class="g4" style="margin-bottom:20px">
-    ${akpi('💰 Ventas Hoy',fc(sd.total||0),`${todayCaja.length} cobro(s)`,'var(--birria)')}
-    ${akpi('📅 Esta Semana',fc(sw.total||0),sw.weekStart?`Desde ${sw.weekStart}`:'—','var(--info)')}
-    ${akpi('📆 Este Mes',fc(sm.total||0),sm.monthStart?`Desde ${sm.monthStart}`:'—','#7C3AED')}
-    ${akpi('🎫 Ticket Promedio',fc(avgTicket),`${paid.length} órdenes cobradas`,'#0891B2')}
-  </div>
-
-  <div class="g2" style="margin-bottom:20px">
-    <!-- Salud del negocio -->
-    <div class="card">
-      <div class="ct" style="margin-bottom:14px">🩺 Salud del Negocio</div>
-      <div style="display:flex;align-items:center;gap:18px;margin-bottom:18px">
-        <div style="position:relative;width:80px;height:80px;flex-shrink:0">
-          <svg viewBox="0 0 36 36" style="width:80px;height:80px;transform:rotate(-90deg)">
-            <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--border)" stroke-width="3"/>
-            <circle cx="18" cy="18" r="15.9" fill="none" stroke="${hColor}" stroke-width="3"
-              stroke-dasharray="${score} ${100-score}" stroke-linecap="round"/>
-          </svg>
-          <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:16px;font-weight:900;color:${hColor}">${score}</div>
-        </div>
-        <div>
-          <div style="font-size:17px;font-weight:800;color:${hColor}">${hLabel}</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:3px">Basado en ventas, cancelaciones y actividad del día</div>
-        </div>
-      </div>
-      ${arow('📦 Pedidos activos',`<strong>${active.length}</strong>`,'')}
-      ${arow('✅ Pedidos cobrados',`<strong>${paid.length}</strong>`,'')}
-      ${arow('🚫 Cancelaciones',`<strong>${cancelled.length}</strong>`,`<span style="font-size:11px;color:${cancelRate>10?'var(--err)':'var(--ok)'}">${cancelRate.toFixed(1)}% ${cancelRate>10?'⚠️':'✓'}</span>`)}
-      ${arow('🤝 Propinas hoy',`<strong style="color:#D97706">${fc(todayTips)}</strong>`,'')}
-      ${arow('🏷️ Descuentos hoy',`<strong style="color:var(--err)">−${fc(todayDisc)}</strong>`,'')}
-    </div>
-
-    <!-- Métodos de pago -->
-    <div class="card">
-      <div class="ct" style="margin-bottom:14px">💳 Métodos de Pago (Hoy)</div>
-      ${sd.total===0?'<div class="empty" style="padding:24px"><div class="ei">💳</div><p>Sin ventas registradas hoy.</p></div>':`
-      <div style="display:flex;flex-direction:column;gap:12px">
-        ${abar('💵 Efectivo',sd.cash||0,sdTotal,'#15803D',cashPct)}
-        ${abar('💳 Tarjeta',sd.card||0,sdTotal,'#1D4ED8',cardPct)}
-        ${abar('📱 Transferencia',sd.transfer||0,sdTotal,'#7C3AED',tfPct)}
-      </div>
-      <div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--border);font-size:12px;color:var(--muted)">
-        Total cobrado hoy: <strong style="color:var(--text)">${fc(sd.total||0)}</strong>
-        ${todayTips>0?` &nbsp;·&nbsp; Propinas: <strong style="color:#D97706">${fc(todayTips)}</strong>`:''}
-      </div>`}
-    </div>
-  </div>
-
-  <div class="g2" style="margin-bottom:20px">
-    <!-- Productos top -->
-    <div class="card">
-      <div class="ct" style="margin-bottom:14px">🏆 Productos Más Vendidos</div>
-      ${topProds.length===0?'<div class="empty" style="padding:24px"><div class="ei">🍖</div><p>Sin ventas registradas aún.</p></div>':
-      topProds.map(([name,d],i)=>`
-        <div style="margin-bottom:13px">
-          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
-            <span style="font-size:13px;font-weight:600">${['🥇','🥈','🥉','🔹','🔹','🔹'][i]} ${name}</span>
-            <span style="font-size:12px;color:var(--muted)">${d.qty} uds &nbsp;·&nbsp; ${fc(d.rev)}</span>
-          </div>
-          <div class="analy-bar"><div class="analy-bar-fill" style="width:${Math.round(d.qty/maxQty*100)}%;background:var(--birria)"></div></div>
-        </div>`).join('')}
-    </div>
-
-    <!-- Meseros -->
-    <div class="card">
-      <div class="ct" style="margin-bottom:14px">👤 Rendimiento por Mesero</div>
-      ${topWaiters.length===0?'<div class="empty" style="padding:24px"><div class="ei">👤</div><p>Sin datos de meseros aún.</p></div>':
-      topWaiters.map(([name,d],i)=>`
-        <div style="margin-bottom:13px">
-          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
-            <span style="font-size:13px;font-weight:600">${i===0?'⭐ ':''}${name}</span>
-            <span style="font-size:12px;color:var(--muted)">${d.orders} pedidos &nbsp;·&nbsp; ${fc(d.rev)}</span>
-          </div>
-          <div class="analy-bar"><div class="analy-bar-fill" style="width:${Math.round(d.orders/maxOrd*100)}%;background:#0891B2"></div></div>
-        </div>`).join('')}
-    </div>
-  </div>
-
-  <!-- Categorías + Cortes -->
-  <div class="g2" style="margin-bottom:20px">
-    <div class="card">
-      <div class="ct" style="margin-bottom:14px">📂 Ventas por Categoría</div>
-      ${topCats.length===0?'<div class="empty" style="padding:24px"><p>Sin datos aún.</p></div>':
-      topCats.map(([cat,qty],i)=>`
-        <div style="margin-bottom:12px">
-          <div style="display:flex;justify-content:space-between;margin-bottom:3px;font-size:13px">
-            <span>${cat}</span><span style="color:var(--muted)">${qty} uds</span>
-          </div>
-          <div class="analy-bar"><div class="analy-bar-fill" style="width:${Math.round(qty/(topCats[0][1]||1)*100)}%;background:#7C3AED"></div></div>
-        </div>`).join('')}
-    </div>
-    <div class="card">
-      <div class="ct" style="margin-bottom:14px">📊 Resumen de Cortes</div>
-      ${cuts.length===0?'<div class="empty" style="padding:24px"><div class="ei">📊</div><p>Sin cortes registrados.</p></div>':
-      `<div class="tw"><table>
-        <thead><tr><th>Fecha</th><th>Cajero</th><th>Ventas</th><th>Diferencia</th></tr></thead>
-        <tbody>
-          ${cuts.slice().reverse().slice(0,5).map(ct=>`<tr>
-            <td style="font-size:12px">${fds(ct.timestamp)}</td>
-            <td>${ct.workerName}</td>
-            <td><strong style="color:var(--birria)">${fc(ct.salesTotal)}</strong></td>
-            <td style="color:${ct.diff===0?'var(--ok)':ct.diff>0?'var(--warn)':'var(--err)'}">
-              <strong>${ct.diff>0?'+':''}${fc(ct.diff)}</strong>
-            </td>
-          </tr>`).join('')}
-        </tbody>
-      </table></div>`}
-    </div>
-  </div>`;
-}
-function akpi(label,val,sub,color){
-  return`<div class="stat" style="border-top:4px solid ${color}">
-    <div class="stl">${label}</div>
-    <div class="stv" style="font-size:22px">${val}</div>
-    <div class="sts">${sub}</div>
-  </div>`;
-}
-function arow(label,val,extra){
-  return`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">
-    <span>${label}</span><span>${extra||val}</span>
-  </div>`;
-}
-function abar(label,val,total,color,pct){
-  return`<div>
-    <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:13px">
-      <span>${label}</span>
-      <span><strong>${fc(val)}</strong> <span style="color:var(--muted);font-size:11px">${pct}%</span></span>
-    </div>
-    <div class="analy-bar"><div class="analy-bar-fill" style="width:${pct}%;background:${color}"></div></div>
-  </div>`;
-}
-
-// ═══════════════════════════════════════════
-// SCHEDULE VIEW (Todos ven, solo Admin edita)
-// ═══════════════════════════════════════════
-function getMonday(dateStr){
-  const d=new Date(dateStr+'T00:00:00');
-  const day=d.getDay();
-  d.setDate(d.getDate()-day+(day===0?-6:1));
-  return d.toISOString().split('T')[0];
-}
-function shiftWeek(base,delta){
-  const d=new Date(base+'T00:00:00');
-  d.setDate(d.getDate()+delta*7);
-  return d.toISOString().split('T')[0];
-}
-function rSchedule(c){
-  if(!schedWeek)schedWeek=getMonday(today());
-  const users=LS.get('be_users').filter(u=>u.active!==false);
-  const schedules=LS.get('be_schedule')||[];
-  const isAdmin=CU.role==='admin';
-  const DAYS=['lun','mar','mie','jue','vie','sab','dom'];
-  const DLBL={lun:'Lun',mar:'Mar',mie:'Mié',jue:'Jue',vie:'Vie',sab:'Sáb',dom:'Dom'};
-  const DFULL={lun:'Lunes',mar:'Martes',mie:'Miércoles',jue:'Jueves',vie:'Viernes',sab:'Sábado',dom:'Domingo'};
-  const todayStr=today();
-
-  // Fechas de cada día de la semana
-  const dayDates={};
-  DAYS.forEach((d,i)=>{
-    const dt=new Date(schedWeek+'T00:00:00');
-    dt.setDate(dt.getDate()+i);
-    dayDates[d]=dt.toISOString().split('T')[0];
-  });
-
-  // Rango visible
-  const wEnd=new Date(schedWeek+'T00:00:00');
-  wEnd.setDate(wEnd.getDate()+6);
-  const wLabel=`${new Date(schedWeek+'T00:00:00').toLocaleDateString('es-MX',{day:'2-digit',month:'short'})} – ${wEnd.toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'})}`;
-
-  const getSched=(uid,day)=>{
-    const key=`${schedWeek}_${uid}`;
-    const entry=schedules.find(s=>s.id===key);
-    if(!entry||!entry[day])return null;
-    const parts=entry[day].split('|');
-    return{type:parts[0],start:parts[1]||'',end:parts[2]||''};
-  };
-
-  const cellHtml=(uid,day,s)=>{
-    const isToday=dayDates[day]===todayStr;
-    let inner='';
-    if(!s){
-      inner=`<span class="sched-empty">·</span>`;
-    }else if(s.type==='rest'){
-      inner=`<div class="sched-rest">🔴 Descanso</div>`;
-    }else{
-      inner=`<div class="sched-work">🟢 ${s.start} – ${s.end}</div>`;
-    }
-    const cls=isAdmin?'sched-cell editable':'sched-cell';
-    const click=isAdmin?`onclick="openSchedEdit('${uid}','${DFULL[day]}')"`:''
-    return`<td style="text-align:center;padding:6px;${isToday?'background:rgba(220,38,38,.06)':''}">
-      <div class="${cls}" ${click}>${inner}</div>
-    </td>`;
-  };
-
-  c.innerHTML=`
-  <div class="card">
-    <div class="ch" style="flex-wrap:wrap;gap:10px;margin-bottom:${isAdmin?'0':'10px'}">
-      <div class="ct">📅 Horario Semanal</div>
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <button class="btn bo btn-sm" onclick="schedWeek='${shiftWeek(schedWeek,-1)}';go('schedule')">◀ Anterior</button>
-        <span style="font-size:13px;font-weight:600;min-width:200px;text-align:center">${wLabel}</span>
-        <button class="btn bo btn-sm" onclick="schedWeek='${shiftWeek(schedWeek,1)}';go('schedule')">Siguiente ▶</button>
-        <button class="btn bp btn-sm" onclick="schedWeek=getMonday(today());go('schedule')">Hoy</button>
-      </div>
-    </div>
-    ${!isAdmin?`<div style="font-size:12px;color:var(--muted);background:var(--hover);border-radius:var(--rs);padding:8px 12px;margin-bottom:12px">
-      👁️ Vista de solo lectura — solo el administrador puede editar horarios.
-    </div>`:''}
-    <div class="tw">
-      <table>
-        <thead>
-          <tr>
-            <th style="min-width:140px">Empleado</th>
-            ${DAYS.map(d=>`<th style="text-align:center;min-width:105px;${dayDates[d]===todayStr?'background:rgba(220,38,38,.08)':''}">
-              <div>${DLBL[d]}</div>
-              <div style="font-weight:400;color:var(--muted);font-size:10px">${new Date(dayDates[d]+'T00:00:00').toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit'})}</div>
-            </th>`).join('')}
-          </tr>
-        </thead>
-        <tbody>
-          ${users.map(u=>`<tr>
-            <td>
-              <div style="display:flex;align-items:center;gap:8px">
-                <div class="uav" style="width:28px;height:28px;font-size:12px;flex-shrink:0">${u.name.charAt(0).toUpperCase()}</div>
-                <div>
-                  <div style="font-weight:600;font-size:13px">${u.name}</div>
-                  <div style="font-size:10px;color:var(--muted)">${ROLES[u.role]||u.role}</div>
-                </div>
-              </div>
-            </td>
-            ${DAYS.map(day=>cellHtml(u.id,day,getSched(u.id,day))).join('')}
-          </tr>`).join('')}
-        </tbody>
-      </table>
-    </div>
-    ${isAdmin?`<div style="margin-top:10px;font-size:12px;color:var(--muted)">💡 Haz clic en cualquier celda para asignar el horario de ese día.</div>`:''}
-  </div>
-  <!-- Leyenda -->
-  <div class="card" style="margin-top:16px">
-    <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:center;font-size:13px">
-      <span style="font-weight:600;color:var(--muted)">Leyenda:</span>
-      <span><span class="sched-work" style="display:inline-block;padding:3px 10px">🟢 Hora entrada – Hora salida</span></span>
-      <span><span class="sched-rest" style="display:inline-block;padding:3px 10px">🔴 Descanso</span></span>
-      <span style="color:var(--muted)">· = Sin asignar</span>
-      <span style="background:rgba(220,38,38,.08);padding:3px 10px;border-radius:4px;font-size:11px">Columna sombreada = Hoy</span>
-    </div>
-  </div>`;
-}
-function openSchedEdit(uid,dayFull){
-  if(CU.role!=='admin')return;
-  // Buscar nombre del usuario
-  const u=LS.get('be_users').find(x=>x.id===uid);
-  if(!u)return;
-  const schedules=LS.get('be_schedule')||[];
-  const DAYS=['lun','mar','mie','jue','vie','sab','dom'];
-  const DFULL={lun:'Lunes',mar:'Martes',mie:'Miércoles',jue:'Jueves',vie:'Viernes',sab:'Sábado',dom:'Domingo'};
-  // El día se pasa como dayFull (ej. 'Lunes'), hay que encontrar la clave
-  const day=Object.keys(DFULL).find(k=>DFULL[k]===dayFull)||dayFull;
-  const key=`${schedWeek}_${uid}`;
-  const entry=schedules.find(s=>s.id===key);
-  let cur=null;
-  if(entry&&entry[day]){
-    const p=entry[day].split('|');
-    cur={type:p[0],start:p[1]||'09:00',end:p[2]||'17:00'};
-  }
-  document.getElementById('se-key').value=key;
-  document.getElementById('se-uid').value=uid;
-  document.getElementById('se-uname').value=u.name;
-  document.getElementById('se-day').value=day;
-  document.getElementById('mt-sched').textContent=`${u.name} · ${dayFull}`;
-  document.getElementById('se-type').value=cur?.type||'work';
-  document.getElementById('se-start').value=cur?.start||'09:00';
-  document.getElementById('se-end').value=cur?.end||'17:00';
-  updSchedForm();
-  om('m-sched');
-}
-function updSchedForm(){
-  const t=document.getElementById('se-type').value;
-  const el=document.getElementById('se-times');
-  if(el)el.style.display=t==='rest'?'none':'block';
-}
-function saveSched(){
-  const key=document.getElementById('se-key').value;
-  const uid=document.getElementById('se-uid').value;
-  const uname=document.getElementById('se-uname').value;
-  const day=document.getElementById('se-day').value;
-  const type=document.getElementById('se-type').value;
-  const start=document.getElementById('se-start').value;
-  const end=document.getElementById('se-end').value;
-  if(type==='work'&&(!start||!end)){
-    notify('⚠️','Campos requeridos','Ingresa la hora de entrada y salida.',3000);return;
-  }
-  const schedules=LS.get('be_schedule')||[];
-  let entry=schedules.find(s=>s.id===key);
-  if(!entry){
-    entry={id:key,weekStart:schedWeek,userId:uid,userName:uname};
-    schedules.push(entry);
-  }
-  entry[day]=type==='rest'?`rest||`:`work|${start}|${end}`;
-  entry.userName=uname;
-  LS.set('be_schedule',schedules);
-  logAct(CU.id,`Asignó horario a ${uname} (${day}, semana ${schedWeek})`);
-  cm('m-sched');
-  notify('✅','Horario guardado',`${uname} actualizado correctamente.`,3000);
-  go('schedule');
 }
 </script>
-<!-- MODAL EDITAR HORARIO -->
-<div class="mov" id="m-sched" style="display:none">
-  <div class="modal" style="max-width:380px">
-    <div class="mh"><div class="mt" id="mt-sched">Editar Horario</div><button class="mc" onclick="cm('m-sched')">✕</button></div>
-    <div class="mb">
-      <input type="hidden" id="se-key"/><input type="hidden" id="se-uid"/><input type="hidden" id="se-uname"/><input type="hidden" id="se-day"/>
-      <div class="fg"><label class="fl">Tipo de Jornada</label>
-        <select class="fc" id="se-type" onchange="updSchedForm()">
-          <option value="work">🟢 Día de Trabajo</option>
-          <option value="rest">🔴 Día de Descanso</option>
-        </select>
-      </div>
-      <div id="se-times">
-        <div class="fg"><label class="fl">Hora de Entrada</label><input type="time" class="fc" id="se-start" value="09:00"/></div>
-        <div class="fg"><label class="fl">Hora de Salida</label><input type="time" class="fc" id="se-end" value="17:00"/></div>
-      </div>
-    </div>
-    <div class="mf">
-      <button class="btn bo" onclick="cm('m-sched')">Cancelar</button>
-      <button class="btn bp" onclick="saveSched()">💾 Guardar</button>
-    </div>
-  </div>
-</div>
 </body>
 </html>
