@@ -1089,7 +1089,7 @@ function rCashier(c){
         <table>
           <thead>
             <tr>
-              <th>Hora</th><th>Orden</th><th>Cliente</th>
+              <th>Hora</th><th>Orden</th><th>Cliente</th><th>Mesero</th>
               <th>Total</th><th>Efectivo</th><th>Tarjeta</th><th>Transferencia</th>
               <th>Propina</th><th>Descuento</th>
               <th></th>
@@ -1109,6 +1109,7 @@ function rCashier(c){
               </td>
               <td><strong>#${cb.number}</strong></td>
               <td>${cb.clientName}</td>
+              <td><span style="font-size:12px">👤 ${cb.waiterName||'—'}</span></td>
               <td><strong style="color:var(--birria)">${fc(cb.total)}</strong></td>
               <td>${cb.cash>0?fc(cb.cash):dash}</td>
               <td>${cb.card>0?fc(cb.card):dash}</td>
@@ -1282,6 +1283,7 @@ function finalizePay(ft,paid,da,ta){
     discType: d.type || 'none',
     discValue: d.value || 0,
     discReason: d.reason || '',
+    waiterName: orders[i].workerName,
     workerName: CU.name,
     timestamp: new Date().toISOString()
   });
