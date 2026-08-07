@@ -251,6 +251,32 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#FDFAF8}
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-thumb{background:rgba(200,64,10,.3);border-radius:3px}
 ::-webkit-scrollbar-thumb:hover{background:rgba(200,64,10,.6)}
+
+/* ── CAJA REGISTROS ── */
+.caja-reg{background:var(--card);border-radius:var(--rs);border:1px solid var(--border);padding:12px 14px;margin-bottom:8px}
+.caja-reg:hover{background:#FDFAF8}
+/* ── DASHBOARD ── */
+.dash-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-bottom:20px}
+.kpi{background:var(--card);border-radius:var(--r);padding:18px 20px;border:1px solid var(--border);box-shadow:var(--sh);border-left:4px solid var(--birria)}
+.kpi-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+.kpi-val{font-size:26px;font-weight:900;margin:4px 0}
+.kpi-sub{font-size:12px;color:var(--muted)}
+.rank-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)}
+.rank-row:last-child{border-bottom:none}
+.rank-pos{width:24px;height:24px;border-radius:50%;background:var(--birria);color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.rank-bar-wrap{flex:1;background:#F5EDE4;border-radius:20px;height:8px;overflow:hidden}
+.rank-bar{height:8px;background:var(--birria);border-radius:20px;transition:width .4s}
+/* ── HORARIOS ── */
+.sched-grid{display:grid;grid-template-columns:160px repeat(7,1fr);gap:1px;background:var(--border);border-radius:var(--rs);overflow:hidden;font-size:13px}
+.sched-hdr{background:#F5EDE4;padding:8px 6px;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);text-align:center}
+.sched-name{background:var(--card);padding:10px 12px;font-weight:600;display:flex;align-items:center;gap:8px}
+.sched-cell{background:var(--card);padding:4px 3px;text-align:center}
+.sched-cell select{width:100%;border:none;background:transparent;font-size:11px;font-family:inherit;color:var(--text);cursor:pointer;padding:2px}
+.sched-cell select:focus{outline:none}
+.day-off{background:#FEF2F2!important}
+.day-work{background:#F0FDF4!important}
+.day-half{background:#FFFBEB!important}
+
 /* ── RESPONSIVE ── */
 @media(max-width:960px){
   .order-layout{grid-template-columns:1fr}
@@ -318,6 +344,8 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#FDFAF8}
         <button class="ni" data-v="products" onclick="go('products')"><span class="ico">🍖</span>Productos</button>
         <button class="ni" data-v="corte" onclick="go('corte')"><span class="ico">📊</span>Corte</button>
         <button class="ni" data-v="users" onclick="go('users')"><span class="ico">👥</span>Usuarios</button>
+          <button class="ni" data-v="dashboard" onclick="go('dashboard')"><span class="ico">📈</span>Dashboard</button>
+          <button class="ni" data-v="horarios" onclick="go('horarios')"><span class="ico">📅</span>Horarios</button>
       </nav>
       <div class="sb-bot">
         <button class="btn-ref" onclick="refreshView()">🔄 Actualizar</button>
@@ -493,10 +521,10 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyjJ6ulXsOvjJim8fRB6
 // CONSTANTS
 // ═══════════════════════════════════════════
 const ROLES={admin:'Administrador',waiter:'Mesero',cook:'Cocinero',cashier:'Cajero'};
-const ROLE_VIEWS={admin:['orders','kitchen','cashier','products','corte','users'],waiter:['orders'],cook:['kitchen'],cashier:['cashier','corte']};
+const ROLE_VIEWS={admin:['orders','kitchen','cashier','products','corte','users','dashboard','horarios'],waiter:['orders'],cook:['kitchen'],cashier:['cashier','corte']};
 const SL={pending:'En Espera','in-process':'En Proceso',ready:'Listo',bar:'En Barra',delivered:'Entregado',paid:'Pagado',cancelled:'Cancelado'};
 const SB={pending:'bp_','in-process':'bip',ready:'br',bar:'bbar',delivered:'bdel',paid:'bpaid',cancelled:'bd'};
-const VIEW_T={'orders':'📋 Pedidos','kitchen':'👨‍🍳 Cocina','cashier':'🏧 Caja','products':'🍖 Productos','corte':'📊 Corte','users':'👥 Usuarios'};
+const VIEW_T={'orders':'📋 Pedidos','kitchen':'👨‍🍳 Cocina','cashier':'🏧 Caja','products':'🍖 Productos','corte':'📊 Corte','users':'👥 Usuarios','dashboard':'📈 Dashboard','horarios':'📅 Horarios'};
 
 // ═══════════════════════════════════════════
 // STATE
@@ -623,6 +651,8 @@ function initData(){
   if(!LCache['be_orders']) LS.set('be_orders',[]);
   if(!LCache['be_cuts']) LS.set('be_cuts',[]);
   if(!LCache['be_caja']) LS.set('be_caja',[]);
+  if(!LCache['be_caja_session']) LS.set('be_caja_session',{registros:[],fecha:today()});
+  if(!LCache['be_horarios']) LS.set('be_horarios',{semana:weekStart(),turnos:{}});
   if(!LCache['be_sd'] || !LCache['be_sd'].date) LS.set('be_sd',{total:0,cash:0,card:0,transfer:0,date:today(),initCash:0});
   if(!LCache['be_sw'] || !LCache['be_sw'].weekStart) LS.set('be_sw',{total:0,cash:0,card:0,transfer:0,weekStart:weekStart()});
   if(!LCache['be_sm'] || !LCache['be_sm'].monthStart) LS.set('be_sm',{total:0,cash:0,card:0,transfer:0,monthStart:monthStart()});
@@ -765,6 +795,8 @@ function go(v,force){
     case'products':rProducts(c);break;
     case'corte':rCorte(c);break;
     case'users':rUsers(c);break;
+    case'dashboard':rDashboard(c);break;
+    case'horarios':rHorarios(c);break;
   }
   updBadges();
 }
@@ -1076,7 +1108,19 @@ function rCashier(c){
     <div id="pay-panel" style="position:sticky;top:80px">
       ${selOrder?buildPayPanel():`<div class="card"><div class="empty"><div class="ei">👆</div><h3>Selecciona un pedido</h3><p>Haz clic en un pedido para cobrar.</p></div></div>`}
     </div>
+  </div>
+  <div class="card" style="margin-top:20px">
+    <div class="ch">
+      <div class="ct">🧾 Registros del Día</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span id="caja-sess-total" style="font-size:15px;font-weight:800;color:var(--birria)"></span>
+        <button class="btn bo btn-sm" onclick="resetCajaSession()">🔄 Reiniciar Día</button>
+      </div>
+    </div>
+    <div id="caja-sess-list">${buildCajaSessionList()}</div>
   </div>`;
+  const stEl=document.getElementById('caja-sess-total');
+  if(stEl){const sess=LS.obj('be_caja_session',{registros:[]});const tot=sess.registros.reduce((s,r)=>s+r.finalTotal,0);stEl.textContent=sess.registros.length?`${sess.registros.length} cobro(s) · ${fc(tot)}`:'Sin cobros hoy';}
 }
 function selCsOrder(oid){
   const o=LS.get('be_orders').find(x=>x.id===oid);
@@ -1232,12 +1276,34 @@ function finalizePay(ft,paid,da,ta){
   const addSales=(key)=>{const s=LS.obj(key,{total:0,cash:0,card:0,transfer:0});
     s.total+=ft;s.cash+=csPayments.cash||0;s.card+=csPayments.card||0;s.transfer+=csPayments.transfer||0;
     return s;};
+  // Registro de sesión de caja (visible solo el día actual)
+  let cajaSess = LS.obj('be_caja_session', {registros:[], fecha:today()});
+  if(cajaSess.fecha !== today()) cajaSess = {registros:[], fecha:today()};
+  cajaSess.registros.push({
+    id: orders[i].id,
+    number: orders[i].number,
+    clientName: orders[i].clientName,
+    workerName: orders[i].workerName,
+    items: orders[i].items,
+    subtotal: orders[i].total,
+    discType: d.type,
+    discValue: d.value,
+    discAmt: da,
+    tip: ta,
+    finalTotal: ft,
+    cash: csPayments.cash||0,
+    card: csPayments.card||0,
+    transfer: csPayments.transfer||0,
+    change: chg,
+    paidAt: new Date().toISOString()
+  });
   LS.setBatch([
-    ['be_orders', orders],
-    ['be_caja',   cajaList],
-    ['be_sd',     addSales('be_sd')],
-    ['be_sw',     addSales('be_sw')],
-    ['be_sm',     addSales('be_sm')]
+    ['be_orders',       orders],
+    ['be_caja',         cajaList],
+    ['be_caja_session', cajaSess],
+    ['be_sd',           addSales('be_sd')],
+    ['be_sw',           addSales('be_sw')],
+    ['be_sm',           addSales('be_sm')]
   ]);
   logAct(CU.id,`Cobró pedido #${orders[i].number} - ${orders[i].clientName} - ${fc(ft)}`);
   notify('✅','¡Pago exitoso!',`Pedido #${orders[i].number}. Cambio: ${fc(chg)}`,4000);
@@ -1401,6 +1467,48 @@ function delProd(pid){
     logAct(CU.id,`Eliminó producto "${p.name}"`);
     notify('✅','Producto eliminado',p.name,3000);go('products');
   });
+}
+
+
+// ═══════════════════════════════════════════
+// CAJA SESSION — Registros del día en Caja
+// ═══════════════════════════════════════════
+function buildCajaSessionList(){
+  const sess = LS.obj('be_caja_session',{registros:[],fecha:today()});
+  const regs = sess.registros || [];
+  if(!regs.length) return '<div class="empty" style="padding:20px 0"><div class="ei">🧾</div><p>Sin cobros registrados hoy. Los cobros aparecerán aquí al instante.</p></div>';
+  return regs.slice().reverse().map(r => {
+    const discStr = r.discType==='pct' ? `Desc. ${r.discValue}%: -${fc(r.discAmt)}`
+      : r.discType==='amt' ? `Desc. $: -${fc(r.discAmt)}`
+      : r.discType==='tip' ? `Propina: +${fc(r.tip)}` : '';
+    return `<div class="caja-reg">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+        <div>
+          <span style="font-weight:800;font-size:15px">#${r.number}</span>
+          <span style="font-size:14px;margin-left:8px">${r.clientName}</span>
+          <span style="font-size:12px;color:var(--muted);margin-left:8px">👤 Mesero: <strong>${r.workerName}</strong></span>
+        </div>
+        <div style="font-size:18px;font-weight:900;color:var(--birria)">${fc(r.finalTotal)}</div>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-top:5px">${r.items.map(i=>`${i.qty}× ${i.name}`).join(' · ')}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:8px;font-size:12px">
+        <span>Subtotal: <strong>${fc(r.subtotal)}</strong></span>
+        ${discStr ? `<span style="color:${r.discType==='tip'?'var(--info)':'var(--ok)'}">${discStr}</span>` : ''}
+        ${r.cash>0 ? `<span>💵 Efectivo: <strong>${fc(r.cash)}</strong></span>` : ''}
+        ${r.card>0 ? `<span>💳 Tarjeta: <strong>${fc(r.card)}</strong></span>` : ''}
+        ${r.transfer>0 ? `<span>📱 Transfer.: <strong>${fc(r.transfer)}</strong></span>` : ''}
+        ${r.change>0 ? `<span style="color:var(--ok)">💵 Cambio: <strong>${fc(r.change)}</strong></span>` : ''}
+        <span style="color:var(--muted)">🕐 ${fd(r.paidAt)}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+function resetCajaSession(){
+  confirm2('¿Reiniciar registros del día?','Los registros de pantalla se limpiarán. Los cobros permanecen guardados en la base de datos.',()=>{
+    LS.set('be_caja_session',{registros:[],fecha:today()});
+    notify('✅','Registros limpiados','La vista de registros del día fue reiniciada.',3000);
+    go('cashier',true);
+  },'Reiniciar','bw');
 }
 
 // ═══════════════════════════════════════════
@@ -1685,6 +1793,280 @@ function viewUserHist(uid){
     </ul>`;
   om('m-hist');
 }
+
+// ═══════════════════════════════════════════
+// DASHBOARD VIEW (solo admin)
+// ═══════════════════════════════════════════
+function rDashboard(cnt){
+  const orders  = LS.get('be_orders');
+  const caja    = LS.get('be_caja');
+  const users   = LS.get('be_users');
+  const prods   = LS.get('be_products');
+  const cuts    = LS.get('be_cuts');
+  const sd      = LS.obj('be_sd',{total:0,cash:0,card:0,transfer:0});
+  const sw      = LS.obj('be_sw',{total:0,cash:0,card:0,transfer:0});
+  const sm      = LS.obj('be_sm',{total:0,cash:0,card:0,transfer:0});
+
+  const paid     = orders.filter(o=>o.status==='paid');
+  const cancelled= orders.filter(o=>o.status==='cancelled');
+  const active   = orders.filter(o=>!['paid','cancelled'].includes(o.status));
+
+  // Ticket promedio
+  const avgTicket= paid.length ? paid.reduce((s,o)=>{
+    const p=o.payment||{};return s+(p.finalTotal||o.total||0);},0)/paid.length : 0;
+
+  // Producto más vendido
+  const prodCount={};
+  paid.forEach(o=>(o.items||[]).forEach(i=>{prodCount[i.name]=(prodCount[i.name]||0)+i.qty}));
+  const prodRank=Object.entries(prodCount).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+  // Mesero con más pedidos
+  const waiterCount={};
+  orders.forEach(o=>{if(o.workerName)waiterCount[o.workerName]=(waiterCount[o.workerName]||0)+1});
+  const waiterRank=Object.entries(waiterCount).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+  // Método de pago más usado
+  let totCash=0,totCard=0,totTf=0;
+  paid.forEach(o=>{const p=o.payment||{};totCash+=p.cash||0;totCard+=p.card||0;totTf+=p.transfer||0});
+  const totPaid=totCash+totCard+totTf||1;
+
+  // Hora pico: agrupar pedidos pagados por hora
+  const hrCount={};
+  paid.forEach(o=>{if(o.paidAt){const hr=new Date(o.paidAt).getHours();hrCount[hr]=(hrCount[hr]||0)+1}});
+  const peakHr=Object.entries(hrCount).sort((a,b)=>b[1]-a[1])[0];
+
+  // Cancelaciones
+  const cancelRate=orders.length?((cancelled.length/orders.length)*100).toFixed(1):0;
+
+  // Propinas acumuladas
+  const totalTips=paid.reduce((s,o)=>{const p=o.payment||{};return s+(p.tip||0)},0);
+
+  // Descuentos acumulados
+  const totalDiscs=paid.reduce((s,o)=>{const d=o.discount||{};return s+(d.discAmt||0)},0);
+
+  // Último corte
+  const lastCut=cuts.length?cuts[cuts.length-1]:null;
+
+  // Health score simple
+  const health = (() => {
+    let score=100;
+    if(parseFloat(cancelRate)>15)score-=20;
+    if(parseFloat(cancelRate)>30)score-=20;
+    if(avgTicket<50)score-=10;
+    if(sm.total===0)score-=10;
+    if(paid.length===0)score-=30;
+    return score;
+  })();
+  const healthColor=health>=75?'var(--ok)':health>=50?'var(--warn)':'var(--err)';
+  const healthLabel=health>=75?'Negocio saludable':'Requiere atención';
+
+  const maxProd = prodRank[0]?prodRank[0][1]:1;
+  const maxWaiter=waiterRank[0]?waiterRank[0][1]:1;
+
+  cnt.innerHTML=`
+  <!-- KPIs principales -->
+  <div class="dash-grid">
+    <div class="kpi" style="border-left-color:var(--ok)">
+      <div class="kpi-lbl">Venta del Día</div>
+      <div class="kpi-val">${fc(sd.total)}</div>
+      <div class="kpi-sub">Hoy · ${paid.filter(o=>o.paidAt&&o.paidAt.startsWith(today())).length} cobros</div>
+    </div>
+    <div class="kpi" style="border-left-color:var(--info)">
+      <div class="kpi-lbl">Venta Semana</div>
+      <div class="kpi-val">${fc(sw.total)}</div>
+      <div class="kpi-sub">Desde ${sw.weekStart||'—'}</div>
+    </div>
+    <div class="kpi" style="border-left-color:var(--purple)">
+      <div class="kpi-lbl">Venta del Mes</div>
+      <div class="kpi-val">${fc(sm.total)}</div>
+      <div class="kpi-sub">Desde ${sm.monthStart||'—'}</div>
+    </div>
+    <div class="kpi" style="border-left-color:${healthColor}">
+      <div class="kpi-lbl">Salud del Negocio</div>
+      <div class="kpi-val" style="color:${healthColor}">${health}%</div>
+      <div class="kpi-sub">${healthLabel}</div>
+    </div>
+    <div class="kpi" style="border-left-color:var(--birria)">
+      <div class="kpi-lbl">Ticket Promedio</div>
+      <div class="kpi-val">${fc(avgTicket)}</div>
+      <div class="kpi-sub">Basado en ${paid.length} cobros totales</div>
+    </div>
+    <div class="kpi" style="border-left-color:var(--teal)">
+      <div class="kpi-lbl">Pedidos Activos</div>
+      <div class="kpi-val">${active.length}</div>
+      <div class="kpi-sub">En proceso ahora</div>
+    </div>
+    <div class="kpi" style="border-left-color:var(--warn)">
+      <div class="kpi-lbl">Tasa Cancelaciones</div>
+      <div class="kpi-val" style="color:${parseFloat(cancelRate)>20?'var(--err)':'var(--text)'}">${cancelRate}%</div>
+      <div class="kpi-sub">${cancelled.length} de ${orders.length} pedidos</div>
+    </div>
+    <div class="kpi" style="border-left-color:var(--ok)">
+      <div class="kpi-lbl">Propinas Totales</div>
+      <div class="kpi-val">${fc(totalTips)}</div>
+      <div class="kpi-sub">Descuentos aplicados: ${fc(totalDiscs)}</div>
+    </div>
+  </div>
+
+  <!-- Ranking productos y meseros -->
+  <div class="g2" style="margin-bottom:20px">
+    <div class="card">
+      <div class="ch"><div class="ct">🍖 Productos más vendidos</div></div>
+      ${!prodRank.length?'<div class="empty"><p>Sin datos aún</p></div>':
+      prodRank.map(([name,qty],i)=>`
+        <div class="rank-row">
+          <div class="rank-pos">${i+1}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name}</div>
+            <div class="rank-bar-wrap" style="margin-top:4px"><div class="rank-bar" style="width:${Math.round((qty/maxProd)*100)}%"></div></div>
+          </div>
+          <div style="font-weight:800;font-size:14px;margin-left:8px">${qty}</div>
+        </div>`).join('')}
+    </div>
+    <div class="card">
+      <div class="ch"><div class="ct">👤 Meseros más activos</div></div>
+      ${!waiterRank.length?'<div class="empty"><p>Sin datos aún</p></div>':
+      waiterRank.map(([name,cnt],i)=>`
+        <div class="rank-row">
+          <div class="rank-pos">${i+1}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600">${name}</div>
+            <div class="rank-bar-wrap" style="margin-top:4px"><div class="rank-bar" style="width:${Math.round((cnt/maxWaiter)*100)}%;background:var(--info)"></div></div>
+          </div>
+          <div style="font-weight:800;font-size:14px;margin-left:8px">${cnt}</div>
+        </div>`).join('')}
+    </div>
+  </div>
+
+  <!-- Métodos de pago + hora pico + último corte -->
+  <div class="g3">
+    <div class="card">
+      <div class="ch"><div class="ct">💳 Métodos de pago</div></div>
+      ${[['💵 Efectivo',totCash,'var(--ok)'],['💳 Tarjeta',totCard,'var(--info)'],['📱 Transfer.',totTf,'var(--purple)']].map(([lbl,amt,col])=>`
+        <div style="margin-bottom:12px">
+          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+            <span>${lbl}</span><strong>${fc(amt)} (${Math.round((amt/totPaid)*100)}%)</strong>
+          </div>
+          <div class="rank-bar-wrap"><div class="rank-bar" style="width:${Math.round((amt/totPaid)*100)}%;background:${col}"></div></div>
+        </div>`).join('')}
+    </div>
+    <div class="card">
+      <div class="ch"><div class="ct">⏰ Hora pico</div></div>
+      ${peakHr?`
+        <div style="text-align:center;padding:10px 0">
+          <div style="font-size:48px;font-weight:900;color:var(--birria)">${peakHr[0]}:00</div>
+          <div style="color:var(--muted);font-size:13px">${peakHr[1]} cobro(s) a esa hora</div>
+        </div>
+        <div style="margin-top:10px">
+          ${Object.entries(hrCount).sort((a,b)=>parseInt(a[0])-parseInt(b[0])).map(([hr,n])=>`
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;font-size:12px">
+              <span style="width:40px;text-align:right">${hr}:00</span>
+              <div class="rank-bar-wrap" style="flex:1"><div class="rank-bar" style="width:${Math.round((n/(peakHr[1]||1))*100)}%;background:var(--birria2)"></div></div>
+              <span>${n}</span>
+            </div>`).join('')}
+        </div>`:'<div class="empty"><p>Sin cobros registrados</p></div>'}
+    </div>
+    <div class="card">
+      <div class="ch"><div class="ct">📊 Último Corte</div></div>
+      ${lastCut?`
+        <div style="font-size:12px;color:var(--muted);margin-bottom:10px">${fd(lastCut.timestamp)} · ${lastCut.workerName}</div>
+        <div class="prow"><span>Ventas totales:</span><strong>${fc(lastCut.salesTotal)}</strong></div>
+        <div class="prow"><span>Efectivo:</span><strong>${fc(lastCut.cash)}</strong></div>
+        <div class="prow"><span>Tarjeta:</span><strong>${fc(lastCut.card)}</strong></div>
+        <div class="prow"><span>Transfer.:</span><strong>${fc(lastCut.transfer)}</strong></div>
+        <div class="prow" style="border-top:2px solid var(--border);margin-top:6px;padding-top:8px">
+          <span>Diferencia:</span>
+          <strong style="color:${lastCut.diff===0?'var(--ok)':lastCut.diff>0?'var(--warn)':'var(--err)'}">
+            ${lastCut.diff>0?'+':''}${fc(lastCut.diff)}
+          </strong>
+        </div>`:'<div class="empty"><p>Sin cortes registrados</p></div>'}
+    </div>
+  </div>`;
+}
+
+
+// ═══════════════════════════════════════════
+// HORARIOS VIEW
+// ═══════════════════════════════════════════
+const DIAS=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+const TURNOS_OPT=['','Mañana 8-14','Tarde 14-20','Noche 20-02','Completo 8-20','Descanso'];
+
+function rHorarios(cnt){
+  const users   = LS.get('be_users').filter(u=>u.active!==false);
+  const hor     = LS.obj('be_horarios',{semana:weekStart(),turnos:{}});
+  const isAdmin = CU && CU.role==='admin';
+
+  cnt.innerHTML=`
+  <div class="card">
+    <div class="ch">
+      <div class="ct">📅 Horarios de la Semana</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <span style="font-size:12px;color:var(--muted)">Semana: ${hor.semana||weekStart()}</span>
+        ${isAdmin?`<button class="btn bp btn-sm" onclick="saveHorarios()">💾 Guardar Horarios</button>
+        <button class="btn bo btn-sm" onclick="resetHorarios()">🔄 Nueva Semana</button>`:''}
+      </div>
+    </div>
+    ${!isAdmin?'<div style="background:#FEF9C3;padding:10px 14px;border-radius:var(--rs);font-size:13px;margin-bottom:14px">👁️ Solo vista — el administrador puede editar los horarios.</div>':''}
+    <div style="overflow-x:auto">
+      <div class="sched-grid">
+        <div class="sched-hdr">Empleado</div>
+        ${DIAS.map(d=>`<div class="sched-hdr">${d}</div>`).join('')}
+        ${users.map(u=>{
+          const uTurnos=hor.turnos[u.id]||{};
+          return`<div class="sched-name">
+              <span class="uav" style="width:28px;height:28px;font-size:12px">${u.name.charAt(0).toUpperCase()}</span>
+              <div><div style="font-size:13px;font-weight:700">${u.name}</div><div style="font-size:10px;color:var(--muted)">${ROLES[u.role]||u.role}</div></div>
+            </div>
+            ${DIAS.map((_,di)=>{
+              const val=uTurnos[di]||'';
+              const cls=val==='Descanso'?'day-off':val?'day-work':'';
+              return`<div class="sched-cell ${cls}">
+                ${isAdmin
+                  ?`<select onchange="updTurno('${u.id}',${di},this.value)">
+                      ${TURNOS_OPT.map(t=>`<option value="${t}" ${val===t?'selected':''}>${t||'—'}</option>`).join('')}
+                    </select>`
+                  :`<span style="font-size:11px;color:${val==='Descanso'?'var(--err)':val?'var(--ok)':'var(--muted)'}">${val||'—'}</span>`}
+              </div>`;
+            }).join('')}`;
+        }).join('')}
+      </div>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:16px;font-size:12px;flex-wrap:wrap">
+      <span><span style="display:inline-block;width:12px;height:12px;background:#F0FDF4;border:1px solid #ccc;border-radius:2px;margin-right:4px"></span>Turno asignado</span>
+      <span><span style="display:inline-block;width:12px;height:12px;background:#FEF2F2;border:1px solid #ccc;border-radius:2px;margin-right:4px"></span>Descanso</span>
+      <span><span style="display:inline-block;width:12px;height:12px;background:#fff;border:1px solid #ccc;border-radius:2px;margin-right:4px"></span>Sin asignar</span>
+    </div>
+  </div>`;
+}
+let _horTemp = null;
+function updTurno(uid,di,val){
+  if(!_horTemp){
+    const h=LS.obj('be_horarios',{semana:weekStart(),turnos:{}});
+    _horTemp={semana:h.semana,turnos:JSON.parse(JSON.stringify(h.turnos))};
+  }
+  if(!_horTemp.turnos[uid])_horTemp.turnos[uid]={};
+  _horTemp.turnos[uid][di]=val;
+  // Actualizar color de la celda inmediatamente
+  const sel=event.target;const cell=sel.parentElement;
+  cell.className='sched-cell '+(val==='Descanso'?'day-off':val?'day-work':'');
+}
+function saveHorarios(){
+  if(!_horTemp){notify('ℹ️','Sin cambios','No se han modificado horarios.',2000);return;}
+  LS.set('be_horarios',_horTemp);
+  _horTemp=null;
+  notify('✅','Horarios guardados','Los horarios de la semana fueron guardados.',3000);
+  logAct(CU.id,'Actualizó horarios de la semana');
+}
+function resetHorarios(){
+  confirm2('¿Nueva semana?','Se crearán horarios en blanco para la semana actual. Los anteriores se conservan en el historial.',()=>{
+    _horTemp=null;
+    LS.set('be_horarios',{semana:weekStart(),turnos:{}});
+    logAct(CU.id,'Reinició horarios para nueva semana');
+    notify('✅','Nueva semana','Horarios reiniciados para la semana actual.',3000);
+    go('horarios',true);
+  },'Nueva Semana','bw');
+}
+
 </script>
 </body>
 </html>
