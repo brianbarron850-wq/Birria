@@ -1331,6 +1331,8 @@ function finalizePay(ft,paid,da,ta){
   showTicket(orders[i]);
   selOrder=null;csPayments={cash:0,card:0,transfer:0};csDisc={type:'none',value:0,reason:''};
   updBadges();
+  // Forzar re-render inmediato de Caja: quita el pedido de 'Activos' y muestra el registro
+  go('cashier',true);
 }
 function showTicket(oArg){
   const o=oArg||selOrder;if(!o)return;
