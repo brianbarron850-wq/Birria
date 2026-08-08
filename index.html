@@ -541,7 +541,7 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyjJ6ulXsOvjJim8fRB6
 // CONSTANTS
 // ═══════════════════════════════════════════
 const ROLES={admin:'Administrador',waiter:'Mesero',cook:'Cocinero',cashier:'Cajero'};
-const ROLE_VIEWS={admin:['orders','kitchen','cashier','products','corte','users','dashboard','horarios'],waiter:['orders'],cook:['kitchen'],cashier:['cashier','corte']};
+const ROLE_VIEWS={admin:['orders','kitchen','cashier','products','corte','users','dashboard','horarios'],waiter:['orders','horarios'],cook:['kitchen','horarios'],cashier:['cashier','corte','horarios']};
 const SL={pending:'En Espera','in-process':'En Proceso',ready:'Listo',bar:'En Barra',delivered:'Entregado',paid:'Pagado',cancelled:'Cancelado'};
 const SB={pending:'bp_','in-process':'bip',ready:'br',bar:'bbar',delivered:'bdel',paid:'bpaid',cancelled:'bd'};
 const VIEW_T={'orders':'📋 Pedidos','kitchen':'👨‍🍳 Cocina','cashier':'🏧 Caja','products':'🍖 Productos','corte':'📊 Corte','users':'👥 Usuarios','dashboard':'📈 Dashboard','horarios':'📅 Horarios'};
