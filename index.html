@@ -277,6 +277,11 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#FDFAF8}
 .day-work{background:#F0FDF4!important}
 .day-half{background:#FFFBEB!important}
 
+/* ── MODAL TURNOS ── */
+.turno-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--rs);border:1px solid var(--border);background:var(--card);margin-bottom:6px}
+.turno-item:hover{background:#FDFAF8}
+.turno-item input{flex:1;border:1px solid var(--border);border-radius:var(--rs);padding:6px 10px;font-size:13px;font-family:inherit}
+.turno-item input:focus{outline:none;border-color:var(--birria)}
 /* ── RESPONSIVE ── */
 @media(max-width:960px){
   .order-layout{grid-template-columns:1fr}
@@ -468,6 +473,21 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#FDFAF8}
       <div id="dc-prev" style="margin-top:10px"></div>
     </div>
     <div class="mf"><button class="btn bo" onclick="cm('m-disc')">Cancelar</button><button class="btn bp" onclick="applyDisc()">Aplicar</button></div>
+  </div>
+</div>
+<!-- Gestión de Turnos -->
+<div class="mov" id="m-turnos">
+  <div class="modal" style="max-width:440px">
+    <div class="mh"><div class="mt">⚙️ Gestionar Opciones de Turno</div><button class="mc" onclick="cm('m-turnos')">&#x2715;</button></div>
+    <div class="mb">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:14px">Agrega, edita o elimina las opciones de turno que aparecen en el selector de cada celda.</p>
+      <div id="turnos-list"></div>
+      <button class="btn bw" style="width:100%;margin-top:10px" onclick="addTurnoField()">+ Agregar opción</button>
+    </div>
+    <div class="mf">
+      <button class="btn bo" onclick="cm('m-turnos')">Cancelar</button>
+      <button class="btn bp" onclick="saveTurnosOpt()">💾 Guardar opciones</button>
+    </div>
   </div>
 </div>
 <!-- Cancel Reason -->
@@ -739,6 +759,7 @@ function logAct(uid,action){
 // START APP
 // ═══════════════════════════════════════════
 function startApp(){
+  loadTurnosOpt();
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='block';
   document.getElementById('uav').textContent=CU.name.charAt(0).toUpperCase();
@@ -1989,7 +2010,12 @@ function rDashboard(cnt){
 // HORARIOS VIEW
 // ═══════════════════════════════════════════
 const DIAS=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
-const TURNOS_OPT=['','Mañana 8-14','Tarde 14-20','Noche 20-02','Completo 8-20','Descanso'];
+// Las opciones de turno son editables por el admin y se persisten en be_horarios
+let TURNOS_OPT=['','Mañana 8-14','Tarde 14-20','Noche 20-02','Completo 8-20','Descanso'];
+function loadTurnosOpt(){
+  const h=LS.obj('be_horarios',{});
+  if(Array.isArray(h.turnosOpt)&&h.turnosOpt.length) TURNOS_OPT=['',...h.turnosOpt];
+}
 
 function rHorarios(cnt){
   const users   = LS.get('be_users').filter(u=>u.active!==false);
@@ -2003,7 +2029,8 @@ function rHorarios(cnt){
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <span style="font-size:12px;color:var(--muted)">Semana: ${hor.semana||weekStart()}</span>
         ${isAdmin?`<button class="btn bp btn-sm" onclick="saveHorarios()">💾 Guardar Horarios</button>
-        <button class="btn bo btn-sm" onclick="resetHorarios()">🔄 Nueva Semana</button>`:''}
+        <button class="btn bo btn-sm" onclick="resetHorarios()">🔄 Nueva Semana</button>
+        <button class="btn bw btn-sm" onclick="openTurnosOpt()">⚙️ Opciones de turno</button>`:''}
       </div>
     </div>
     ${!isAdmin?'<div style="background:#FEF9C3;padding:10px 14px;border-radius:var(--rs);font-size:13px;margin-bottom:14px">👁️ Solo vista — el administrador puede editar los horarios.</div>':''}
@@ -2046,9 +2073,63 @@ function updTurno(uid,di,val){
   }
   if(!_horTemp.turnos[uid])_horTemp.turnos[uid]={};
   _horTemp.turnos[uid][di]=val;
-  // Actualizar color de la celda inmediatamente
-  const sel=event.target;const cell=sel.parentElement;
+  const sel=event.target; const cell=sel.parentElement;
   cell.className='sched-cell '+(val==='Descanso'?'day-off':val?'day-work':'');
+}
+// ── Gestión de opciones de turno ────────────────────────────────────────────
+function openTurnosOpt(){
+  const list=document.getElementById('turnos-list');
+  // Opciones sin el primer elemento vacío ''
+  const opts=TURNOS_OPT.filter(t=>t!=='');
+  list.innerHTML=opts.map((t,i)=>`
+    <div class="turno-item" id="ti-${i}">
+      <span style="color:var(--muted);font-size:12px;width:18px;text-align:right">${i+1}</span>
+      <input type="text" value="${t}" id="to-${i}" placeholder="Ej: Mañana 9-15"/>
+      <button class="btn bd" style="padding:4px 8px;font-size:12px" onclick="removeTurnoField(${i})">✕</button>
+    </div>`).join('');
+  om('m-turnos');
+}
+function addTurnoField(){
+  const list=document.getElementById('turnos-list');
+  const items=list.querySelectorAll('.turno-item');
+  const i=items.length;
+  const div=document.createElement('div');
+  div.className='turno-item'; div.id=`ti-${i}`;
+  div.innerHTML=`
+    <span style="color:var(--muted);font-size:12px;width:18px;text-align:right">${i+1}</span>
+    <input type="text" id="to-${i}" placeholder="Ej: Nocturno 22-06"/>
+    <button class="btn bd" style="padding:4px 8px;font-size:12px" onclick="removeTurnoField(${i})">✕</button>`;
+  list.appendChild(div);
+  div.querySelector('input').focus();
+}
+function removeTurnoField(idx){
+  const el=document.getElementById('ti-'+idx);
+  if(el) el.remove();
+  // Re-numerar visualmente
+  document.getElementById('turnos-list').querySelectorAll('.turno-item').forEach((el,i)=>{
+    el.id='ti-'+i;
+    const span=el.querySelector('span'); if(span) span.textContent=i+1;
+    const inp=el.querySelector('input'); if(inp) inp.id='to-'+i;
+    const btn=el.querySelector('button'); if(btn) btn.setAttribute('onclick',`removeTurnoField(${i})`);
+  });
+}
+function saveTurnosOpt(){
+  const list=document.getElementById('turnos-list');
+  const inputs=list.querySelectorAll('input[type="text"]');
+  const nuevas=[...inputs].map(i=>i.value.trim()).filter(v=>v!=='');
+  if(!nuevas.length){notify('⚠️','Sin opciones','Agrega al menos una opción de turno.',2500);return;}
+  // Actualizar el array global
+  TURNOS_OPT=['', ...nuevas];
+  // Persistir en be_horarios
+  const h=LS.obj('be_horarios',{semana:weekStart(),turnos:{}});
+  h.turnosOpt=nuevas;
+  LS.set('be_horarios',h);
+  if(_horTemp) _horTemp.turnosOpt=nuevas;
+  logAct(CU.id,'Actualizó opciones de turno: '+nuevas.join(', '));
+  notify('✅','Opciones guardadas','Las opciones de turno fueron actualizadas.',3000);
+  cm('m-turnos');
+  // Re-render para que los selects muestren las nuevas opciones
+  go('horarios',true);
 }
 function saveHorarios(){
   if(!_horTemp){notify('ℹ️','Sin cambios','No se han modificado horarios.',2000);return;}
