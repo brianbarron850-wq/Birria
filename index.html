@@ -959,7 +959,43 @@ function go(v,force){
   }
   updBadges();
 }
-function refreshView(){go(CV);notify('✅','Actualizado','Datos refrescados.',2000)}
+function refreshView(){
+  // Mostrar indicador de carga
+  notify('🔄','Actualizando...','Obteniendo datos del servidor.',2000);
+  const btn=document.querySelector('.btn-ref');
+  if(btn){btn.disabled=true;btn.textContent='🔄 Cargando...';}
+  const done=(freshData)=>{
+    if(freshData){
+      LCache=freshData;
+      initData();
+      loadTurnosOpt();
+    }
+    go(CV,true);
+    if(btn){btn.disabled=false;btn.textContent='🔄 Actualizar';}
+    notify('✅','Actualizado','Datos recargados desde el servidor.',2500);
+  };
+  const fail=()=>{
+    go(CV,true);
+    if(btn){btn.disabled=false;btn.textContent='🔄 Actualizar';}
+    notify('⚠️','Sin conexión','No se pudo conectar al servidor. Se muestran datos locales.',3500);
+  };
+  if(typeof google!=='undefined'&&google.script&&google.script.run){
+    google.script.run
+      .withSuccessHandler(data=>done((data&&data.data)?data.data:(data||null)))
+      .withFailureHandler(fail)
+      .loadAllData();
+  } else if(SCRIPT_URL&&SCRIPT_URL.trim()!==''){
+    fetch(SCRIPT_URL+'?action=load&t='+Date.now())
+      .then(r=>r.json())
+      .then(res=>done((res&&res.data)?res.data:(res||null)))
+      .catch(fail);
+  } else {
+    // Sin servidor configurado: solo re-renderiza la vista actual
+    go(CV,true);
+    if(btn){btn.disabled=false;btn.textContent='🔄 Actualizar';}
+    notify('ℹ️','Modo local','No hay servidor configurado.',2000);
+  }
+}
 function toggleSB(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('sb-ov').classList.toggle('open')}
 function closeSB(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sb-ov').classList.remove('open')}
 
