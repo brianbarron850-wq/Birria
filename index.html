@@ -636,6 +636,53 @@ window.onload = () => {
 const $=(id)=>document.getElementById(id);
 const debounce=(fn,ms)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms)}};
 const uid=()=>'id-'+Date.now().toString(36)+'-'+Math.random().toString(36).substr(2,5);
+
+// ── SONIDOS — Web Audio API (sin archivos externos) ─────────────────────────
+function playSound(type){
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    const gain=ctx.createGain();
+    gain.connect(ctx.destination);
+    if(type==='send'){
+      // Dos pitidos cortos ascendentes — nuevo pedido a cocina
+      [0,180].forEach((delay,i)=>{
+        const o=ctx.createOscillator();
+        o.connect(gain);
+        o.type='sine';
+        o.frequency.setValueAtTime(520+i*80, ctx.currentTime+delay/1000);
+        gain.gain.setValueAtTime(0.35, ctx.currentTime+delay/1000);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+delay/1000+0.15);
+        o.start(ctx.currentTime+delay/1000);
+        o.stop(ctx.currentTime+delay/1000+0.15);
+      });
+    } else if(type==='edit'){
+      // Tono doble — modificación de pedido
+      [0,200].forEach(delay=>{
+        const o=ctx.createOscillator();
+        o.connect(gain);
+        o.type='triangle';
+        o.frequency.setValueAtTime(440, ctx.currentTime+delay/1000);
+        gain.gain.setValueAtTime(0.3, ctx.currentTime+delay/1000);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+delay/1000+0.12);
+        o.start(ctx.currentTime+delay/1000);
+        o.stop(ctx.currentTime+delay/1000+0.12);
+      });
+    } else if(type==='bar'){
+      // Tres tonos descendentes — pedido listo en barra
+      [620,480,380].forEach((freq,i)=>{
+        const o=ctx.createOscillator();
+        o.connect(gain);
+        o.type='sine';
+        o.frequency.setValueAtTime(freq, ctx.currentTime+i*0.18);
+        gain.gain.setValueAtTime(0.4, ctx.currentTime+i*0.18);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+i*0.18+0.15);
+        o.start(ctx.currentTime+i*0.18);
+        o.stop(ctx.currentTime+i*0.18+0.15);
+      });
+    }
+    setTimeout(()=>ctx.close(), 1500);
+  } catch(e){}
+}
 const fc=(n)=>'$'+(parseFloat(n)||0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
 const fd=(iso)=>{if(!iso)return'';const d=new Date(iso);return d.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'})+' '+d.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})};
 const fds=(iso)=>{if(!iso)return'';return new Date(iso).toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'})};
@@ -1011,6 +1058,7 @@ function sendOrder(){
       logAct(CU.id, `Editó pedido #${orders[i].number}`);
       notify('✅','¡Pedido editado!',`Pedido #${orders[i].number} ha sido actualizado.`,4000);
       notify('⚠️','Aviso Cocina y Caja','Pedido #'+orders[i].number+' de '+orders[i].clientName+' fue modificado por '+CU.name+'. Revisa los cambios.',7000);
+      playSound('edit');
     }
     editingOrderId = null;
     const btn = document.getElementById('btn-send-order');
@@ -1025,6 +1073,7 @@ function sendOrder(){
     orders.push(o);LS.set('be_orders',orders);
     logAct(CU.id,`Creó pedido #${o.number} - ${o.clientName} - ${fc(tot)}`);
     notify('✅','¡Pedido enviado!',`Pedido #${o.number} enviado a cocina.`,4000);
+    playSound('send');
   }
   
   cart=[];cEl.value='';if(gEl)gEl.value='';
@@ -1098,7 +1147,10 @@ function updStatus(oid,ns){
   const i=orders.findIndex(o=>o.id===oid);if(i===-1)return;
   const os=orders[i].status;orders[i].status=ns;LS.set('be_orders',orders);
   logAct(CU.id,`Cambió pedido #${orders[i].number} de "${SL[os]}" a "${SL[ns]}"`);
-  if(ns==='bar')notify('🍺',`¡Pedido #${orders[i].number} en Barra!`,`${orders[i].clientName} — listo para entregar.`,6000,'nbar');
+  if(ns==='bar'){
+    notify('🍺',`¡Pedido #${orders[i].number} en Barra!`,`${orders[i].clientName} — listo para entregar.`,6000,'nbar');
+    playSound('bar');
+  }
   go('kitchen',true);
 }
 
@@ -1107,7 +1159,7 @@ function updStatus(oid,ns){
 // ═══════════════════════════════════════════
 function rCashier(c){
   const orders=LS.get('be_orders');
-  const list=orders.filter(o=>!['paid','cancelled'].includes(o.status)).sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));
+  const list=orders.filter(o=>!['paid','cancelled','delivered'].includes(o.status)).sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));
   c.innerHTML=`<div class="cslayout">
     <div>
       <div class="card">
