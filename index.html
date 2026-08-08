@@ -496,6 +496,21 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#FDFAF8}
     <div class="mf"><button class="btn bo" onclick="cm('m-disc')">Cancelar</button><button class="btn bp" onclick="applyDisc()">Aplicar</button></div>
   </div>
 </div>
+<!-- Inventario: Selector de productos -->
+<div class="mov" id="m-inv-select">
+  <div class="modal" style="max-width:500px">
+    <div class="mh"><div class="mt">📦 Gestionar productos en inventario</div><button class="mc" onclick="cm('m-inv-select')">&#x2715;</button></div>
+    <div class="mb">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Elige qué productos del menú tendrán seguimiento de stock. Los marcados se descuentan automáticamente al cobrar un pedido.</p>
+      <input class="fc" id="inv-sel-search" placeholder="Buscar producto..." oninput="filterInvSelect()" style="margin-bottom:10px"/>
+      <div id="inv-sel-list" style="max-height:52vh;overflow-y:auto"></div>
+    </div>
+    <div class="mf">
+      <button class="btn bo" onclick="cm('m-inv-select')">Cancelar</button>
+      <button class="btn bp" onclick="applyInvSelect()">💾 Aplicar selección</button>
+    </div>
+  </div>
+</div>
 <!-- Inventario: Movimiento de stock -->
 <div class="mov" id="m-inv-mov">
   <div class="modal" style="max-width:440px">
@@ -1263,7 +1278,9 @@ function selCsOrder(oid){
   const o=LS.get('be_orders').find(x=>x.id===oid);
   selOrder=o;csPayments={cash:0,card:0,transfer:0};
   csDisc=o?.discount||{type:'none',value:0,reason:'',finalTotal:o?.total};
-  go('cashier');
+  // force=true para que siempre re-renderice el panel de pago
+  // aunque ya estemos en la vista cashier
+  go('cashier',true);
 }
 function buildPayPanel(){
   const o=selOrder;if(!o)return;
@@ -2272,36 +2289,45 @@ function resetHorarios(){
 // INVENTARIO VIEW
 // ═══════════════════════════════════════════
 function autoDescontarInventario(items){
-  const inv=LS.get('be_inventory');
+  // Solo descuenta productos que están en inventario con seguimiento activo
+  let inv=LS.get('be_inventory');
   if(!inv||!inv.length)return;
-  const prods=LS.get('be_products');
   let changed=false;
   items.forEach(item=>{
-    const iIdx=inv.findIndex(i=>i.prodId===item.id);
-    if(iIdx===-1)return;
+    const iIdx=inv.findIndex(i=>i.prodId===item.id&&i.trackStock!==false);
+    if(iIdx===-1)return; // producto no está en inventario o no tiene seguimiento
     const consume=(inv[iIdx].consumoPorVenta||1)*item.qty;
-    inv[iIdx].stock=Math.max(0,(inv[iIdx].stock||0)-consume);
+    const prev=inv[iIdx].stock||0;
+    inv[iIdx].stock=Math.max(0,prev-consume);
     if(!inv[iIdx].movimientos)inv[iIdx].movimientos=[];
     inv[iIdx].movimientos.unshift({type:'auto',qty:-consume,unit:inv[iIdx].unit||'pzas',
-      note:'Venta: '+item.qty+'x '+item.name,ts:new Date().toISOString(),user:(CU&&CU.name)||'Sistema'});
+      note:'Venta automática: '+item.qty+'x '+item.name,
+      stockPrev:prev,stockNew:inv[iIdx].stock,
+      ts:new Date().toISOString(),user:(CU&&CU.name)||'Sistema'});
     if(inv[iIdx].movimientos.length>200)inv[iIdx].movimientos=inv[iIdx].movimientos.slice(0,200);
+    // Alerta en tiempo real si queda bajo mínimo
+    if(inv[iIdx].stock<=inv[iIdx].stockMin&&inv[iIdx].stock>0)
+      notify('⚠️','Stock bajo',item.name+' por debajo del mínimo.',4000);
+    if(inv[iIdx].stock<=0)
+      notify('🚨','Sin stock',item.name+' se agotó.',5000);
     changed=true;
   });
   if(changed)LS.set('be_inventory',inv);
 }
 function rInventario(cnt){
   const inv=LS.get('be_inventory');
+  const invActive=inv.filter(i=>i.trackStock!==false);
   const prods=LS.get('be_products').filter(p=>p.active!==false);
   const isAdmin=CU&&CU.role==='admin';
-  const low=inv.filter(i=>i.stock>0&&i.stock<=i.stockMin).length;
-  const out=inv.filter(i=>i.stock<=0).length;
-  const valor=inv.reduce((s,i)=>s+(i.stock||0)*(i.costoUnit||0),0);
+  const low=invActive.filter(i=>i.stock>0&&i.stock<=i.stockMin).length;
+  const out=invActive.filter(i=>i.stock<=0).length;
+  const valor=invActive.reduce((s,i)=>s+(i.stock||0)*(i.costoUnit||0),0);
   cnt.innerHTML=`
   <div class="dash-grid" style="margin-bottom:16px">
     <div class="kpi" style="border-left-color:var(--ok)">
       <div class="kpi-lbl">En inventario</div>
-      <div class="kpi-val">${inv.length}</div>
-      <div class="kpi-sub">de ${prods.length} productos activos</div></div>
+      <div class="kpi-val">${invActive.length}</div>
+      <div class="kpi-sub">con seguimiento activo de ${prods.length}</div></div>
     <div class="kpi" style="border-left-color:var(--warn)">
       <div class="kpi-lbl">Stock bajo</div>
       <div class="kpi-val" style="color:var(--warn)">${low}</div>
@@ -2320,7 +2346,7 @@ function rInventario(cnt){
       <div class="ct">📦 Control de Stock</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         ${isAdmin?`<button class="btn bp" onclick="openInvMov()">+ Movimiento</button>
-        <button class="btn bw" onclick="syncInvProds()">🔄 Sincronizar productos</button>`:''}
+        <button class="btn bw" onclick="openInvSelect()">📋 Elegir productos</button>`:''}
         <button class="btn bo" onclick="exportInv()">⬇️ Exportar CSV</button>
       </div>
     </div>
@@ -2340,15 +2366,20 @@ function rInventario(cnt){
   </div>`;
 }
 function buildInvCards(inv,prods,isAdmin){
-  return inv.map(item=>{
+  // Separar: activos primero, sin seguimiento al final
+  const active=inv.filter(i=>i.trackStock!==false);
+  const inactive=inv.filter(i=>i.trackStock===false);
+  const all=[...active,...inactive];
+  return all.map(item=>{
     const prod=prods.find(p=>p.id===item.prodId);
     const name=prod?prod.name:(item.nombre||'Producto');
     const pct=item.stockMin>0?Math.min(100,Math.round(((item.stock||0)/((item.stockMax||item.stockMin*3)||10))*100)):100;
-    const sc=item.stock<=0?'out':item.stock<=item.stockMin?'low':'ok';
-    const sl=item.stock<=0?'Agotado':item.stock<=item.stockMin?'Stock bajo':'OK';
-    const bc=item.stock<=0?'var(--err)':item.stock<=item.stockMin?'var(--warn)':'var(--ok)';
+    const noTrack=item.trackStock===false;
+    const sc=noTrack?'off':item.stock<=0?'out':item.stock<=item.stockMin?'low':'ok';
+    const sl=noTrack?'Sin seguimiento':item.stock<=0?'Agotado':item.stock<=item.stockMin?'Stock bajo':'OK';
+    const bc=noTrack?'var(--muted)':item.stock<=0?'var(--err)':item.stock<=item.stockMin?'var(--warn)':'var(--ok)';
     const lm=item.movimientos&&item.movimientos[0];
-    return `<div class="inv-card stock-${sc}" id="icard-${item.prodId}" data-name="${name.toLowerCase()}" data-status="${sc}">
+    return `<div class="inv-card stock-${sc}" id="icard-${item.prodId}" data-name="${name.toLowerCase()}" data-status="${sc}" style="${noTrack?'opacity:.55':''}">
       <span class="inv-badge ${sc}">${sl}</span>
       <div style="font-weight:800;font-size:14px;margin-bottom:2px;padding-right:64px">${name}</div>
       <div style="color:var(--muted);font-size:11px;margin-bottom:10px">${prod?prod.category:''}</div>
@@ -2377,21 +2408,76 @@ function filterInv(){
     card.style.display=((!s||card.dataset.name.includes(s))&&(!st||card.dataset.status===st))?'':'none';
   });
 }
-function syncInvProds(){
+function openInvSelect(){
   const prods=LS.get('be_products').filter(p=>p.active!==false);
+  const inv=LS.get('be_inventory');
+  const inInv=new Set(inv.map(i=>i.prodId));
+  // Agrupar por categoría
+  const cats=[...new Set(prods.map(p=>p.category))].sort();
+  const el=$('inv-sel-list');
+  $('inv-sel-search').value='';
+  el.innerHTML=cats.map(cat=>{
+    const catProds=prods.filter(p=>p.category===cat);
+    return `<div style="margin-bottom:14px">
+      <div style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--muted);
+        letter-spacing:.5px;padding:6px 0 4px;border-bottom:1px solid var(--border);margin-bottom:6px">${cat}</div>
+      ${catProds.map(p=>{
+        const checked=inInv.has(p.id);
+        const item=inv.find(i=>i.prodId===p.id);
+        return `<label style="display:flex;align-items:center;gap:10px;padding:8px 6px;
+          border-radius:var(--rs);cursor:pointer;transition:background .15s" 
+          class="inv-sel-row" data-name="${p.name.toLowerCase()}">
+          <input type="checkbox" value="${p.id}" ${checked?'checked':''} 
+            style="width:16px;height:16px;cursor:pointer;accent-color:var(--birria)"/>
+          <div style="flex:1">
+            <div style="font-weight:600;font-size:13px">${p.name}</div>
+            <div style="font-size:11px;color:var(--muted)">${fc(p.price)}
+              ${item?`· Stock actual: <strong>${item.stock||0} ${item.unit||'pzas'}</strong>`:''}
+            </div>
+          </div>
+          ${checked?'<span style="font-size:10px;background:#D1FAE5;color:#065F46;padding:2px 7px;border-radius:20px;font-weight:700">En inventario</span>':''}
+        </label>`;
+      }).join('')}
+    </div>`;
+  }).join('');
+  om('m-inv-select');
+}
+function filterInvSelect(){
+  const s=($('inv-sel-search')?.value||'').toLowerCase();
+  document.querySelectorAll('.inv-sel-row').forEach(row=>{
+    row.style.display=(!s||row.dataset.name.includes(s))?'':'none';
+  });
+}
+function applyInvSelect(){
+  const checks=[...document.querySelectorAll('#inv-sel-list input[type=checkbox]')];
+  const selected=new Set(checks.filter(cb=>cb.checked).map(cb=>cb.value));
+  const prods=LS.get('be_products');
   let inv=LS.get('be_inventory');
-  const existing=new Set(inv.map(i=>i.prodId));
+  const existing=new Map(inv.map(i=>[i.prodId,i]));
+  // Agregar nuevos seleccionados
   let added=0;
-  prods.forEach(p=>{
-    if(!existing.has(p.id)){
-      inv.push({prodId:p.id,nombre:p.name,stock:0,stockMin:5,stockMax:50,
-        unit:'pzas',costoUnit:0,consumoPorVenta:1,movimientos:[]});
+  selected.forEach(pid=>{
+    if(!existing.has(pid)){
+      const prod=prods.find(p=>p.id===pid);
+      inv.push({prodId:pid,nombre:prod?prod.name:'',stock:0,stockMin:5,stockMax:50,
+        unit:'pzas',costoUnit:0,consumoPorVenta:1,trackStock:true,movimientos:[]});
       added++;
+    } else {
+      existing.get(pid).trackStock=true;
+    }
+  });
+  // Desactivar seguimiento de los desmarcados (no borrar para conservar historial)
+  let removed=0;
+  inv.forEach(item=>{
+    if(!selected.has(item.prodId)){
+      item.trackStock=false;
+      removed++;
     }
   });
   LS.set('be_inventory',inv);
-  notify('✅','Sincronizado',added?`${added} producto(s) agregado(s) al inventario.`:'Ya está sincronizado.',3000);
-  logAct(CU.id,'Sincronizó inventario');
+  logAct(CU.id,`Actualizó inventario: ${added} agregados, ${removed} sin seguimiento`);
+  notify('✅','Inventario actualizado',`${added} agregado(s). ${removed} sin seguimiento activo.`,4000);
+  cm('m-inv-select');
   go('inventario',true);
 }
 function openInvMov(prodId,type){
