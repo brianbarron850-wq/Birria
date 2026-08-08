@@ -1159,7 +1159,7 @@ function updStatus(oid,ns){
 // ═══════════════════════════════════════════
 function rCashier(c){
   const orders=LS.get('be_orders');
-  const list=orders.filter(o=>!['paid','cancelled','delivered'].includes(o.status)).sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));
+  const list=orders.filter(o=>!['paid','cancelled'].includes(o.status)).sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));
   c.innerHTML=`<div class="cslayout">
     <div>
       <div class="card">
