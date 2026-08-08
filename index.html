@@ -498,12 +498,24 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#FDFAF8}
 </div>
 <!-- Inventario: Selector de productos -->
 <div class="mov" id="m-inv-select">
-  <div class="modal" style="max-width:500px">
+  <div class="modal" style="max-width:520px">
     <div class="mh"><div class="mt">📦 Gestionar productos en inventario</div><button class="mc" onclick="cm('m-inv-select')">&#x2715;</button></div>
     <div class="mb">
-      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Elige qué productos del menú tendrán seguimiento de stock. Los marcados se descuentan automáticamente al cobrar un pedido.</p>
-      <input class="fc" id="inv-sel-search" placeholder="Buscar producto..." oninput="filterInvSelect()" style="margin-bottom:10px"/>
-      <div id="inv-sel-list" style="max-height:52vh;overflow-y:auto"></div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:10px">Elige qué productos tendrán seguimiento de stock. Puedes agregar productos personalizados que no estén en el menú.</p>
+      <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+        <input class="fc" id="inv-sel-search" placeholder="Buscar..." oninput="filterInvSelect()" style="flex:1;min-width:140px"/>
+        <button class="btn bw btn-sm" onclick="selAllInv(true)">☑️ Marcar todos</button>
+        <button class="btn bo btn-sm" onclick="selAllInv(false)">⬜ Desmarcar todos</button>
+      </div>
+      <div id="inv-sel-list" style="max-height:44vh;overflow-y:auto;border:1px solid var(--border);border-radius:var(--rs);padding:4px"></div>
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+        <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:8px">+ AGREGAR PRODUCTO PERSONALIZADO</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <input class="fc" id="inv-custom-name" placeholder="Nombre del producto" style="flex:1;min-width:140px"/>
+          <input class="fc" id="inv-custom-unit" placeholder="Unidad (kg, lts…)" style="width:110px"/>
+          <button class="btn bp btn-sm" onclick="addCustomInvProd()">+ Agregar</button>
+        </div>
+      </div>
     </div>
     <div class="mf">
       <button class="btn bo" onclick="cm('m-inv-select')">Cancelar</button>
@@ -1210,6 +1222,7 @@ function buildKCard(o){
         ${o.items.map(i=>`<li><span class="oq">${i.qty}×</span> ${i.name}${i.note?`<div class="inotice">📝 ${i.note}</div>`:''}</li>`).join('')}
       </ul>
       ${o.generalNote?`<div style="margin-top:8px;font-size:12px;background:#FFF5F0;padding:7px 10px;border-radius:6px;color:var(--birria)">📝 ${o.generalNote}</div>`:''}
+      ${o.paid?`<div style="margin-top:6px;font-size:11px;background:#D1FAE5;padding:5px 8px;border-radius:6px;color:#065F46;font-weight:700">✅ Ya cobrado — continúa en proceso</div>`:''}
       ${o.lastEditAt?`<div style="margin-top:6px;font-size:11px;background:#FEF9C3;padding:5px 8px;border-radius:6px;color:#92400E;font-weight:600">Modificado por ${o.lastEditBy}</div>`:''}
       ${o.cancelReason?`<div style="margin-top:6px;font-size:11px;background:#FEE2E2;padding:5px 8px;border-radius:6px;color:#991B1B;font-weight:600">Cancelado: ${o.cancelReason}</div>`:''}
       <div class="owrk">👤 ${o.workerName}</div>
@@ -1224,7 +1237,18 @@ function buildKCard(o){
 function updStatus(oid,ns){
   const orders=LS.get('be_orders');
   const i=orders.findIndex(o=>o.id===oid);if(i===-1)return;
-  const os=orders[i].status;orders[i].status=ns;LS.set('be_orders',orders);
+  const os=orders[i].status;
+  // Si el pedido ya fue cobrado anticipadamente y llega a 'delivered', cerrarlo como 'paid'
+  if(ns==='delivered'&&orders[i].paid===true){
+    orders[i].status='paid';
+    orders[i].paid=false;
+    LS.set('be_orders',orders);
+    logAct(CU.id,`Cerró pedido #${orders[i].number} (ya cobrado) al entregar`);
+    notify('✅',`Pedido #${orders[i].number} cerrado`,`${orders[i].clientName} — entregado y cobrado.`,4000);
+    go('kitchen',true);
+    return;
+  }
+  orders[i].status=ns;LS.set('be_orders',orders);
   logAct(CU.id,`Cambió pedido #${orders[i].number} de "${SL[os]}" a "${SL[ns]}"`);
   if(ns==='bar'){
     notify('🍺',`¡Pedido #${orders[i].number} en Barra!`,`${orders[i].clientName} — listo para entregar.`,6000,'nbar');
@@ -1238,7 +1262,8 @@ function updStatus(oid,ns){
 // ═══════════════════════════════════════════
 function rCashier(c){
   const orders=LS.get('be_orders');
-  const list=orders.filter(o=>!['paid','cancelled'].includes(o.status)).sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));
+  // Mostrar pedidos no cobrados: ni status=paid ni paid=true
+  const list=orders.filter(o=>o.status!=='cancelled'&&o.status!=='paid'&&!o.paid).sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));
   c.innerHTML=`<div class="cslayout">
     <div>
       <div class="card">
@@ -1408,7 +1433,16 @@ function finalizePay(ft,paid,da,ta){
   const i=orders.findIndex(o=>o.id===selOrder.id);if(i===-1)return;
   const chg=Math.max(0,paid-ft);
   const d=csDisc;
-  orders[i].status='paid';
+  // Conservar el status de cocina para que el pedido siga su proceso normal
+  // Solo marcamos el pago — el status lo cambia cocina cuando termine
+  const prevStatus=orders[i].status;
+  const kitchenStatuses=['pending','in-process','cooking','ready','bar'];
+  if(kitchenStatuses.includes(prevStatus)){
+    orders[i].paid=true; // cobrado pero aún en cocina
+    orders[i].paidEarly=true;
+  } else {
+    orders[i].status='paid';
+  }
   orders[i].payment={cash:csPayments.cash||0,card:csPayments.card||0,transfer:csPayments.transfer||0,
     tip:ta,paid,finalTotal:ft,change:chg,status:'paid'};
   orders[i].discount={...d,finalTotal:ft,discAmt:da};
@@ -2411,35 +2445,49 @@ function filterInv(){
 function openInvSelect(){
   const prods=LS.get('be_products').filter(p=>p.active!==false);
   const inv=LS.get('be_inventory');
-  const inInv=new Set(inv.map(i=>i.prodId));
-  // Agrupar por categoría
-  const cats=[...new Set(prods.map(p=>p.category))].sort();
+  // Mapa de prodId->item para evitar duplicados
+  const invMap=new Map(inv.map(i=>[i.prodId,i]));
+  // Lista plana: primero los del menú, después los personalizados (sin prodId en prods)
+  const menuIds=new Set(prods.map(p=>p.id));
+  const customs=inv.filter(i=>!menuIds.has(i.prodId));
   const el=$('inv-sel-list');
   $('inv-sel-search').value='';
-  el.innerHTML=cats.map(cat=>{
-    const catProds=prods.filter(p=>p.category===cat);
-    return `<div style="margin-bottom:14px">
-      <div style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--muted);
-        letter-spacing:.5px;padding:6px 0 4px;border-bottom:1px solid var(--border);margin-bottom:6px">${cat}</div>
-      ${catProds.map(p=>{
-        const checked=inInv.has(p.id);
-        const item=inv.find(i=>i.prodId===p.id);
-        return `<label style="display:flex;align-items:center;gap:10px;padding:8px 6px;
-          border-radius:var(--rs);cursor:pointer;transition:background .15s" 
-          class="inv-sel-row" data-name="${p.name.toLowerCase()}">
-          <input type="checkbox" value="${p.id}" ${checked?'checked':''} 
-            style="width:16px;height:16px;cursor:pointer;accent-color:var(--birria)"/>
-          <div style="flex:1">
-            <div style="font-weight:600;font-size:13px">${p.name}</div>
-            <div style="font-size:11px;color:var(--muted)">${fc(p.price)}
-              ${item?`· Stock actual: <strong>${item.stock||0} ${item.unit||'pzas'}</strong>`:''}
-            </div>
-          </div>
-          ${checked?'<span style="font-size:10px;background:#D1FAE5;color:#065F46;padding:2px 7px;border-radius:20px;font-weight:700">En inventario</span>':''}
-        </label>`;
-      }).join('')}
-    </div>`;
+  $('inv-custom-name').value='';
+  $('inv-custom-unit').value='';
+  // Renderizar lista plana sin categorías, sin duplicados
+  const menuRows=prods.map(p=>{
+    const item=invMap.get(p.id);
+    const checked=item&&item.trackStock!==false;
+    return `<label style="display:flex;align-items:center;gap:10px;padding:8px 8px;
+      border-radius:var(--rs);cursor:pointer" class="inv-sel-row" data-name="${p.name.toLowerCase()}">
+      <input type="checkbox" value="${p.id}" ${checked?'checked':''} data-type="menu"
+        style="width:16px;height:16px;cursor:pointer;accent-color:var(--birria)"/>
+      <div style="flex:1">
+        <div style="font-weight:600;font-size:13px">${p.name}</div>
+        <div style="font-size:11px;color:var(--muted)">${p.category} · ${fc(p.price)}
+          ${item?`· Stock: <strong>${item.stock||0} ${item.unit||'pzas'}</strong>`:''}
+        </div>
+      </div>
+      ${checked?'<span style="font-size:10px;background:#D1FAE5;color:#065F46;padding:2px 7px;border-radius:20px;font-weight:700">Activo</span>':''}
+    </label>`;
   }).join('');
+  // Productos personalizados (no están en el menú)
+  const customRows=customs.map(i=>{
+    const checked=i.trackStock!==false;
+    return `<label style="display:flex;align-items:center;gap:10px;padding:8px 8px;
+      border-radius:var(--rs);cursor:pointer;background:#FFFBEB" class="inv-sel-row" data-name="${(i.nombre||'').toLowerCase()}">
+      <input type="checkbox" value="${i.prodId}" ${checked?'checked':''} data-type="custom"
+        style="width:16px;height:16px;cursor:pointer;accent-color:var(--birria)"/>
+      <div style="flex:1">
+        <div style="font-weight:600;font-size:13px">${i.nombre||i.prodId}</div>
+        <div style="font-size:11px;color:var(--muted)">Personalizado · ${i.unit||'pzas'}
+          · Stock: <strong>${i.stock||0}</strong>
+        </div>
+      </div>
+      <span style="font-size:10px;background:#FEF3C7;color:#92400E;padding:2px 7px;border-radius:20px;font-weight:700">Custom</span>
+    </label>`;
+  }).join('');
+  el.innerHTML=menuRows+(customRows?`<div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--border)">${customRows}</div>`:'');
   om('m-inv-select');
 }
 function filterInvSelect(){
@@ -2448,35 +2496,57 @@ function filterInvSelect(){
     row.style.display=(!s||row.dataset.name.includes(s))?'':'none';
   });
 }
+function selAllInv(val){
+  document.querySelectorAll('#inv-sel-list input[type=checkbox]').forEach(cb=>{
+    const row=cb.closest('.inv-sel-row');
+    if(!row||row.style.display==='none') return;
+    cb.checked=val;
+  });
+}
+function addCustomInvProd(){
+  const name=($('inv-custom-name')?.value||'').trim();
+  const unit=($('inv-custom-unit')?.value||'pzas').trim();
+  if(!name){notify('⚠️','Nombre requerido','Escribe el nombre del producto personalizado.',2500);return;}
+  let inv=LS.get('be_inventory');
+  // Evitar duplicados por nombre (case insensitive)
+  const exists=inv.some(i=>(i.nombre||'').toLowerCase()===name.toLowerCase());
+  if(exists){notify('⚠️','Ya existe','Ya hay un producto con ese nombre en el inventario.',3000);return;}
+  const newId='custom-'+Date.now();
+  inv.push({prodId:newId,nombre:name,stock:0,stockMin:5,stockMax:50,
+    unit,costoUnit:0,consumoPorVenta:1,trackStock:true,movimientos:[]});
+  LS.set('be_inventory',inv);
+  logAct(CU.id,'Agregó producto personalizado al inventario: '+name);
+  notify('✅','Agregado',name+' fue agregado al inventario.',3000);
+  openInvSelect(); // Recargar la lista
+}
 function applyInvSelect(){
   const checks=[...document.querySelectorAll('#inv-sel-list input[type=checkbox]')];
   const selected=new Set(checks.filter(cb=>cb.checked).map(cb=>cb.value));
   const prods=LS.get('be_products');
   let inv=LS.get('be_inventory');
   const existing=new Map(inv.map(i=>[i.prodId,i]));
-  // Agregar nuevos seleccionados
-  let added=0;
+  // Activar/desactivar seguimiento según selección
+  let added=0,changed=0;
   selected.forEach(pid=>{
     if(!existing.has(pid)){
       const prod=prods.find(p=>p.id===pid);
       inv.push({prodId:pid,nombre:prod?prod.name:'',stock:0,stockMin:5,stockMax:50,
         unit:'pzas',costoUnit:0,consumoPorVenta:1,trackStock:true,movimientos:[]});
       added++;
-    } else {
+    } else if(existing.get(pid).trackStock===false){
       existing.get(pid).trackStock=true;
+      changed++;
     }
   });
-  // Desactivar seguimiento de los desmarcados (no borrar para conservar historial)
-  let removed=0;
   inv.forEach(item=>{
-    if(!selected.has(item.prodId)){
+    if(!selected.has(item.prodId)&&item.trackStock!==false){
       item.trackStock=false;
-      removed++;
+      changed++;
     }
   });
   LS.set('be_inventory',inv);
-  logAct(CU.id,`Actualizó inventario: ${added} agregados, ${removed} sin seguimiento`);
-  notify('✅','Inventario actualizado',`${added} agregado(s). ${removed} sin seguimiento activo.`,4000);
+  logAct(CU.id,`Inventario: ${added} nuevos, ${changed} actualizados`);
+  notify('✅','Inventario actualizado',`${added} nuevo(s) agregado(s). Cambios guardados.`,4000);
   cm('m-inv-select');
   go('inventario',true);
 }
