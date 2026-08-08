@@ -282,6 +282,26 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#FDFAF8}
 .turno-item:hover{background:#FDFAF8}
 .turno-item input{flex:1;border:1px solid var(--border);border-radius:var(--rs);padding:6px 10px;font-size:13px;font-family:inherit}
 .turno-item input:focus{outline:none;border-color:var(--birria)}
+/* ── INVENTARIO ── */
+.inv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-bottom:20px}
+.inv-card{background:var(--card);border-radius:var(--r);border:1px solid var(--border);padding:16px;box-shadow:var(--sh);position:relative;transition:box-shadow .2s}
+.inv-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.1)}
+.inv-card.stock-ok{border-left:4px solid var(--ok)}
+.inv-card.stock-low{border-left:4px solid var(--warn)}
+.inv-card.stock-out{border-left:4px solid var(--err)}
+.inv-badge{position:absolute;top:12px;right:12px;font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px;text-transform:uppercase}
+.inv-badge.ok{background:#D1FAE5;color:#065F46}
+.inv-badge.low{background:#FEF3C7;color:#92400E}
+.inv-badge.out{background:#FEE2E2;color:#991B1B}
+.inv-qty{font-size:32px;font-weight:900;line-height:1}
+.inv-unit{font-size:12px;color:var(--muted);margin-left:4px}
+.inv-bar-wrap{background:#F3F4F6;border-radius:20px;height:6px;margin:8px 0 4px;overflow:hidden}
+.inv-bar{height:6px;border-radius:20px;transition:width .4s}
+.mov-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px}
+.mov-row:last-child{border-bottom:none}
+.mov-in{color:var(--ok);font-weight:700}
+.mov-out{color:var(--err);font-weight:700}
+.mov-adj{color:var(--info);font-weight:700}
 /* ── RESPONSIVE ── */
 @media(max-width:960px){
   .order-layout{grid-template-columns:1fr}
@@ -349,6 +369,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#FDFAF8}
         <button class="ni" data-v="products" onclick="go('products')"><span class="ico">🍖</span>Productos</button>
         <button class="ni" data-v="corte" onclick="go('corte')"><span class="ico">📊</span>Corte</button>
         <button class="ni" data-v="users" onclick="go('users')"><span class="ico">👥</span>Usuarios</button>
+          <button class="ni" data-v="inventario" onclick="go('inventario')"><span class="ico">📦</span>Inventario</button>
           <button class="ni" data-v="dashboard" onclick="go('dashboard')"><span class="ico">📈</span>Dashboard</button>
           <button class="ni" data-v="horarios" onclick="go('horarios')"><span class="ico">📅</span>Horarios</button>
       </nav>
@@ -475,6 +496,47 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#FDFAF8}
     <div class="mf"><button class="btn bo" onclick="cm('m-disc')">Cancelar</button><button class="btn bp" onclick="applyDisc()">Aplicar</button></div>
   </div>
 </div>
+<!-- Inventario: Movimiento de stock -->
+<div class="mov" id="m-inv-mov">
+  <div class="modal" style="max-width:440px">
+    <div class="mh"><div class="mt" id="inv-mov-title">Registrar Movimiento</div><button class="mc" onclick="cm('m-inv-mov')">&#x2715;</button></div>
+    <div class="mb">
+      <input type="hidden" id="inv-pid"/>
+      <div class="fg"><label class="fl">Producto</label>
+        <input class="fc" id="inv-pname" disabled style="background:#F9FAFB;color:var(--muted)"/></div>
+      <div class="fg"><label class="fl">Tipo de movimiento</label>
+        <select class="fc" id="inv-type" onchange="updInvTypeUI()">
+          <option value="in">📦 Entrada (compra / reposición)</option>
+          <option value="out">📤 Salida (merma / uso manual)</option>
+          <option value="adj">🔧 Ajuste directo de stock</option>
+        </select></div>
+      <div class="g2">
+        <div class="fg"><label class="fl" id="inv-qty-lbl">Cantidad</label>
+          <input class="fc" id="inv-qty" type="number" min="0" step="0.01" placeholder="0"/></div>
+        <div class="fg"><label class="fl">Unidad</label>
+          <input class="fc" id="inv-unit-lbl" placeholder="kg, pzas, lts…"/></div>
+      </div>
+      <div class="fg" id="inv-cost-wrap"><label class="fl">Costo unitario (opcional)</label>
+        <input class="fc" id="inv-cost" type="number" min="0" step="0.01" placeholder="0.00"/></div>
+      <div class="fg"><label class="fl">Nota / Proveedor</label>
+        <input class="fc" id="inv-note" placeholder="Proveedor, motivo…"/></div>
+      <div class="fg"><label class="fl">Stock mínimo (alerta)</label>
+        <input class="fc" id="inv-min" type="number" min="0" step="0.01" placeholder="5"/></div>
+    </div>
+    <div class="mf">
+      <button class="btn bo" onclick="cm('m-inv-mov')">Cancelar</button>
+      <button class="btn bp" onclick="saveInvMov()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+<!-- Inventario: Historial de movimientos -->
+<div class="mov" id="m-inv-hist">
+  <div class="modal" style="max-width:500px">
+    <div class="mh"><div class="mt" id="inv-hist-title">Historial</div><button class="mc" onclick="cm('m-inv-hist')">&#x2715;</button></div>
+    <div class="mb" id="inv-hist-body" style="max-height:60vh;overflow-y:auto"></div>
+    <div class="mf"><button class="btn bo" onclick="cm('m-inv-hist')">Cerrar</button></div>
+  </div>
+</div>
 <!-- Gestión de Turnos -->
 <div class="mov" id="m-turnos">
   <div class="modal" style="max-width:440px">
@@ -541,10 +603,10 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyjJ6ulXsOvjJim8fRB6
 // CONSTANTS
 // ═══════════════════════════════════════════
 const ROLES={admin:'Administrador',waiter:'Mesero',cook:'Cocinero',cashier:'Cajero'};
-const ROLE_VIEWS={admin:['orders','kitchen','cashier','products','corte','users','dashboard','horarios'],waiter:['orders','horarios'],cook:['kitchen','horarios'],cashier:['cashier','corte','horarios']};
+const ROLE_VIEWS={admin:['orders','kitchen','cashier','products','corte','users','dashboard','horarios','inventario'],waiter:['orders','horarios'],cook:['kitchen','horarios'],cashier:['cashier','corte','horarios']};
 const SL={pending:'En Espera','in-process':'En Proceso',ready:'Listo',bar:'En Barra',delivered:'Entregado',paid:'Pagado',cancelled:'Cancelado'};
 const SB={pending:'bp_','in-process':'bip',ready:'br',bar:'bbar',delivered:'bdel',paid:'bpaid',cancelled:'bd'};
-const VIEW_T={'orders':'📋 Pedidos','kitchen':'👨‍🍳 Cocina','cashier':'🏧 Caja','products':'🍖 Productos','corte':'📊 Corte','users':'👥 Usuarios','dashboard':'📈 Dashboard','horarios':'📅 Horarios'};
+const VIEW_T={'orders':'📋 Pedidos','kitchen':'👨‍🍳 Cocina','cashier':'🏧 Caja','products':'🍖 Productos','corte':'📊 Corte','users':'👥 Usuarios','dashboard':'📈 Dashboard','horarios':'📅 Horarios','inventario':'📦 Inventario'};
 
 // ═══════════════════════════════════════════
 // STATE
@@ -719,6 +781,7 @@ function initData(){
   if(!LCache['be_cuts']) LS.set('be_cuts',[]);
   if(!LCache['be_caja']) LS.set('be_caja',[]);
   if(!LCache['be_caja_session']) LS.set('be_caja_session',{registros:[],fecha:today()});
+  if(!LCache['be_inventory']) LS.set('be_inventory',[]);
   if(!LCache['be_horarios']) LS.set('be_horarios',{semana:weekStart(),turnos:{}});
   if(!LCache['be_sd'] || !LCache['be_sd'].date) LS.set('be_sd',{total:0,cash:0,card:0,transfer:0,date:today(),initCash:0});
   if(!LCache['be_sw'] || !LCache['be_sw'].weekStart) LS.set('be_sw',{total:0,cash:0,card:0,transfer:0,weekStart:weekStart()});
@@ -865,6 +928,7 @@ function go(v,force){
     case'users':rUsers(c);break;
     case'dashboard':rDashboard(c);break;
     case'horarios':rHorarios(c);break;
+    case'inventario':rInventario(c);break;
   }
   updBadges();
 }
@@ -1370,6 +1434,7 @@ function finalizePay(ft,paid,da,ta){
     change: chg,
     paidAt: new Date().toISOString()
   });
+  autoDescontarInventario(orders[i].items||[]);
   LS.setBatch([
     ['be_orders',       orders],
     ['be_caja',         cajaList],
@@ -2200,6 +2265,234 @@ function resetHorarios(){
     notify('✅','Nueva semana','Horarios reiniciados para la semana actual.',3000);
     go('horarios',true);
   },'Nueva Semana','bw');
+}
+
+
+// ═══════════════════════════════════════════
+// INVENTARIO VIEW
+// ═══════════════════════════════════════════
+function autoDescontarInventario(items){
+  const inv=LS.get('be_inventory');
+  if(!inv||!inv.length)return;
+  const prods=LS.get('be_products');
+  let changed=false;
+  items.forEach(item=>{
+    const iIdx=inv.findIndex(i=>i.prodId===item.id);
+    if(iIdx===-1)return;
+    const consume=(inv[iIdx].consumoPorVenta||1)*item.qty;
+    inv[iIdx].stock=Math.max(0,(inv[iIdx].stock||0)-consume);
+    if(!inv[iIdx].movimientos)inv[iIdx].movimientos=[];
+    inv[iIdx].movimientos.unshift({type:'auto',qty:-consume,unit:inv[iIdx].unit||'pzas',
+      note:'Venta: '+item.qty+'x '+item.name,ts:new Date().toISOString(),user:(CU&&CU.name)||'Sistema'});
+    if(inv[iIdx].movimientos.length>200)inv[iIdx].movimientos=inv[iIdx].movimientos.slice(0,200);
+    changed=true;
+  });
+  if(changed)LS.set('be_inventory',inv);
+}
+function rInventario(cnt){
+  const inv=LS.get('be_inventory');
+  const prods=LS.get('be_products').filter(p=>p.active!==false);
+  const isAdmin=CU&&CU.role==='admin';
+  const low=inv.filter(i=>i.stock>0&&i.stock<=i.stockMin).length;
+  const out=inv.filter(i=>i.stock<=0).length;
+  const valor=inv.reduce((s,i)=>s+(i.stock||0)*(i.costoUnit||0),0);
+  cnt.innerHTML=`
+  <div class="dash-grid" style="margin-bottom:16px">
+    <div class="kpi" style="border-left-color:var(--ok)">
+      <div class="kpi-lbl">En inventario</div>
+      <div class="kpi-val">${inv.length}</div>
+      <div class="kpi-sub">de ${prods.length} productos activos</div></div>
+    <div class="kpi" style="border-left-color:var(--warn)">
+      <div class="kpi-lbl">Stock bajo</div>
+      <div class="kpi-val" style="color:var(--warn)">${low}</div>
+      <div class="kpi-sub">Por debajo del mínimo</div></div>
+    <div class="kpi" style="border-left-color:var(--err)">
+      <div class="kpi-lbl">Sin stock</div>
+      <div class="kpi-val" style="color:var(--err)">${out}</div>
+      <div class="kpi-sub">Agotados</div></div>
+    <div class="kpi" style="border-left-color:var(--info)">
+      <div class="kpi-lbl">Valor estimado</div>
+      <div class="kpi-val">${fc(valor)}</div>
+      <div class="kpi-sub">Basado en último costo</div></div>
+  </div>
+  <div class="card">
+    <div class="ch">
+      <div class="ct">📦 Control de Stock</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${isAdmin?`<button class="btn bp" onclick="openInvMov()">+ Movimiento</button>
+        <button class="btn bw" onclick="syncInvProds()">🔄 Sincronizar productos</button>`:''}
+        <button class="btn bo" onclick="exportInv()">⬇️ Exportar CSV</button>
+      </div>
+    </div>
+    <div class="pflt">
+      <div><label class="fl">Buscar</label>
+        <input type="text" class="fc" id="inv-search" placeholder="Nombre..." oninput="filterInv()"/></div>
+      <div><label class="fl">Estado</label>
+        <select class="fc" id="inv-status-flt" onchange="filterInv()">
+          <option value="">Todos</option>
+          <option value="out">Sin stock</option>
+          <option value="low">Stock bajo</option>
+          <option value="ok">OK</option>
+        </select></div>
+    </div>
+    <div class="inv-grid" id="inv-cards-wrap">${buildInvCards(inv,prods,isAdmin)}</div>
+    ${!inv.length?'<div class="empty"><div class="ei">📦</div><h3>Sin inventario</h3><p>Pulsa "Sincronizar productos" para comenzar.</p></div>':''}
+  </div>`;
+}
+function buildInvCards(inv,prods,isAdmin){
+  return inv.map(item=>{
+    const prod=prods.find(p=>p.id===item.prodId);
+    const name=prod?prod.name:(item.nombre||'Producto');
+    const pct=item.stockMin>0?Math.min(100,Math.round(((item.stock||0)/((item.stockMax||item.stockMin*3)||10))*100)):100;
+    const sc=item.stock<=0?'out':item.stock<=item.stockMin?'low':'ok';
+    const sl=item.stock<=0?'Agotado':item.stock<=item.stockMin?'Stock bajo':'OK';
+    const bc=item.stock<=0?'var(--err)':item.stock<=item.stockMin?'var(--warn)':'var(--ok)';
+    const lm=item.movimientos&&item.movimientos[0];
+    return `<div class="inv-card stock-${sc}" id="icard-${item.prodId}" data-name="${name.toLowerCase()}" data-status="${sc}">
+      <span class="inv-badge ${sc}">${sl}</span>
+      <div style="font-weight:800;font-size:14px;margin-bottom:2px;padding-right:64px">${name}</div>
+      <div style="color:var(--muted);font-size:11px;margin-bottom:10px">${prod?prod.category:''}</div>
+      <div style="display:flex;align-items:baseline;gap:4px">
+        <span class="inv-qty">${(item.stock||0)%1?Number(item.stock).toFixed(2):item.stock||0}</span>
+        <span class="inv-unit">${item.unit||'pzas'}</span>
+        <span style="font-size:11px;color:var(--muted);margin-left:4px">/ mín ${item.stockMin||0}</span>
+      </div>
+      <div class="inv-bar-wrap"><div class="inv-bar" style="width:${pct}%;background:${bc}"></div></div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px">
+        ${lm?`Último: ${lm.qty>=0?'+':''}${lm.qty} ${lm.unit||''} · ${fd(lm.ts)}`:'Sin movimientos'}</div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap">
+        ${isAdmin?`<button class="btn bp btn-sm" onclick="openInvMov('${item.prodId}','in')">📦 Entrada</button>
+        <button class="btn bw btn-sm" onclick="openInvMov('${item.prodId}','out')">📤 Salida</button>
+        <button class="btn bo btn-sm" onclick="openInvMov('${item.prodId}','adj')">🔧 Ajuste</button>`:''}
+        <button class="btn bo btn-sm" onclick="openInvHist('${item.prodId}')">📋 Historial</button>
+      </div>
+      ${item.costoUnit?`<div style="font-size:11px;color:var(--muted);margin-top:8px">Costo unit: ${fc(item.costoUnit)} · Valor: ${fc((item.stock||0)*item.costoUnit)}</div>`:''}
+    </div>`;
+  }).join('');
+}
+function filterInv(){
+  const s=($('inv-search')?.value||'').toLowerCase();
+  const st=$('inv-status-flt')?.value||'';
+  document.querySelectorAll('#inv-cards-wrap .inv-card').forEach(card=>{
+    card.style.display=((!s||card.dataset.name.includes(s))&&(!st||card.dataset.status===st))?'':'none';
+  });
+}
+function syncInvProds(){
+  const prods=LS.get('be_products').filter(p=>p.active!==false);
+  let inv=LS.get('be_inventory');
+  const existing=new Set(inv.map(i=>i.prodId));
+  let added=0;
+  prods.forEach(p=>{
+    if(!existing.has(p.id)){
+      inv.push({prodId:p.id,nombre:p.name,stock:0,stockMin:5,stockMax:50,
+        unit:'pzas',costoUnit:0,consumoPorVenta:1,movimientos:[]});
+      added++;
+    }
+  });
+  LS.set('be_inventory',inv);
+  notify('✅','Sincronizado',added?`${added} producto(s) agregado(s) al inventario.`:'Ya está sincronizado.',3000);
+  logAct(CU.id,'Sincronizó inventario');
+  go('inventario',true);
+}
+function openInvMov(prodId,type){
+  const inv=LS.get('be_inventory');
+  const prods=LS.get('be_products');
+  $('inv-type').value=type||'in';
+  if(prodId){
+    const item=inv.find(i=>i.prodId===prodId);
+    const prod=prods.find(p=>p.id===prodId);
+    $('inv-pid').value=prodId;
+    $('inv-pname').value=prod?prod.name:(item?item.nombre:'');
+    $('inv-pname').disabled=true;
+    $('inv-unit-lbl').value=item?item.unit||'pzas':'pzas';
+    $('inv-min').value=item?item.stockMin||5:5;
+    $('inv-cost').value=item&&item.costoUnit?item.costoUnit:'';
+  } else {
+    $('inv-pid').value='';
+    $('inv-pname').value='';
+    $('inv-pname').disabled=false;
+  }
+  $('inv-qty').value='';$('inv-note').value='';
+  $('inv-mov-title').textContent=type==='in'?'📦 Entrada de Stock':type==='out'?'📤 Salida de Stock':type==='adj'?'🔧 Ajuste de Stock':'Registrar Movimiento';
+  updInvTypeUI();
+  om('m-inv-mov');
+  setTimeout(()=>$('inv-qty').focus(),200);
+}
+function updInvTypeUI(){
+  const t=$('inv-type').value;
+  $('inv-qty-lbl').textContent=t==='adj'?'Nuevo stock total':'Cantidad';
+  const cw=$('inv-cost-wrap');if(cw)cw.style.display=t==='in'?'':'none';
+}
+function saveInvMov(){
+  const prodId=$('inv-pid').value;
+  const qty=parseFloat($('inv-qty').value);
+  const type=$('inv-type').value;
+  const unit=$('inv-unit-lbl').value.trim()||'pzas';
+  const note=$('inv-note').value.trim();
+  const cost=parseFloat($('inv-cost').value)||0;
+  const minVal=parseFloat($('inv-min').value)||0;
+  if(!prodId){notify('⚠️','Sin producto','Selecciona un producto desde las tarjetas.',2500);return;}
+  if(isNaN(qty)||qty<0){notify('⚠️','Cantidad inválida','Ingresa una cantidad válida.',2500);return;}
+  let inv=LS.get('be_inventory');
+  const iIdx=inv.findIndex(i=>i.prodId===prodId);
+  if(iIdx===-1){notify('⚠️','No encontrado','Producto no en inventario.',2500);return;}
+  const prev=inv[iIdx].stock||0;
+  let newStock=type==='adj'?qty:type==='in'?prev+qty:Math.max(0,prev-qty);
+  const movQty=type==='adj'?qty-prev:type==='in'?qty:-qty;
+  inv[iIdx].stock=Math.round(newStock*1000)/1000;
+  inv[iIdx].unit=unit;inv[iIdx].stockMin=minVal;
+  if(cost>0)inv[iIdx].costoUnit=cost;
+  if(!inv[iIdx].movimientos)inv[iIdx].movimientos=[];
+  inv[iIdx].movimientos.unshift({type,qty:movQty,unit,note,cost:type==='in'?cost:0,
+    stockPrev:prev,stockNew:inv[iIdx].stock,ts:new Date().toISOString(),user:CU.name});
+  if(inv[iIdx].movimientos.length>200)inv[iIdx].movimientos=inv[iIdx].movimientos.slice(0,200);
+  LS.set('be_inventory',inv);
+  logAct(CU.id,`Inventario: ${type} ${qty} ${unit} de ${$('inv-pname').value}`);
+  notify('✅','Guardado',`Stock: ${prev} → ${inv[iIdx].stock} ${unit}`,4000);
+  cm('m-inv-mov');
+  if(inv[iIdx].stock<=minVal&&inv[iIdx].stock>0)notify('⚠️','Stock bajo',`${$('inv-pname').value} por debajo del mínimo.`,5000);
+  if(inv[iIdx].stock<=0)notify('🚨','Sin stock',`${$('inv-pname').value} se agotó.`,6000);
+  go('inventario',true);
+}
+function openInvHist(prodId){
+  const inv=LS.get('be_inventory');
+  const item=inv.find(i=>i.prodId===prodId);
+  const prod=LS.get('be_products').find(p=>p.id===prodId);
+  if(!item)return;
+  const movs=item.movimientos||[];
+  $('inv-hist-title').textContent='📋 Historial: '+(prod?prod.name:item.nombre||'');
+  $('inv-hist-body').innerHTML=!movs.length
+    ?'<div class="empty"><p>Sin movimientos registrados.</p></div>'
+    :movs.map(m=>`<div class="mov-row">
+      <span style="width:22px;text-align:center;font-size:15px">${m.type==='in'?'📦':m.type==='out'?'📤':m.type==='auto'?'🔄':'🔧'}</span>
+      <div style="flex:1">
+        <div style="font-weight:600">${m.type==='in'?'Entrada':m.type==='out'?'Salida':m.type==='auto'?'Venta automática':'Ajuste'}
+          <span class="${m.qty>=0?'mov-in':'mov-out'}">${m.qty>=0?'+':''}${m.qty} ${m.unit||''}</span></div>
+        <div style="font-size:11px;color:var(--muted)">${m.note||''} · ${fd(m.ts)} · ${m.user||''}</div>
+        ${m.stockPrev!==undefined?`<div style="font-size:11px;color:var(--muted)">${m.stockPrev} → ${m.stockNew} ${m.unit||''}</div>`:''}
+      </div>
+      ${m.cost?`<span style="font-size:12px;color:var(--ok)">Costo: ${fc(m.cost)}</span>`:''}
+    </div>`).join('');
+  om('m-inv-hist');
+}
+function exportInv(){
+  const inv=LS.get('be_inventory');
+  const prods=LS.get('be_products');
+  if(!inv.length){notify('ℹ️','Sin datos','No hay inventario para exportar.',2500);return;}
+  const rows=[['Producto','Categoría','Stock','Unidad','Mínimo','Costo Unit','Valor Total','Estado']];
+  inv.forEach(item=>{
+    const prod=prods.find(p=>p.id===item.prodId);
+    const st=item.stock<=0?'Agotado':item.stock<=item.stockMin?'Bajo':'OK';
+    rows.push([prod?prod.name:item.nombre||'',prod?prod.category:'',item.stock||0,
+      item.unit||'pzas',item.stockMin||0,item.costoUnit||0,
+      ((item.stock||0)*(item.costoUnit||0)).toFixed(2),st]);
+  });
+  const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='inventario_'+today()+'.csv';a.click();
+  URL.revokeObjectURL(url);
+  notify('✅','Exportado','Inventario descargado como CSV.',3000);
 }
 
 </script>
