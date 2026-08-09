@@ -2567,7 +2567,7 @@ function addCustomInvProd(){
   const exists=inv.some(i=>(i.nombre||'').toLowerCase()===name.toLowerCase());
   if(exists){notify('⚠️','Ya existe','Ya hay un producto con ese nombre en el inventario.',3000);return;}
   const newId='custom-'+Date.now();
-  inv.push({prodId:newId,nombre:name,stock:0,stockMin:5,stockMax:50,
+  inv.push({id:newId,prodId:newId,nombre:name,stock:0,stockMin:5,stockMax:50,
     unit,costoUnit:0,consumoPorVenta:1,trackStock:true,movimientos:[]});
   LS.set('be_inventory',inv);
   logAct(CU.id,'Agregó producto personalizado al inventario: '+name);
@@ -2588,7 +2588,7 @@ function applyInvSelect(){
       const alreadyExists=inv.some(i=>i.prodId===pid);
       if(!alreadyExists){
         const prod=prods.find(p=>p.id===pid);
-        inv.push({prodId:pid,nombre:prod?prod.name:'',stock:0,stockMin:5,stockMax:50,
+        inv.push({id:pid,prodId:pid,nombre:prod?prod.name:'',stock:0,stockMin:5,stockMax:50,
           unit:'pzas',costoUnit:0,consumoPorVenta:1,trackStock:true,movimientos:[]});
         added++;
       } else {
