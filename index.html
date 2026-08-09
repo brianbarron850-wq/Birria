@@ -921,7 +921,8 @@ let _lastBadgeHash='';
 function updBadges(){
   const orders=LS.get('be_orders');
   const kc=orders.filter(o=>['pending','in-process'].includes(o.status)).length;
-  const cc=orders.filter(o=>['ready','bar','delivered'].includes(o.status)).length;
+  // Excluir pedidos ya cobrados anticipadamente del contador de caja
+  const cc=orders.filter(o=>['ready','bar','delivered'].includes(o.status)&&!o.paid).length;
   const _bh=`${kc}-${cc}`; if(_bh===_lastBadgeHash)return; _lastBadgeHash=_bh;
   const kb=document.getElementById('b-kit');
   const cb=document.getElementById('b-cas');
@@ -1521,14 +1522,17 @@ function finalizePay(ft,paid,da,ta){
     change: chg,
     paidAt: new Date().toISOString()
   });
+  // Descontar inventario y capturar el resultado actualizado para incluirlo en el batch
   autoDescontarInventario(orders[i].items||[]);
+  const invActualizado=LS.get('be_inventory');
   LS.setBatch([
     ['be_orders',       orders],
     ['be_caja',         cajaList],
     ['be_caja_session', cajaSess],
     ['be_sd',           addSales('be_sd')],
     ['be_sw',           addSales('be_sw')],
-    ['be_sm',           addSales('be_sm')]
+    ['be_sm',           addSales('be_sm')],
+    ['be_inventory',    invActualizado]
   ]);
   logAct(CU.id,`Cobró pedido #${orders[i].number} - ${orders[i].clientName} - ${fc(ft)}`);
   notify('✅','¡Pago exitoso!',`Pedido #${orders[i].number}. Cambio: ${fc(chg)}`,4000);
@@ -2364,7 +2368,10 @@ function autoDescontarInventario(items){
   if(!inv||!inv.length)return;
   let changed=false;
   items.forEach(item=>{
-    const iIdx=inv.findIndex(i=>i.prodId===item.id&&i.trackStock!==false);
+    // Buscar por prodId exacto primero, luego por nombre como fallback
+    let iIdx=inv.findIndex(i=>i.prodId===item.id&&i.trackStock!==false);
+    if(iIdx===-1) iIdx=inv.findIndex(i=>
+      i.trackStock!==false&&(i.nombre||'').toLowerCase()===(item.name||'').toLowerCase());
     if(iIdx===-1)return; // producto no está en inventario o no tiene seguimiento
     const consume=(inv[iIdx].consumoPorVenta||1)*item.qty;
     const prev=inv[iIdx].stock||0;
