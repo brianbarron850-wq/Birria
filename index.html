@@ -1144,7 +1144,7 @@ function buildCart(){
 }
 function buildMyOrders(){
   const orders=LS.get('be_orders');
-  const mine=orders.filter(o=>o.workerId===CU.id&&!['paid','cancelled','delivered'].includes(o.status)&&!o.paid).sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
+  const mine=orders.filter(o=>o.workerId===CU.id&&!['paid','cancelled','delivered'].includes(o.status)).sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
   if(!mine.length)return'<div class="empty" style="padding:16px 0"><p>Sin pedidos activos</p></div>';
   return mine.map(o=>`
     <div class="cord" style="cursor:default">
