@@ -1144,7 +1144,7 @@ function buildCart(){
 }
 function buildMyOrders(){
   const orders=LS.get('be_orders');
-  const mine=orders.filter(o=>o.workerId===CU.id&&!['paid','cancelled'].includes(o.status)).sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
+  const mine=orders.filter(o=>o.workerId===CU.id&&!['paid','cancelled','delivered'].includes(o.status)&&!o.paid).sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
   if(!mine.length)return'<div class="empty" style="padding:16px 0"><p>Sin pedidos activos</p></div>';
   return mine.map(o=>`
     <div class="cord" style="cursor:default">
@@ -1212,10 +1212,13 @@ function sendOrder(){
 function markDel(oid){
   const orders=LS.get('be_orders');
   const i=orders.findIndex(o=>o.id===oid);if(i===-1)return;
-  orders[i].status='delivered';LS.set('be_orders',orders);
+  // Si ya fue cobrado anticipadamente, cerrarlo como 'paid' al entregar
+  orders[i].status=orders[i].paid?'paid':'delivered';
+  orders[i].paid=false;
+  LS.set('be_orders',orders);
   logAct(CU.id,`Marcó pedido #${orders[i].number} como Entregado`);
   notify('✅','Pedido Entregado',`Pedido #${orders[i].number} entregado al cliente.`,3000);
-  go('orders');
+  go('orders',true);
 }
 
 // ═══════════════════════════════════════════
@@ -2363,33 +2366,41 @@ function resetHorarios(){
 // INVENTARIO VIEW
 // ═══════════════════════════════════════════
 function autoDescontarInventario(items){
-  // Solo descuenta productos que están en inventario con seguimiento activo
-  let inv=LS.get('be_inventory');
+  // Descuenta del inventario al cobrar. NUNCA agrega registros nuevos.
+  const inv=LS.get('be_inventory');
   if(!inv||!inv.length)return;
   let changed=false;
   items.forEach(item=>{
-    // Buscar por prodId exacto primero, luego por nombre como fallback
-    let iIdx=inv.findIndex(i=>i.prodId===item.id&&i.trackStock!==false);
-    if(iIdx===-1) iIdx=inv.findIndex(i=>
-      i.trackStock!==false&&(i.nombre||'').toLowerCase()===(item.name||'').toLowerCase());
-    if(iIdx===-1)return; // producto no está en inventario o no tiene seguimiento
-    const consume=(inv[iIdx].consumoPorVenta||1)*item.qty;
+    // 1) Buscar por prodId === id del producto en el pedido
+    let iIdx=inv.findIndex(i=>i.trackStock!==false&&i.prodId===item.id);
+    // 2) Si no encontró, buscar por nombre exacto (case-insensitive)
+    if(iIdx===-1){
+      const nameLow=(item.name||'').toLowerCase().trim();
+      iIdx=inv.findIndex(i=>i.trackStock!==false&&(i.nombre||'').toLowerCase().trim()===nameLow);
+    }
+    // 3) Si no existe en inventario, NO hacer nada (nunca crear entradas nuevas aquí)
+    if(iIdx===-1)return;
+    const consume=Math.max(0,(inv[iIdx].consumoPorVenta||1)*item.qty);
+    if(consume===0)return;
     const prev=inv[iIdx].stock||0;
     inv[iIdx].stock=Math.max(0,prev-consume);
     if(!inv[iIdx].movimientos)inv[iIdx].movimientos=[];
-    inv[iIdx].movimientos.unshift({type:'auto',qty:-consume,unit:inv[iIdx].unit||'pzas',
-      note:'Venta automática: '+item.qty+'x '+item.name,
+    inv[iIdx].movimientos.unshift({
+      type:'auto',qty:-consume,unit:inv[iIdx].unit||'pzas',
+      note:'Venta: '+item.qty+'x '+item.name,
       stockPrev:prev,stockNew:inv[iIdx].stock,
-      ts:new Date().toISOString(),user:(CU&&CU.name)||'Sistema'});
-    if(inv[iIdx].movimientos.length>200)inv[iIdx].movimientos=inv[iIdx].movimientos.slice(0,200);
-    // Alerta en tiempo real si queda bajo mínimo
+      ts:new Date().toISOString(),user:(CU&&CU.name)||'Sistema'
+    });
+    if(inv[iIdx].movimientos.length>200)
+      inv[iIdx].movimientos=inv[iIdx].movimientos.slice(0,200);
     if(inv[iIdx].stock<=inv[iIdx].stockMin&&inv[iIdx].stock>0)
       notify('⚠️','Stock bajo',item.name+' por debajo del mínimo.',4000);
     if(inv[iIdx].stock<=0)
       notify('🚨','Sin stock',item.name+' se agotó.',5000);
     changed=true;
   });
-  if(changed)LS.set('be_inventory',inv);
+  // Solo escribe si hubo cambios reales
+  if(changed)LCache['be_inventory']=inv;
 }
 function rInventario(cnt){
   const inv=LS.get('be_inventory');
@@ -2473,6 +2484,7 @@ function buildInvCards(inv,prods,isAdmin){
         <button class="btn bw btn-sm" onclick="openInvMov('${item.prodId}','out')">📤 Salida</button>
         <button class="btn bo btn-sm" onclick="openInvMov('${item.prodId}','adj')">🔧 Ajuste</button>`:''}
         <button class="btn bo btn-sm" onclick="openInvHist('${item.prodId}')">📋 Historial</button>
+        ${isAdmin?`<button class="btn bd btn-sm" onclick="deleteInvProd('${item.prodId}')">🗑️ Eliminar</button>`:''}
       </div>
       ${item.costoUnit?`<div style="font-size:11px;color:var(--muted);margin-top:8px">Costo unit: ${fc(item.costoUnit)} · Valor: ${fc((item.stock||0)*item.costoUnit)}</div>`:''}
     </div>`;
@@ -2568,17 +2580,25 @@ function applyInvSelect(){
   const prods=LS.get('be_products');
   let inv=LS.get('be_inventory');
   const existing=new Map(inv.map(i=>[i.prodId,i]));
-  // Activar/desactivar seguimiento según selección
+  // Activar/desactivar seguimiento según selección — sin duplicados
   let added=0,changed=0;
   selected.forEach(pid=>{
     if(!existing.has(pid)){
-      const prod=prods.find(p=>p.id===pid);
-      inv.push({prodId:pid,nombre:prod?prod.name:'',stock:0,stockMin:5,stockMax:50,
-        unit:'pzas',costoUnit:0,consumoPorVenta:1,trackStock:true,movimientos:[]});
-      added++;
-    } else if(existing.get(pid).trackStock===false){
+      // Solo agregar si realmente no existe ninguna entrada con ese prodId
+      const alreadyExists=inv.some(i=>i.prodId===pid);
+      if(!alreadyExists){
+        const prod=prods.find(p=>p.id===pid);
+        inv.push({prodId:pid,nombre:prod?prod.name:'',stock:0,stockMin:5,stockMax:50,
+          unit:'pzas',costoUnit:0,consumoPorVenta:1,trackStock:true,movimientos:[]});
+        added++;
+      } else {
+        // Existe pero no estaba en el Map (raro) — activarlo
+        const found=inv.find(i=>i.prodId===pid);
+        if(found){found.trackStock=true;changed++;}
+      }
+    } else {
       existing.get(pid).trackStock=true;
-      changed++;
+      if(existing.get(pid).trackStock===false)changed++;
     }
   });
   inv.forEach(item=>{
@@ -2694,6 +2714,25 @@ function exportInv(){
   notify('✅','Exportado','Inventario descargado como CSV.',3000);
 }
 
+
+function deleteInvProd(prodId){
+  const inv=LS.get('be_inventory');
+  const item=inv.find(i=>i.prodId===prodId);
+  if(!item)return;
+  const name=item.nombre||(LS.get('be_products').find(p=>p.id===prodId)||{}).name||prodId;
+  confirm2(
+    'Eliminar del inventario',
+    `¿Eliminar "${name}" del inventario? Se borrará su historial de movimientos. Esta acción no se puede deshacer.`,
+    ()=>{
+      const updated=inv.filter(i=>i.prodId!==prodId);
+      LS.set('be_inventory',updated);
+      logAct(CU.id,'Eliminó "'+name+'" del inventario');
+      notify('✅','Eliminado','"'+name+'" fue eliminado del inventario.',3000);
+      go('inventario',true);
+    },
+    'Eliminar','bd'
+  );
+}
 </script>
 </body>
 </html>
