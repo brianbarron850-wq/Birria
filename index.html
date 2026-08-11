@@ -819,9 +819,10 @@ function initData(){
   _localInit('be_orders',[]);
   _localInit('be_cuts',[]);
   _localInit('be_caja',[]);
-  // Reiniciar sesión de caja si es un día nuevo (solo en LCache, sin sync al servidor)
-  const _sess=LCache['be_caja_session'];
-  if(!_sess||_sess.fecha!==today()) LCache['be_caja_session']={registros:[],fecha:today()};
+  // Solo inicializar be_caja_session si no existe en absoluto.
+  // NUNCA se resetea automáticamente por fecha — solo se limpia desde
+  // resetCajaSession() o doCorte() de forma explícita.
+  _localInit('be_caja_session',{registros:[],fecha:today()});
   _localInit('be_inventory',[]);
   _localInit('be_horarios',{semana:weekStart(),turnos:{}});
   if(!LCache['be_sd']||!LCache['be_sd'].date||LCache['be_sd'].date!==today())
@@ -1332,9 +1333,6 @@ function updStatus(oid,ns){
 // ═══════════════════════════════════════════
 function rCashier(c){
   const orders=LS.get('be_orders');
-  // Verificar si la sesión de caja es del día actual
-  const _csess=LS.obj('be_caja_session',{fecha:''});
-  if(_csess.fecha&&_csess.fecha!==today()){LS.set('be_caja_session',{registros:[],fecha:today()});}
   // Mostrar pedidos no cobrados: ni status=paid ni paid=true
   const list=orders.filter(o=>o.status!=='cancelled'&&o.status!=='paid'&&!o.paid).sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));
   c.innerHTML=`<div class="cslayout">
@@ -1837,11 +1835,21 @@ function rCorte(c){
     </div>
     ${!cuts.length?'<div class="empty"><div class="ei">📊</div><p>Sin cortes registrados aún.</p></div>':
     `<div class="tw"><table>
-      <thead><tr><th>Fecha</th><th>Cajero</th><th>C. Inicial</th><th>Ventas</th><th>Efectivo</th><th>Tarjeta</th><th>Transfer.</th><th>Esperado</th><th>Físico</th><th>Diferencia</th></tr></thead>
+      <thead><tr>
+        <th>Fecha</th><th>Cajero</th><th>C. Inicial</th><th>Ventas</th>
+        <th>Efectivo</th><th>Tarjeta</th><th>Transfer.</th>
+        <th style="color:var(--ok)">Propinas</th>
+        <th style="color:var(--warn)">Desc. Monto</th>
+        <th style="color:var(--warn)">Desc. %</th>
+        <th>Esperado</th><th>Físico</th><th>Diferencia</th>
+      </tr></thead>
       <tbody>${cuts.slice().reverse().map(ct=>`<tr>
         <td>${fds(ct.timestamp)}</td><td>${ct.workerName}</td>
         <td>${fc(ct.initCash)}</td><td>${fc(ct.salesTotal)}</td>
         <td>${fc(ct.cash)}</td><td>${fc(ct.card)}</td><td>${fc(ct.transfer)}</td>
+        <td style="color:var(--ok);font-weight:700">${fc(ct.tips||0)}</td>
+        <td style="color:var(--warn);font-weight:700">${fc(ct.discAmt||0)}</td>
+        <td style="color:var(--warn);font-weight:700">${fc(ct.discPct||0)}</td>
         <td>${fc(ct.expectedCash)}</td><td>${fc(ct.physicalCash)}</td>
         <td style="color:${ct.diff===0?'var(--ok)':ct.diff>0?'var(--warn)':'var(--err)'}">
           <strong>${ct.diff>0?'+':''}${fc(ct.diff)}</strong>
@@ -1902,10 +1910,20 @@ function doCorte(){
   if(!cierreData)return;
   const sd=LS.obj('be_sd');
   const cuts=LS.get('be_cuts');
+  // Calcular totales de propinas y descuentos desde los registros de la sesión actual
+  const cajaSess=LS.obj('be_caja_session',{registros:[]});
+  const sessRegs=cajaSess.registros||[];
+  const totalTipsCierre   = sessRegs.reduce((s,r)=>s+(r.tip||0),0);
+  const totalDiscAmt      = sessRegs.reduce((s,r)=>s+(r.discType==='amt'?r.discAmt||0:0),0);
+  const totalDiscPct      = sessRegs.reduce((s,r)=>s+(r.discType==='pct'?r.discAmt||0:0),0);
+  const totalDiscTotal    = totalDiscAmt + totalDiscPct; // suma de todos los descuentos aplicados
   const c={id:uid(),timestamp:new Date().toISOString(),workerName:CU.name,workerId:CU.id,
     initCash:cierreData.ini,salesTotal:sd.total,cash:sd.cash,card:sd.card,transfer:sd.transfer,
-    expectedCash:cierreData.expected,physicalCash:cierreData.fis,diff:cierreData.diff};
+    expectedCash:cierreData.expected,physicalCash:cierreData.fis,diff:cierreData.diff,
+    tips:totalTipsCierre, discAmt:totalDiscAmt, discPct:totalDiscPct, totalDisc:totalDiscTotal};
   cuts.push(c);LS.set('be_cuts',cuts);
+  // Limpiar sesión del día al hacer corte
+  LS.set('be_caja_session',{registros:[],fecha:today()});
   LS.set('be_sd',{total:0,cash:0,card:0,transfer:0,date:today(),initCash:cierreData.fis});
   logAct(CU.id,`Realizó corte de caja. Ventas: ${fc(sd.total)} · Diferencia: ${fc(cierreData.diff)}`);
   cm('m-cierre');
@@ -1947,7 +1965,7 @@ function printCuts(type){
   <h2>🔥 BIRRIA EXPRESS — Reporte de Cortes</h2>
   <div>Generado el: ${new Date().toLocaleString('es-MX')} · Usuario: ${CU.name}</div>
   <table>
-    <thead><tr><th>Fecha</th><th>Cajero</th><th>C. Inicial</th><th>Ventas Total</th><th>Efectivo</th><th>Tarjeta</th><th>Transfer.</th><th>Esperado</th><th>Físico</th><th>Diferencia</th></tr></thead>
+    <thead><tr><th>Fecha</th><th>Cajero</th><th>C. Inicial</th><th>Ventas Total</th><th>Efectivo</th><th>Tarjeta</th><th>Transfer.</th><th>Propinas</th><th>Desc. Monto</th><th>Desc. %</th><th>Esperado</th><th>Físico</th><th>Diferencia</th></tr></thead>
     <tbody>
       ${list.map(ct => `<tr>
         <td>${fds(ct.timestamp)}</td>
@@ -1957,6 +1975,9 @@ function printCuts(type){
         <td>${fc(ct.cash)}</td>
         <td>${fc(ct.card)}</td>
         <td>${fc(ct.transfer)}</td>
+        <td>${fc(ct.tips||0)}</td>
+        <td>${fc(ct.discAmt||0)}</td>
+        <td>${fc(ct.discPct||0)}</td>
         <td>${fc(ct.expectedCash)}</td>
         <td>${fc(ct.physicalCash)}</td>
         <td>${fc(ct.diff)}</td>
@@ -2358,9 +2379,9 @@ function exportAllToExcel(){
 
   // 5. CORTES DE CAJA
   sections.push('=== CORTES DE CAJA ===');
-  sections.push(row(['ID','Fecha','Cajero','Caja Inicial','Ventas Total','Efectivo','Tarjeta','Transfer.','Esperado','Físico','Diferencia']));
+  sections.push(row(['ID','Fecha','Cajero','Caja Inicial','Ventas Total','Efectivo','Tarjeta','Transfer.','Propinas','Desc. Monto $','Desc. Porcentaje $','Esperado','Físico','Diferencia']));
   cuts.forEach(c=>{
-    sections.push(row([c.id,fd(c.timestamp),c.workerName,c.initCash,c.salesTotal,c.cash,c.card,c.transfer,c.expectedCash,c.physicalCash,c.diff]));
+    sections.push(row([c.id,fd(c.timestamp),c.workerName,c.initCash,c.salesTotal,c.cash,c.card,c.transfer,c.tips||0,c.discAmt||0,c.discPct||0,c.expectedCash,c.physicalCash,c.diff]));
   });
   sections.push('');
 
