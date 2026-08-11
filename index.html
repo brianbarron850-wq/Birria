@@ -819,9 +819,9 @@ function initData(){
   _localInit('be_orders',[]);
   _localInit('be_cuts',[]);
   _localInit('be_caja',[]);
-  // Solo inicializar be_caja_session si no existe en absoluto en la BD.
-  // NUNCA se borra automáticamente por fecha — únicamente resetCajaSession()
-  // o doCorte() pueden limpiarla de forma explícita.
+  // Solo inicializar be_caja_session si no existe en absoluto.
+  // NUNCA se resetea automáticamente por fecha — solo se limpia desde
+  // resetCajaSession() o doCorte() de forma explícita.
   _localInit('be_caja_session',{registros:[],fecha:today()});
   _localInit('be_inventory',[]);
   _localInit('be_horarios',{semana:weekStart(),turnos:{}});
@@ -1838,9 +1838,9 @@ function rCorte(c){
       <thead><tr>
         <th>Fecha</th><th>Cajero</th><th>C. Inicial</th><th>Ventas</th>
         <th>Efectivo</th><th>Tarjeta</th><th>Transfer.</th>
-        <th style="color:var(--ok)">💰 Propinas</th>
-        <th style="color:var(--warn)">🏷️ Desc. Monto</th>
-        <th style="color:var(--warn)">🏷️ Desc. %</th>
+        <th style="color:var(--ok)">Propinas</th>
+        <th style="color:var(--warn)">Desc. Monto</th>
+        <th style="color:var(--warn)">Desc. %</th>
         <th>Esperado</th><th>Físico</th><th>Diferencia</th>
       </tr></thead>
       <tbody>${cuts.slice().reverse().map(ct=>`<tr>
@@ -1910,19 +1910,19 @@ function doCorte(){
   if(!cierreData)return;
   const sd=LS.obj('be_sd');
   const cuts=LS.get('be_cuts');
-  // Calcular totales de propinas y descuentos desde los registros del día
-  // antes de limpiar la sesión
+  // Calcular totales de propinas y descuentos desde los registros de la sesión actual
   const cajaSess=LS.obj('be_caja_session',{registros:[]});
   const sessRegs=cajaSess.registros||[];
-  const totalTips    = sessRegs.reduce((s,r)=>s+(r.tip||0),0);
-  const totalDiscAmt = sessRegs.reduce((s,r)=>s+(r.discType==='amt'?r.discAmt||0:0),0);
-  const totalDiscPct = sessRegs.reduce((s,r)=>s+(r.discType==='pct'?r.discAmt||0:0),0);
+  const totalTipsCierre   = sessRegs.reduce((s,r)=>s+(r.tip||0),0);
+  const totalDiscAmt      = sessRegs.reduce((s,r)=>s+(r.discType==='amt'?r.discAmt||0:0),0);
+  const totalDiscPct      = sessRegs.reduce((s,r)=>s+(r.discType==='pct'?r.discAmt||0:0),0);
+  const totalDiscTotal    = totalDiscAmt + totalDiscPct; // suma de todos los descuentos aplicados
   const c={id:uid(),timestamp:new Date().toISOString(),workerName:CU.name,workerId:CU.id,
     initCash:cierreData.ini,salesTotal:sd.total,cash:sd.cash,card:sd.card,transfer:sd.transfer,
     expectedCash:cierreData.expected,physicalCash:cierreData.fis,diff:cierreData.diff,
-    tips:totalTips, discAmt:totalDiscAmt, discPct:totalDiscPct};
+    tips:totalTipsCierre, discAmt:totalDiscAmt, discPct:totalDiscPct, totalDisc:totalDiscTotal};
   cuts.push(c);LS.set('be_cuts',cuts);
-  // Limpiar sesión del día al hacer el cierre
+  // Limpiar sesión del día al hacer corte
   LS.set('be_caja_session',{registros:[],fecha:today()});
   LS.set('be_sd',{total:0,cash:0,card:0,transfer:0,date:today(),initCash:cierreData.fis});
   logAct(CU.id,`Realizó corte de caja. Ventas: ${fc(sd.total)} · Diferencia: ${fc(cierreData.diff)}`);
@@ -2379,9 +2379,9 @@ function exportAllToExcel(){
 
   // 5. CORTES DE CAJA
   sections.push('=== CORTES DE CAJA ===');
-  sections.push(row(['ID','Fecha','Cajero','Caja Inicial','Ventas Total','Efectivo','Tarjeta','Transfer.','Esperado','Físico','Diferencia']));
+  sections.push(row(['ID','Fecha','Cajero','Caja Inicial','Ventas Total','Efectivo','Tarjeta','Transfer.','Propinas','Desc. Monto $','Desc. Porcentaje $','Esperado','Físico','Diferencia']));
   cuts.forEach(c=>{
-    sections.push(row([c.id,fd(c.timestamp),c.workerName,c.initCash,c.salesTotal,c.cash,c.card,c.transfer,c.expectedCash,c.physicalCash,c.diff]));
+    sections.push(row([c.id,fd(c.timestamp),c.workerName,c.initCash,c.salesTotal,c.cash,c.card,c.transfer,c.tips||0,c.discAmt||0,c.discPct||0,c.expectedCash,c.physicalCash,c.diff]));
   });
   sections.push('');
 
