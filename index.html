@@ -369,9 +369,9 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#FDFAF8}
         <button class="ni" data-v="products" onclick="go('products')"><span class="ico">🍖</span>Productos</button>
         <button class="ni" data-v="corte" onclick="go('corte')"><span class="ico">📊</span>Corte</button>
         <button class="ni" data-v="users" onclick="go('users')"><span class="ico">👥</span>Usuarios</button>
-          <button class="ni" data-v="inventario" onclick="go('inventario')"><span class="ico">📦</span>Inventario</button>
-          <button class="ni" data-v="dashboard" onclick="go('dashboard')"><span class="ico">📈</span>Dashboard</button>
-          <button class="ni" data-v="horarios" onclick="go('horarios')"><span class="ico">📅</span>Horarios</button>
+        <button class="ni" data-v="inventario" onclick="go('inventario')"><span class="ico">📦</span>Inventario</button>
+        <button class="ni" data-v="dashboard" onclick="go('dashboard')"><span class="ico">📈</span>Dashboard</button>
+        <button class="ni" data-v="horarios" onclick="go('horarios')"><span class="ico">📅</span>Horarios</button>
       </nav>
       <div class="sb-bot">
         <button class="btn-ref" onclick="refreshView()">🔄 Actualizar</button>
@@ -655,7 +655,13 @@ const LS = {
   setBatch: (pairs) => {
     pairs.forEach(([k,v]) => { LCache[k] = v; });
     if (typeof google !== 'undefined' && google.script && google.script.run) {
-      pairs.forEach(([k,v]) => google.script.run.saveData(k, v));
+      // En GAS usar saveBatch si está disponible, fallback a individual
+      try {
+        const updates=pairs.map(([key,value])=>({key,value}));
+        google.script.run.withFailureHandler(()=>{
+          pairs.forEach(([k,v])=>google.script.run.saveData(k,v));
+        }).saveBatch(updates);
+      } catch(e){ pairs.forEach(([k,v])=>google.script.run.saveData(k,v)); }
     } else if (SCRIPT_URL && SCRIPT_URL.trim() !== '') {
       const updates = pairs.map(([key,value]) => ({key,value}));
       fetch(SCRIPT_URL, {
@@ -788,14 +794,20 @@ const nextNum=()=>{
 // ═══════════════════════════════════════════
 // INIT DATA
 // ═══════════════════════════════════════════
+// IMPORTANTE: Solo inicializar valores por defecto en LCache sin enviar al servidor
+// para evitar sobreescribir datos ya existentes en Google Sheets.
+function _localInit(k, v) {
+  if (LCache[k] === undefined || LCache[k] === null) LCache[k] = v;
+}
 function initData(){
   if(!LCache['be_users'] || LCache['be_users'].length === 0){
-    LS.set('be_users',[{id:'user-1',name:'Brian',password:'1234',role:'admin',active:true,
+    // Solo crear usuario por defecto si realmente no hay ninguno en la BD
+    _localInit('be_users',[{id:'user-1',name:'Brian',password:'1234',role:'admin',active:true,
       createdAt:new Date().toISOString(),
       history:[{action:'Sistema inicializado. Usuario administrador creado.',timestamp:new Date().toISOString()}]}]);
   }
   if(!LCache['be_products'] || LCache['be_products'].length === 0){
-    LS.set('be_products',[
+    _localInit('be_products',[
       {id:uid(),name:'Birria de res',description:'Birria tradicional de res con consomé incluido',category:'Platos Fuertes',price:120,active:true},
       {id:uid(),name:'Taco de birria',description:'Taco dorado de birria con queso manchego',category:'Tacos',price:25,active:true},
       {id:uid(),name:'Quesabirria',description:'Quesadilla de birria gratinada con queso Oaxaca',category:'Especialidades',price:45,active:true},
@@ -804,15 +816,18 @@ function initData(){
       {id:uid(),name:'Agua Fresca',description:'Agua fresca del día 500ml',category:'Bebidas',price:25,active:true},
     ]);
   }
-  if(!LCache['be_orders']) LS.set('be_orders',[]);
-  if(!LCache['be_cuts']) LS.set('be_cuts',[]);
-  if(!LCache['be_caja']) LS.set('be_caja',[]);
-  if(!LCache['be_caja_session']) LS.set('be_caja_session',{registros:[],fecha:today()});
-  if(!LCache['be_inventory']) LS.set('be_inventory',[]);
-  if(!LCache['be_horarios']) LS.set('be_horarios',{semana:weekStart(),turnos:{}});
-  if(!LCache['be_sd'] || !LCache['be_sd'].date) LS.set('be_sd',{total:0,cash:0,card:0,transfer:0,date:today(),initCash:0});
-  if(!LCache['be_sw'] || !LCache['be_sw'].weekStart) LS.set('be_sw',{total:0,cash:0,card:0,transfer:0,weekStart:weekStart()});
-  if(!LCache['be_sm'] || !LCache['be_sm'].monthStart) LS.set('be_sm',{total:0,cash:0,card:0,transfer:0,monthStart:monthStart()});
+  _localInit('be_orders',[]);
+  _localInit('be_cuts',[]);
+  _localInit('be_caja',[]);
+  // Reiniciar sesión de caja si es un día nuevo (solo en LCache, sin sync al servidor)
+  const _sess=LCache['be_caja_session'];
+  if(!_sess||_sess.fecha!==today()) LCache['be_caja_session']={registros:[],fecha:today()};
+  _localInit('be_inventory',[]);
+  _localInit('be_horarios',{semana:weekStart(),turnos:{}});
+  if(!LCache['be_sd']||!LCache['be_sd'].date||LCache['be_sd'].date!==today())
+    LCache['be_sd']={total:0,cash:0,card:0,transfer:0,date:today(),initCash:0};
+  if(!LCache['be_sw']||!LCache['be_sw'].weekStart) LCache['be_sw']={total:0,cash:0,card:0,transfer:0,weekStart:weekStart()};
+  if(!LCache['be_sm']||!LCache['be_sm'].monthStart) LCache['be_sm']={total:0,cash:0,card:0,transfer:0,monthStart:monthStart()};
 }
 
 // ═══════════════════════════════════════════
@@ -866,7 +881,7 @@ function doLogin(){
   const pass=document.getElementById('lp').value;
   const errEl=document.getElementById('lerr');
   const users=LS.get('be_users');
-  const u=users.find(u=>u.name && u.name.toLowerCase()===name.toLowerCase()&&u.password==pass&&u.active!==false);
+  const u=users.find(u=>u.name&&u.name.toLowerCase()===name.toLowerCase()&&String(u.password)===String(pass)&&u.active!==false);
   if(!u){errEl.style.display='block';return}
   errEl.style.display='none';
   CU=u;LS.set('be_session',{uid:u.id});
@@ -874,7 +889,11 @@ function doLogin(){
   startApp();
 }
 function doLogout(){
-  if(CU)logAct(CU.id,'Cerró sesión');
+  if(CU){
+    logAct(CU.id,'Cerró sesión');
+    // Sincronizar historial acumulado al cerrar sesión
+    _syncToServer('be_users', LCache['be_users']);
+  }
   CU=null;cart=[];selOrder=null;editingOrderId=null;
   LS.set('be_session',null);
   document.getElementById('app').style.display='none';
@@ -889,7 +908,8 @@ function logAct(uid,action){
   if(!users[i].history)users[i].history=[];
   users[i].history.unshift({action,timestamp:new Date().toISOString()});
   if(users[i].history.length>100)users[i].history=users[i].history.slice(0,100);
-  LS.set('be_users',users);
+  // Solo actualiza LCache (sin fetch por cada log — se sincroniza en logout)
+  LCache['be_users']=users;
 }
 
 // ═══════════════════════════════════════════
@@ -906,8 +926,10 @@ function startApp(){
   const allowed=ROLE_VIEWS[CU.role]||['orders'];
   document.querySelectorAll('.ni[data-v]').forEach(el=>{
     el.style.display=allowed.includes(el.dataset.v)?'':'none';
+    el.classList.remove('active');
   });
-  go(allowed[0]);
+  CV='';  // Resetear vista actual para forzar render aunque sea la misma vista
+  go(allowed[0],true);
   startClock();
   setInterval(updBadges,6000);
   window.addEventListener('storage',e=>{if(e.key&&e.key.startsWith('be_'))updBadges()});
@@ -942,8 +964,14 @@ function go(v,force){
   const allowed=CU?ROLE_VIEWS[CU.role]||['orders']:['orders'];
   if(!allowed.includes(v)){notify('🚫','Acceso restringido','No tienes permiso para ver esta seccion.',3000);v=allowed[0];}
   if(v===CV&&!force)return;
+  // Limpiar edición pendiente al cambiar de vista
+  if(v!=='orders'&&editingOrderId){editingOrderId=null;cart=[];}
   CV=v;
   document.getElementById('tb-title').textContent=VIEW_T[v]||v;
+  // Marcar nav item activo en sidebar
+  document.querySelectorAll('.ni[data-v]').forEach(el=>{
+    el.classList.toggle('active',el.dataset.v===v);
+  });
   document.querySelectorAll('.ni').forEach(el=>el.classList.toggle('active',el.dataset.v===v));
   closeSB();
   const c=document.getElementById('content');
@@ -971,6 +999,7 @@ function refreshView(){
       initData();
       loadTurnosOpt();
     }
+    _lastBadgeHash='';
     go(CV,true);
     if(btn){btn.disabled=false;btn.textContent='🔄 Actualizar';}
     notify('✅','Actualizado','Datos recargados desde el servidor.',2500);
@@ -1204,7 +1233,7 @@ function sendOrder(){
     playSound('send');
   }
   
-  cart=[];cEl.value='';if(gEl)gEl.value='';
+  cart=[];cEl.value='';cEl.style.borderColor='';if(gEl)gEl.value='';
   buildCart();
   const mo=document.getElementById('my-orders');if(mo)mo.innerHTML=buildMyOrders();
   updBadges();
@@ -1265,7 +1294,7 @@ function buildKCard(o){
       ${o.paid?`<div style="margin-top:6px;font-size:11px;background:#D1FAE5;padding:5px 8px;border-radius:6px;color:#065F46;font-weight:700">✅ Ya cobrado — continúa en proceso</div>`:''}
       ${o.lastEditAt?`<div style="margin-top:6px;font-size:11px;background:#FEF9C3;padding:5px 8px;border-radius:6px;color:#92400E;font-weight:600">Modificado por ${o.lastEditBy}</div>`:''}
       ${o.cancelReason?`<div style="margin-top:6px;font-size:11px;background:#FEE2E2;padding:5px 8px;border-radius:6px;color:#991B1B;font-weight:600">Cancelado: ${o.cancelReason}</div>`:''}
-      <div class="owrk">👤 ${o.workerName}</div>
+      <div class="owrk">👤 ${o.workerName}${o.timestamp?` · ⏱ ${Math.round((Date.now()-new Date(o.timestamp))/60000)} min`:''}</div>
     </div>
     <div class="ocf"><div class="sbts">
       ${btns[o.status]||''}
@@ -1289,6 +1318,7 @@ function updStatus(oid,ns){
     return;
   }
   orders[i].status=ns;LS.set('be_orders',orders);
+  _lastBadgeHash='';
   logAct(CU.id,`Cambió pedido #${orders[i].number} de "${SL[os]}" a "${SL[ns]}"`);
   if(ns==='bar'){
     notify('🍺',`¡Pedido #${orders[i].number} en Barra!`,`${orders[i].clientName} — listo para entregar.`,6000,'nbar');
@@ -1302,6 +1332,9 @@ function updStatus(oid,ns){
 // ═══════════════════════════════════════════
 function rCashier(c){
   const orders=LS.get('be_orders');
+  // Verificar si la sesión de caja es del día actual
+  const _csess=LS.obj('be_caja_session',{fecha:''});
+  if(_csess.fecha&&_csess.fecha!==today()){LS.set('be_caja_session',{registros:[],fecha:today()});}
   // Mostrar pedidos no cobrados: ni status=paid ni paid=true
   const list=orders.filter(o=>o.status!=='cancelled'&&o.status!=='paid'&&!o.paid).sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));
   c.innerHTML=`<div class="cslayout">
@@ -1550,11 +1583,12 @@ function showTicket(oArg){
   const pd=o.payment||{};const dc=o.discount||csDisc;
   const da=dc.discAmt||0;const ta=pd.tip||0;
   const ft=pd.finalTotal||o.total;const paid=pd.paid||0;const chg=pd.change||0;
-  const now=new Date();
+  // Usar fecha original del pago si existe (para reimpresión), o fecha actual
+  const ticketDate = o.paidAt ? new Date(o.paidAt) : new Date();
   document.getElementById('mb-ticket').innerHTML=`<div class="ticket">
     <div class="tcenter"><div class="ttitle">🔥 BIRRIA EXPRESS</div><div>Sistema de Gestión</div></div>
     <hr class="tdiv">
-    <div>Fecha: ${now.toLocaleDateString('es-MX')} ${now.toLocaleTimeString('es-MX')}</div>
+    <div>Fecha: ${ticketDate.toLocaleDateString('es-MX')} ${ticketDate.toLocaleTimeString('es-MX')}</div>
     <div>Orden: #${o.number}</div>
     <div>Mesa/Cliente: ${o.clientName}</div>
     <div>Atendido: ${o.workerName}</div>
@@ -1711,10 +1745,12 @@ function buildCajaSessionList(){
   const sess = LS.obj('be_caja_session',{registros:[],fecha:today()});
   const regs = sess.registros || [];
   if(!regs.length) return '<div class="empty" style="padding:20px 0"><div class="ei">🧾</div><p>Sin cobros registrados hoy. Los cobros aparecerán aquí al instante.</p></div>';
-  return regs.slice().reverse().map(r => {
+  return regs.slice().reverse().map((r,idx) => {
     const discStr = r.discType==='pct' ? `Desc. ${r.discValue}%: -${fc(r.discAmt)}`
       : r.discType==='amt' ? `Desc. $: -${fc(r.discAmt)}`
       : r.discType==='tip' ? `Propina: +${fc(r.tip)}` : '';
+    // Calcular índice real en el array original (invertido)
+    const realIdx = regs.length - 1 - idx;
     return `<div class="caja-reg">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
         <div>
@@ -1722,7 +1758,10 @@ function buildCajaSessionList(){
           <span style="font-size:14px;margin-left:8px">${r.clientName}</span>
           <span style="font-size:12px;color:var(--muted);margin-left:8px">👤 Mesero: <strong>${r.workerName}</strong></span>
         </div>
-        <div style="font-size:18px;font-weight:900;color:var(--birria)">${fc(r.finalTotal)}</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="font-size:18px;font-weight:900;color:var(--birria)">${fc(r.finalTotal)}</div>
+          <button class="btn bo btn-sm" onclick="reprintTicketFromSession(${realIdx})" title="Reimprimir ticket">🖨️ Ticket</button>
+        </div>
       </div>
       <div style="font-size:12px;color:var(--muted);margin-top:5px">${r.items.map(i=>`${i.qty}× ${i.name}`).join(' · ')}</div>
       <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:8px;font-size:12px">
@@ -1736,6 +1775,36 @@ function buildCajaSessionList(){
       </div>
     </div>`;
   }).join('');
+}
+// Reimprimir ticket desde el registro de sesión de caja
+function reprintTicketFromSession(idx){
+  const sess = LS.obj('be_caja_session',{registros:[]});
+  const r = sess.registros[idx];
+  if(!r){ notify('⚠️','No encontrado','No se encontró el registro.',2500); return; }
+  // Buscar el pedido original para tener todos los campos
+  const orders = LS.get('be_orders');
+  const o = orders.find(x => x.id === r.id);
+  if(o){
+    showTicket(o);
+  } else {
+    // Reconstruir objeto mínimo desde el registro de sesión si el pedido ya no está
+    const fakeOrder = {
+      number: r.number,
+      clientName: r.clientName,
+      workerName: r.workerName,
+      items: r.items || [],
+      total: r.subtotal,
+      generalNote: '',
+      payment:{
+        cash: r.cash, card: r.card, transfer: r.transfer,
+        tip: r.tip||0, paid: r.cash+r.card+r.transfer,
+        finalTotal: r.finalTotal, change: r.change
+      },
+      discount:{ discAmt: r.discAmt||0, type: r.discType||'none', value: r.discValue||0 },
+      paidAt: r.paidAt
+    };
+    showTicket(fakeOrder);
+  }
 }
 function resetCajaSession(){
   confirm2('¿Reiniciar registros del día?','Los registros de pantalla se limpiarán. Los cobros permanecen guardados en la base de datos.',()=>{
@@ -2074,6 +2143,10 @@ function rDashboard(cnt){
 
   // Propinas acumuladas
   const totalTips=paid.reduce((s,o)=>{const p=o.payment||{};return s+(p.tip||0)},0);
+  // Botón exportar Excel (se inserta más adelante en el HTML del dashboard)
+  const exportBtnHtml=`<button class="btn bs" onclick="exportAllToExcel()" style="margin-bottom:16px">
+    📥 Descargar Excel — Todos los registros
+  </button>`;
 
   // Descuentos acumulados
   const totalDiscs=paid.reduce((s,o)=>{const d=o.discount||{};return s+(d.discAmt||0)},0);
@@ -2098,6 +2171,7 @@ function rDashboard(cnt){
   const maxWaiter=waiterRank[0]?waiterRank[0][1]:1;
 
   cnt.innerHTML=`
+  ${exportBtnHtml}
   <!-- KPIs principales -->
   <div class="dash-grid">
     <div class="kpi" style="border-left-color:var(--ok)">
@@ -2108,12 +2182,12 @@ function rDashboard(cnt){
     <div class="kpi" style="border-left-color:var(--info)">
       <div class="kpi-lbl">Venta Semana</div>
       <div class="kpi-val">${fc(sw.total)}</div>
-      <div class="kpi-sub">Desde ${sw.weekStart||'—'}</div>
+      <div class="kpi-sub">Desde ${sw.weekStart?fds(sw.weekStart):'—'}</div>
     </div>
     <div class="kpi" style="border-left-color:var(--purple)">
       <div class="kpi-lbl">Venta del Mes</div>
       <div class="kpi-val">${fc(sm.total)}</div>
-      <div class="kpi-sub">Desde ${sm.monthStart||'—'}</div>
+      <div class="kpi-sub">Desde ${sm.monthStart?fds(sm.monthStart):'—'}</div>
     </div>
     <div class="kpi" style="border-left-color:${healthColor}">
       <div class="kpi-lbl">Salud del Negocio</div>
@@ -2218,6 +2292,114 @@ function rDashboard(cnt){
   </div>`;
 }
 
+
+// ═══════════════════════════════════════════
+// EXPORTAR EXCEL — Todos los registros (sin Usuarios)
+// ═══════════════════════════════════════════
+function exportAllToExcel(){
+  // Construir workbook manualmente en formato CSV multi-hoja
+  // usando una hoja por sección, separadas con líneas vacías (una sola descarga .xlsx simulada con CSV por sección)
+  // Usamos el formato XML SpreadsheetML para compatibilidad con Excel sin librería
+  const orders   = LS.get('be_orders');
+  const prods    = LS.get('be_products');
+  const cuts     = LS.get('be_cuts');
+  const caja     = LS.get('be_caja');
+  const cajaSess = LS.obj('be_caja_session',{registros:[]});
+  const sd       = LS.obj('be_sd',{total:0,cash:0,card:0,transfer:0,date:today()});
+  const sw       = LS.obj('be_sw',{total:0,cash:0,card:0,transfer:0});
+  const sm       = LS.obj('be_sm',{total:0,cash:0,card:0,transfer:0});
+  const inventory= LS.get('be_inventory');
+
+  const esc = v => {
+    if(v===undefined||v===null) return '';
+    if(typeof v==='object') return JSON.stringify(v).replace(/"/g,'""');
+    return String(v).replace(/"/g,'""');
+  };
+  const row = cols => cols.map(v=>`"${esc(v)}"`).join(',');
+
+  const sections = [];
+
+  // 1. PEDIDOS
+  sections.push('=== PEDIDOS ===');
+  sections.push(row(['ID','Número','Cliente','Mesero','Estado','Subtotal','Total Final','Efectivo','Tarjeta','Transfer.','Propina','Descuento','Cambio','Fecha','Pagado En','Nota General','Motivo Cancelación']));
+  orders.forEach(o=>{
+    const p=o.payment||{};const d=o.discount||{};
+    sections.push(row([o.id,o.number,o.clientName,o.workerName,o.status,o.total,
+      p.finalTotal||o.total,p.cash||0,p.card||0,p.transfer||0,p.tip||0,d.discAmt||0,p.change||0,
+      fd(o.timestamp),fd(o.paidAt),o.generalNote||'',o.cancelReason||'']));
+  });
+  sections.push('');
+
+  // 2. DETALLE DE ITEMS POR PEDIDO
+  sections.push('=== ITEMS DE PEDIDOS ===');
+  sections.push(row(['ID Pedido','Número Pedido','Cliente','Producto','Precio Unit.','Cantidad','Subtotal Item','Nota Item']));
+  orders.forEach(o=>{
+    (o.items||[]).forEach(i=>{
+      sections.push(row([o.id,o.number,o.clientName,i.name,i.price,i.qty,(i.price*i.qty),i.note||'']));
+    });
+  });
+  sections.push('');
+
+  // 3. COBROS (CAJA)
+  sections.push('=== COBROS REGISTRADOS ===');
+  sections.push(row(['ID','Número','Cliente','Total','Efectivo','Tarjeta','Transfer.','Cajero','Fecha']));
+  caja.forEach(c=>{
+    sections.push(row([c.id,c.number,c.clientName,c.total,c.cash||0,c.card||0,c.transfer||0,c.workerName,fd(c.timestamp)]));
+  });
+  sections.push('');
+
+  // 4. REGISTROS DEL DÍA (CAJA SESSION)
+  sections.push('=== REGISTROS DEL DÍA (CAJA) ===');
+  sections.push(row(['Número','Cliente','Mesero','Subtotal','Tipo Desc.','Valor Desc.','Monto Desc.','Propina','Total Final','Efectivo','Tarjeta','Transfer.','Cambio','Hora']));
+  (cajaSess.registros||[]).forEach(r=>{
+    sections.push(row([r.number,r.clientName,r.workerName,r.subtotal,r.discType||'',r.discValue||0,r.discAmt||0,r.tip||0,r.finalTotal,r.cash||0,r.card||0,r.transfer||0,r.change||0,fd(r.paidAt)]));
+  });
+  sections.push('');
+
+  // 5. CORTES DE CAJA
+  sections.push('=== CORTES DE CAJA ===');
+  sections.push(row(['ID','Fecha','Cajero','Caja Inicial','Ventas Total','Efectivo','Tarjeta','Transfer.','Esperado','Físico','Diferencia']));
+  cuts.forEach(c=>{
+    sections.push(row([c.id,fd(c.timestamp),c.workerName,c.initCash,c.salesTotal,c.cash,c.card,c.transfer,c.expectedCash,c.physicalCash,c.diff]));
+  });
+  sections.push('');
+
+  // 6. VENTAS ACUMULADAS
+  sections.push('=== VENTAS ACUMULADAS ===');
+  sections.push(row(['Periodo','Total','Efectivo','Tarjeta','Transfer.','Desde']));
+  sections.push(row(['Día',sd.total,sd.cash||0,sd.card||0,sd.transfer||0,sd.date||today()]));
+  sections.push(row(['Semana',sw.total,sw.cash||0,sw.card||0,sw.transfer||0,sw.weekStart||'']));
+  sections.push(row(['Mes',sm.total,sm.cash||0,sm.card||0,sm.transfer||0,sm.monthStart||'']));
+  sections.push('');
+
+  // 7. PRODUCTOS
+  sections.push('=== PRODUCTOS ===');
+  sections.push(row(['ID','Nombre','Descripción','Categoría','Precio','Activo']));
+  prods.forEach(p=>{
+    sections.push(row([p.id,p.name,p.description||'',p.category,p.price,p.active===false?'No':'Sí']));
+  });
+  sections.push('');
+
+  // 8. INVENTARIO
+  sections.push('=== INVENTARIO ===');
+  sections.push(row(['ID Producto','Nombre','Stock','Unidad','Stock Mínimo','Costo Unitario','Valor Total','Estado']));
+  inventory.forEach(item=>{
+    const prod=prods.find(p=>p.id===item.prodId);
+    const st=item.stock<=0?'Agotado':item.stock<=(item.stockMin||0)?'Stock Bajo':'OK';
+    sections.push(row([item.prodId,prod?prod.name:item.nombre||'',item.stock||0,item.unit||'pzas',item.stockMin||0,item.costoUnit||0,((item.stock||0)*(item.costoUnit||0)).toFixed(2),st]));
+  });
+  sections.push('');
+
+  const csv = '\uFEFF' + sections.join('\n'); // BOM para UTF-8 en Excel
+  const blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href=url;
+  a.download='BiarriaExpress_Registros_'+today()+'.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+  notify('✅','Exportación completa',`Archivo CSV descargado con todos los registros (abre con Excel).`,4000);
+}
 
 // ═══════════════════════════════════════════
 // HORARIOS VIEW
@@ -2440,7 +2622,7 @@ function rInventario(cnt){
     </div>
     <div class="pflt">
       <div><label class="fl">Buscar</label>
-        <input type="text" class="fc" id="inv-search" placeholder="Nombre..." oninput="filterInv()"/></div>
+        <input type="text" class="fc" id="inv-search" placeholder="Nombre..." oninput="debouncedFilterInv()"/></div>
       <div><label class="fl">Estado</label>
         <select class="fc" id="inv-status-flt" onchange="filterInv()">
           <option value="">Todos</option>
@@ -2497,6 +2679,7 @@ function filterInv(){
     card.style.display=((!s||card.dataset.name.includes(s))&&(!st||card.dataset.status===st))?'':'none';
   });
 }
+const debouncedFilterInv=debounce(filterInv,180);
 function openInvSelect(){
   const prods=LS.get('be_products').filter(p=>p.active!==false);
   const inv=LS.get('be_inventory');
@@ -2627,9 +2810,14 @@ function openInvMov(prodId,type){
     $('inv-min').value=item?item.stockMin||5:5;
     $('inv-cost').value=item&&item.costoUnit?item.costoUnit:'';
   } else {
+    // Sin prodId: mostrar selector de productos del inventario
     $('inv-pid').value='';
-    $('inv-pname').value='';
-    $('inv-pname').disabled=false;
+    const invList=LS.get('be_inventory').filter(i=>i.trackStock!==false);
+    const prods2=LS.get('be_products');
+    $('inv-pname').outerHTML=`<select class="fc" id="inv-pname" onchange="(function(s){$('inv-pid').value=s.value;const item=LS.get('be_inventory').find(i=>i.prodId===s.value);if(item){$('inv-unit-lbl').value=item.unit||'pzas';$('inv-min').value=item.stockMin||5;$('inv-cost').value=item.costoUnit||''}})(this)">
+      <option value=''>— Elige un producto —</option>
+      ${invList.map(i=>{const p=prods2.find(x=>x.id===i.prodId);return`<option value='${i.prodId}'>${p?p.name:i.nombre||i.prodId} (${i.stock||0} ${i.unit||'pzas'})</option>`;}).join('')}
+    </select>`;
   }
   $('inv-qty').value='';$('inv-note').value='';
   $('inv-mov-title').textContent=type==='in'?'📦 Entrada de Stock':type==='out'?'📤 Salida de Stock':type==='adj'?'🔧 Ajuste de Stock':'Registrar Movimiento';
@@ -2707,7 +2895,7 @@ function exportInv(){
       ((item.stock||0)*(item.costoUnit||0)).toFixed(2),st]);
   });
   const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8;'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');a.href=url;a.download='inventario_'+today()+'.csv';a.click();
   URL.revokeObjectURL(url);
@@ -2725,7 +2913,8 @@ function deleteInvProd(prodId){
     `¿Eliminar "${name}" del inventario? Se borrará su historial de movimientos. Esta acción no se puede deshacer.`,
     ()=>{
       const updated=inv.filter(i=>i.prodId!==prodId);
-      LS.set('be_inventory',updated);
+      LCache['be_inventory']=updated;
+      _syncToServer('be_inventory',updated);
       logAct(CU.id,'Eliminó "'+name+'" del inventario');
       notify('✅','Eliminado','"'+name+'" fue eliminado del inventario.',3000);
       go('inventario',true);
