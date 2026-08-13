@@ -479,27 +479,43 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#FDFAF8}
     </div>
   </div>
 </div>
-<!-- Discount -->
+<!-- Discount + Tip (simultáneos) -->
 <div class="mov" id="m-disc">
-  <div class="modal" style="max-width:420px">
-    <div class="mh"><div class="mt">🏷️ Descuento / Propina</div><button class="mc" onclick="cm('m-disc')">✕</button></div>
+  <div class="modal" style="max-width:460px">
+    <div class="mh"><div class="mt">🏷️ Descuento y Propina</div><button class="mc" onclick="cm('m-disc')">✕</button></div>
     <div class="mb">
-      <div class="fg"><label class="fl">Tipo</label>
-        <select class="fc" id="dc-type" onchange="updDiscCalc()">
-          <option value="none">Sin descuento</option>
-          <option value="pct">Descuento en %</option>
-          <option value="amt">Descuento en $</option>
-          <option value="tip">Propina</option>
-        </select>
+      <!-- DESCUENTO -->
+      <div style="background:#F5EDE4;border-radius:var(--rs);padding:14px;margin-bottom:14px">
+        <div style="font-size:12px;font-weight:700;color:var(--birria);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">🔖 Descuento</div>
+        <div class="fg" style="margin-bottom:10px"><label class="fl">Tipo de descuento</label>
+          <select class="fc" id="dc-type" onchange="updDiscCalc()">
+            <option value="none">Sin descuento</option>
+            <option value="pct">Porcentaje (%)</option>
+            <option value="amt">Monto fijo ($)</option>
+          </select>
+        </div>
+        <div class="fg" id="dc-val-wrap" style="margin-bottom:10px">
+          <label class="fl" id="dc-lbl">Valor</label>
+          <input type="number" class="fc" id="dc-val" placeholder="0" min="0" step="0.01" oninput="updDiscCalc()"/>
+        </div>
+        <div class="fg" style="margin-bottom:0"><label class="fl">Motivo del descuento</label>
+          <input type="text" class="fc" id="dc-reason" placeholder="Ej: Cliente frecuente, error en pedido..."/>
+        </div>
       </div>
-      <div class="fg">
-        <label class="fl" id="dc-lbl">Valor</label>
-        <input type="number" class="fc" id="dc-val" placeholder="0" min="0" step="0.01" oninput="updDiscCalc()"/>
+      <!-- PROPINA -->
+      <div style="background:#F0FDF4;border-radius:var(--rs);padding:14px;margin-bottom:10px">
+        <div style="font-size:12px;font-weight:700;color:var(--ok);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">💝 Propina</div>
+        <div class="fg" style="margin-bottom:10px">
+          <label class="fl">Monto de propina ($)</label>
+          <input type="number" class="fc" id="dc-tip" placeholder="0.00" min="0" step="0.01" oninput="updDiscCalc()"/>
+        </div>
+        <div class="fg" style="margin-bottom:0"><label class="fl">Motivo / Nota</label>
+          <input type="text" class="fc" id="dc-tip-reason" placeholder="Ej: Excelente servicio..."/>
+        </div>
       </div>
-      <div class="fg"><label class="fl">Motivo</label><input type="text" class="fc" id="dc-reason" placeholder="Motivo del descuento o propina..."/></div>
-      <div id="dc-prev" style="margin-top:10px"></div>
+      <div id="dc-prev" style="margin-top:4px"></div>
     </div>
-    <div class="mf"><button class="btn bo" onclick="cm('m-disc')">Cancelar</button><button class="btn bp" onclick="applyDisc()">Aplicar</button></div>
+    <div class="mf"><button class="btn bo" onclick="cm('m-disc')">Cancelar</button><button class="btn bp" onclick="applyDisc()">✅ Aplicar</button></div>
   </div>
 </div>
 <!-- Inventario: Selector de productos -->
@@ -644,7 +660,9 @@ const VIEW_T={'orders':'📋 Pedidos','kitchen':'👨‍🍳 Cocina','cashier':'
 // ═══════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════
-let CU=null,CV='orders',cart=[],selOrder=null,csPayments={cash:0,card:0,transfer:0},csDisc={type:'none',value:0,reason:''},cierreData=null,cfCB=null,kFilter='active',pFlt={name:'',cat:''},editingOrderId=null;
+let CU=null,CV='orders',cart=[],selOrder=null,csPayments={cash:0,card:0,transfer:0},
+  csDisc={discType:'none',discValue:0,discReason:'',tipValue:0,tipReason:''},
+  cierreData=null,cfCB=null,kFilter='active',pFlt={name:'',cat:''},editingOrderId=null;
 
 // ═══════════════════════════════════════════
 // DATOS EN APP SCRIPT (Sincronización Dual)
@@ -898,10 +916,13 @@ function doLogin(){
 function doLogout(){
   if(CU){
     logAct(CU.id,'Cerró sesión');
-    // Sincronizar historial acumulado al cerrar sesión
     _syncToServer('be_users', LCache['be_users']);
   }
+  // Detener polling de sincronización
+  if(_syncInterval){clearInterval(_syncInterval);_syncInterval=null;}
+  _lastSyncHash='';
   CU=null;cart=[];selOrder=null;editingOrderId=null;
+  csDisc={discType:'none',discValue:0,discReason:'',tipValue:0,tipReason:''};
   LS.set('be_session',null);
   document.getElementById('app').style.display='none';
   document.getElementById('login-screen').style.display='flex';
@@ -935,11 +956,100 @@ function startApp(){
     el.style.display=allowed.includes(el.dataset.v)?'':'none';
     el.classList.remove('active');
   });
-  CV='';  // Resetear vista actual para forzar render aunque sea la misma vista
+  CV='';
   go(allowed[0],true);
   startClock();
   setInterval(updBadges,6000);
   window.addEventListener('storage',e=>{if(e.key&&e.key.startsWith('be_'))updBadges()});
+  // ── Sincronización en tiempo real entre dispositivos ──────────────────────
+  startRealtimeSync();
+}
+
+// ═══════════════════════════════════════════
+// SINCRONIZACIÓN EN TIEMPO REAL (Polling)
+// ═══════════════════════════════════════════
+let _syncInterval=null;
+let _lastSyncHash='';
+// Claves críticas que disparan re-render inmediato si cambian
+const SYNC_CRITICAL=['be_orders','be_caja_session'];
+
+function startRealtimeSync(){
+  // Intervalo de 8 segundos — equilibrio entre reactividad y cuota de Apps Script
+  _syncInterval=setInterval(pollServer,8000);
+}
+
+function _hashData(data){
+  // Hash rápido de los datos críticos para detectar cambios reales
+  try{
+    const keys=SYNC_CRITICAL.map(k=>JSON.stringify(data[k]||'')).join('|');
+    let h=0;for(let i=0;i<keys.length;i++){h=(Math.imul(31,h)+keys.charCodeAt(i))|0;}
+    return h.toString(36);
+  }catch(e){return'';}
+}
+
+function pollServer(){
+  if(!CU||!SCRIPT_URL||SCRIPT_URL.trim()==='')return;
+  // No sincronizar si el usuario está en medio de un cobro (evitar perder datos del formulario)
+  if(selOrder)return;
+
+  const doSync=(freshData)=>{
+    if(!freshData)return;
+    const newHash=_hashData(freshData);
+    if(newHash===_lastSyncHash)return; // Sin cambios — no hacer nada
+    _lastSyncHash=newHash;
+
+    // Detectar qué cambió para notificar al usuario
+    const prevOrders=LCache['be_orders']||[];
+    const newOrders=freshData['be_orders']||[];
+
+    // Nuevos pedidos para cocina
+    if(['kitchen','orders'].includes(CV)){
+      const prevIds=new Set(prevOrders.map(o=>o.id));
+      const added=newOrders.filter(o=>!prevIds.has(o.id));
+      if(added.length)notify('🔔','Nuevo pedido',`${added.map(o=>'#'+o.number+' '+o.clientName).join(', ')} llegó.`,5000);
+    }
+
+    // Pedidos cuyo estado cambió (relevante para mesero y cocina)
+    const prevMap=new Map(prevOrders.map(o=>[o.id,o.status]));
+    newOrders.forEach(o=>{
+      const ps=prevMap.get(o.id);
+      if(ps&&ps!==o.status){
+        if(o.status==='bar'&&o.workerId===CU.id)
+          notify('🍺','¡Pedido en Barra!',`#${o.number} ${o.clientName} — listo para entregar.`,7000,'nbar');
+      }
+    });
+
+    // Actualizar caché local con datos frescos del servidor
+    // Solo sobreescribir claves que llegaron del servidor, preservar estado local de UI
+    Object.keys(freshData).forEach(k=>{ LCache[k]=freshData[k]; });
+    initData();
+    loadTurnosOpt();
+    _lastBadgeHash='';
+    updBadges();
+
+    // Re-renderizar la vista activa si los datos cambiaron (sin perder scroll ni foco)
+    // Solo vistas de "lectura" — no interrumpir formularios activos
+    const readOnlyViews=['kitchen','cashier','dashboard','corte','inventario'];
+    if(readOnlyViews.includes(CV)){
+      go(CV,true);
+    } else if(CV==='orders'){
+      // En pedidos solo actualizar "Mis Pedidos Activos" para no perder el carrito
+      const mo=document.getElementById('my-orders');
+      if(mo)mo.innerHTML=buildMyOrders();
+    }
+  };
+
+  if(typeof google!=='undefined'&&google.script&&google.script.run){
+    google.script.run
+      .withSuccessHandler(data=>doSync((data&&data.data)?data.data:(data||null)))
+      .withFailureHandler(()=>{})
+      .loadAllData();
+  } else {
+    fetch(SCRIPT_URL+'?action=load&t='+Date.now())
+      .then(r=>r.json())
+      .then(res=>doSync((res&&res.data)?res.data:(res||null)))
+      .catch(()=>{});
+  }
 }
 function startClock(){
   const el=document.getElementById('clock');
@@ -1434,19 +1544,38 @@ function rCashier(c){
 function selCsOrder(oid){
   const o=LS.get('be_orders').find(x=>x.id===oid);
   selOrder=o;csPayments={cash:0,card:0,transfer:0};
-  csDisc=o?.discount||{type:'none',value:0,reason:'',finalTotal:o?.total};
-  // force=true para que siempre re-renderice el panel de pago
-  // aunque ya estemos en la vista cashier
+  // Restaurar descuento+propina guardados en el pedido (si fue editado antes)
+  const d=o?.discount||{};
+  csDisc={
+    discType: d.discType||d.type||'none',
+    discValue: d.discValue??d.value??0,
+    discReason: d.discReason||d.reason||'',
+    tipValue: d.tipValue??0,
+    tipReason: d.tipReason||''
+  };
   go('cashier',true);
 }
+// ── Helpers para calcular descuento y propina del nuevo csDisc ───────────────
+function calcDA(base){
+  const d=csDisc;
+  if(d.discType==='pct')return base*(d.discValue/100);
+  if(d.discType==='amt')return d.discValue;
+  return 0;
+}
+function calcTA(){return csDisc.tipValue||0;}
+function calcFT(base){return Math.max(0,base-calcDA(base)+calcTA());}
+function discLabel(){
+  const d=csDisc;
+  const parts=[];
+  if(d.discType!=='none'&&d.discValue>0)
+    parts.push(`Desc. ${d.discType==='pct'?d.discValue+'%':fc(d.discValue)}`);
+  if(d.tipValue>0) parts.push(`Propina ${fc(d.tipValue)}`);
+  return parts.length?parts.join(' + '):'Descuento / Propina';
+}
+
 function buildPayPanel(){
   const o=selOrder;if(!o)return;
-  const d=csDisc;
-  let da=0,ta=0;
-  if(d.type==='pct')da=o.total*(d.value/100);
-  else if(d.type==='amt')da=d.value;
-  else if(d.type==='tip')ta=d.value;
-  const ft=Math.max(0,o.total-da+ta);
+  const da=calcDA(o.total);const ta=calcTA();const ft=calcFT(o.total);
   const paid=(csPayments.cash||0)+(csPayments.card||0)+(csPayments.transfer||0);
   const rem=ft-paid;const chg=paid>ft?paid-ft:0;
   return`<div class="card">
@@ -1462,10 +1591,9 @@ function buildPayPanel(){
       ${o.generalNote?`<div style="font-size:11px;color:var(--muted);margin-top:5px">📝 ${o.generalNote}</div>`:''}
     </div>
     <div style="margin-bottom:14px">
-      <button class="btn bo btn-sm" onclick="openDisc()">
-        🏷️ ${d.type!=='none'?`${d.type==='tip'?'+ Propina':'- Descuento'}: ${d.type==='pct'?d.value+'%':fc(d.value)}`:'Descuento / Propina'}
-      </button>
-      ${d.type!=='none'&&d.reason?`<div class="itext">Motivo: ${d.reason}</div>`:''}
+      <button class="btn bo btn-sm" onclick="openDisc()">🏷️ ${discLabel()}</button>
+      ${da>0?`<div class="itext" style="color:var(--ok)">Descuento: -${fc(da)}${csDisc.discReason?' · '+csDisc.discReason:''}</div>`:''}
+      ${ta>0?`<div class="itext" style="color:var(--info)">Propina: +${fc(ta)}${csDisc.tipReason?' · '+csDisc.tipReason:''}</div>`:''}
     </div>
     <div style="margin-bottom:14px">
       <div class="fl" style="margin-bottom:8px">MÉTODO DE PAGO</div>
@@ -1481,9 +1609,7 @@ function buildPayPanel(){
             oninput="csPayments.transfer=parseFloat(this.value)||0;updPaySum()"/></div>
       </div>
     </div>
-    <div class="psum" id="psum">
-      ${buildPaySum(o.total,da,ta,ft,paid,chg,rem,d)}
-    </div>
+    <div class="psum" id="psum">${buildPaySum(o.total,da,ta,ft,paid,chg,rem)}</div>
     <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
       <button class="btn bo" onclick="showTicket()">🧾 Ver Ticket</button>
       <button class="btn bo" style="color:var(--err);border-color:var(--err)" onclick="cancelOrder('${o.id}')">🚫 Cancelar</button>
@@ -1491,9 +1617,10 @@ function buildPayPanel(){
     </div>
   </div>`;
 }
-function buildPaySum(base,da,ta,ft,paid,chg,rem,d){
+function buildPaySum(base,da,ta,ft,paid,chg,rem){
+  const d=csDisc;
   return`<div class="prow"><span>Subtotal:</span><span>${fc(base)}</span></div>
-  ${da>0?`<div class="prow" style="color:var(--ok)"><span>Descuento${d.type==='pct'?' ('+d.value+'%)':''}:</span><span>-${fc(da)}</span></div>`:''}
+  ${da>0?`<div class="prow" style="color:var(--ok)"><span>Descuento${d.discType==='pct'?' ('+d.discValue+'%)':''}:</span><span>-${fc(da)}</span></div>`:''}
   ${ta>0?`<div class="prow" style="color:var(--info)"><span>Propina:</span><span>+${fc(ta)}</span></div>`:''}
   <div class="prow total"><span>TOTAL A PAGAR:</span><span>${fc(ft)}</span></div>
   <div class="prow"><span>Pagado:</span><span>${fc(paid)}</span></div>
@@ -1502,56 +1629,56 @@ function buildPaySum(base,da,ta,ft,paid,chg,rem,d){
 }
 function updPaySum(){
   const o=selOrder;if(!o)return;
-  const d=csDisc;let da=0,ta=0;
-  if(d.type==='pct')da=o.total*(d.value/100);
-  else if(d.type==='amt')da=d.value;
-  else if(d.type==='tip')ta=d.value;
-  const ft=Math.max(0,o.total-da+ta);
+  const da=calcDA(o.total);const ta=calcTA();const ft=calcFT(o.total);
   const paid=(csPayments.cash||0)+(csPayments.card||0)+(csPayments.transfer||0);
   const rem=ft-paid;const chg=paid>ft?paid-ft:0;
   const el=document.getElementById('psum');
-  if(el)el.innerHTML=buildPaySum(o.total,da,ta,ft,paid,chg,rem,d);
+  if(el)el.innerHTML=buildPaySum(o.total,da,ta,ft,paid,chg,rem);
 }
 function openDisc(){
-  document.getElementById('dc-type').value=csDisc.type||'none';
-  document.getElementById('dc-val').value=csDisc.value||'';
-  document.getElementById('dc-reason').value=csDisc.reason||'';
+  const d=csDisc;
+  document.getElementById('dc-type').value=d.discType||'none';
+  document.getElementById('dc-val').value=d.discValue||'';
+  document.getElementById('dc-reason').value=d.discReason||'';
+  document.getElementById('dc-tip').value=d.tipValue||'';
+  document.getElementById('dc-tip-reason').value=d.tipReason||'';
   updDiscCalc();om('m-disc');
 }
 function updDiscCalc(){
   const type=document.getElementById('dc-type').value;
   const val=parseFloat(document.getElementById('dc-val').value)||0;
-  const lbl=document.getElementById('dc-lbl');const prev=document.getElementById('dc-prev');
-  const map={pct:'Porcentaje (%)',amt:'Monto ($)',tip:'Propina ($)',none:'Valor'};
-  if(lbl)lbl.textContent=map[type]||'Valor';
-  if(!prev||!selOrder){return}
+  const tip=parseFloat(document.getElementById('dc-tip').value)||0;
+  const lbl=document.getElementById('dc-lbl');
+  const prev=document.getElementById('dc-prev');
+  if(lbl)lbl.textContent=type==='pct'?'Porcentaje (%)':'Monto ($)';
+  const wrap=document.getElementById('dc-val-wrap');
+  if(wrap)wrap.style.display=type==='none'?'none':'';
+  if(!prev||!selOrder)return;
   const base=selOrder.total;
-  if(type==='pct')prev.innerHTML=`<div class="itext">Descuento: ${fc(base*val/100)} · Nuevo total: ${fc(base-base*val/100)}</div>`;
-  else if(type==='amt')prev.innerHTML=`<div class="itext">Nuevo total: ${fc(Math.max(0,base-val))}</div>`;
-  else if(type==='tip')prev.innerHTML=`<div class="itext">Total con propina: ${fc(base+val)}</div>`;
-  else prev.innerHTML='';
+  let da=0;
+  if(type==='pct')da=base*val/100;
+  else if(type==='amt')da=val;
+  const ft=Math.max(0,base-da+tip);
+  let parts=[];
+  if(da>0)parts.push(`Desc.: -${fc(da)}`);
+  if(tip>0)parts.push(`Propina: +${fc(tip)}`);
+  parts.push(`Total: <strong>${fc(ft)}</strong>`);
+  prev.innerHTML=`<div class="itext" style="margin-top:4px">${parts.join(' · ')}</div>`;
 }
 function applyDisc(){
   if(!selOrder)return;
   const type=document.getElementById('dc-type').value;
   const value=parseFloat(document.getElementById('dc-val').value)||0;
   const reason=document.getElementById('dc-reason').value.trim();
-  let da=0,ta=0;
-  if(type==='pct')da=selOrder.total*(value/100);
-  else if(type==='amt')da=value;
-  else if(type==='tip')ta=value;
-  const ft=Math.max(0,selOrder.total-da+ta);
-  csDisc={type,value,reason,finalTotal:ft};
+  const tip=parseFloat(document.getElementById('dc-tip').value)||0;
+  const tipReason=document.getElementById('dc-tip-reason').value.trim();
+  csDisc={discType:type,discValue:value,discReason:reason,tipValue:tip,tipReason};
   cm('m-disc');
   document.getElementById('pay-panel').innerHTML=buildPayPanel();
 }
 function doPay(){
   if(!selOrder)return;
-  const d=csDisc;let da=0,ta=0;
-  if(d.type==='pct')da=selOrder.total*(d.value/100);
-  else if(d.type==='amt')da=d.value;
-  else if(d.type==='tip')ta=d.value;
-  const ft=Math.max(0,selOrder.total-da+ta);
+  const da=calcDA(selOrder.total);const ta=calcTA();const ft=calcFT(selOrder.total);
   const paid=(csPayments.cash||0)+(csPayments.card||0)+(csPayments.transfer||0);
   if(paid===0){notify('⚠️','Ingresa el pago','Por favor ingresa al menos un monto de pago.',3000);return}
   if(paid<ft){
@@ -1565,59 +1692,41 @@ function finalizePay(ft,paid,da,ta){
   const i=orders.findIndex(o=>o.id===selOrder.id);if(i===-1)return;
   const chg=Math.max(0,paid-ft);
   const d=csDisc;
-  // Conservar el status de cocina para que el pedido siga su proceso normal
-  // Solo marcamos el pago — el status lo cambia cocina cuando termine
   const prevStatus=orders[i].status;
   const kitchenStatuses=['pending','in-process','cooking','ready','bar'];
   if(kitchenStatuses.includes(prevStatus)){
-    orders[i].paid=true; // cobrado pero aún en cocina
+    orders[i].paid=true;
     orders[i].paidEarly=true;
   } else {
     orders[i].status='paid';
   }
   orders[i].payment={cash:csPayments.cash||0,card:csPayments.card||0,transfer:csPayments.transfer||0,
     tip:ta,paid,finalTotal:ft,change:chg,status:'paid'};
-  orders[i].discount={...d,finalTotal:ft,discAmt:da};
+  // Guardar descuento Y propina por separado en el pedido
+  orders[i].discount={
+    discType:d.discType,discValue:d.discValue,discReason:d.discReason,
+    tipValue:d.tipValue,tipReason:d.tipReason,
+    finalTotal:ft,discAmt:da,
+    // Alias de compatibilidad con showTicket y registros anteriores
+    type:d.discType,value:d.discValue,reason:d.discReason
+  };
   orders[i].paidAt=new Date().toISOString();
-  // Guardar en la pestaña de Caja
-  const cajaList = LS.get('be_caja') || [];
-  cajaList.push({
-    id: orders[i].id,
-    number: orders[i].number,
-    clientName: orders[i].clientName,
-    total: ft,
-    cash: csPayments.cash || 0,
-    card: csPayments.card || 0,
-    transfer: csPayments.transfer || 0,
-    workerName: CU.name,
-    timestamp: new Date().toISOString()
-  });
-  // Ventas acumuladas
+  const cajaList=LS.get('be_caja')||[];
+  cajaList.push({id:orders[i].id,number:orders[i].number,clientName:orders[i].clientName,
+    total:ft,cash:csPayments.cash||0,card:csPayments.card||0,transfer:csPayments.transfer||0,
+    workerName:CU.name,timestamp:new Date().toISOString()});
   const addSales=(key)=>{const s=LS.obj(key,{total:0,cash:0,card:0,transfer:0});
-    s.total+=ft;s.cash+=csPayments.cash||0;s.card+=csPayments.card||0;s.transfer+=csPayments.transfer||0;
-    return s;};
-  // Registro de sesión de caja (visible solo el día actual)
-  let cajaSess = LS.obj('be_caja_session', {registros:[], fecha:today()});
-  if(cajaSess.fecha !== today()) cajaSess = {registros:[], fecha:today()};
+    s.total+=ft;s.cash+=csPayments.cash||0;s.card+=csPayments.card||0;s.transfer+=csPayments.transfer||0;return s;};
+  let cajaSess=LS.obj('be_caja_session',{registros:[],fecha:today()});
+  if(cajaSess.fecha!==today())cajaSess={registros:[],fecha:today()};
   cajaSess.registros.push({
-    id: orders[i].id,
-    number: orders[i].number,
-    clientName: orders[i].clientName,
-    workerName: orders[i].workerName,
-    items: orders[i].items,
-    subtotal: orders[i].total,
-    discType: d.type,
-    discValue: d.value,
-    discAmt: da,
-    tip: ta,
-    finalTotal: ft,
-    cash: csPayments.cash||0,
-    card: csPayments.card||0,
-    transfer: csPayments.transfer||0,
-    change: chg,
-    paidAt: new Date().toISOString()
+    id:orders[i].id,number:orders[i].number,clientName:orders[i].clientName,
+    workerName:orders[i].workerName,items:orders[i].items,subtotal:orders[i].total,
+    discType:d.discType,discValue:d.discValue,discAmt:da,
+    tip:ta,tipReason:d.tipReason,
+    finalTotal:ft,cash:csPayments.cash||0,card:csPayments.card||0,
+    transfer:csPayments.transfer||0,change:chg,paidAt:new Date().toISOString()
   });
-  // Descontar inventario y capturar el resultado actualizado para incluirlo en el batch
   autoDescontarInventario(orders[i].items||[]);
   const invActualizado=LS.get('be_inventory');
   LS.setBatch([
@@ -1632,15 +1741,16 @@ function finalizePay(ft,paid,da,ta){
   logAct(CU.id,`Cobró pedido #${orders[i].number} - ${orders[i].clientName} - ${fc(ft)}`);
   notify('✅','¡Pago exitoso!',`Pedido #${orders[i].number}. Cambio: ${fc(chg)}`,4000);
   showTicket(orders[i]);
-  selOrder=null;csPayments={cash:0,card:0,transfer:0};csDisc={type:'none',value:0,reason:''};
+  selOrder=null;csPayments={cash:0,card:0,transfer:0};
+  csDisc={discType:'none',discValue:0,discReason:'',tipValue:0,tipReason:''};
   updBadges();
-  // Forzar re-render inmediato de Caja: quita el pedido de 'Activos' y muestra el registro
   go('cashier',true);
 }
 function showTicket(oArg){
   const o=oArg||selOrder;if(!o)return;
   const pd=o.payment||{};const dc=o.discount||csDisc;
-  const da=dc.discAmt||0;const ta=pd.tip||0;
+  const da=dc.discAmt||0;
+  const ta=dc.tipValue??pd.tip??0;
   const ft=pd.finalTotal||o.total;const paid=pd.paid||0;const chg=pd.change||0;
   // Usar fecha original del pago si existe (para reimpresión), o fecha actual
   const ticketDate = o.paidAt ? new Date(o.paidAt) : new Date();
@@ -1806,8 +1916,8 @@ function buildCajaSessionList(){
   if(!regs.length) return '<div class="empty" style="padding:20px 0"><div class="ei">🧾</div><p>Sin cobros registrados hoy. Los cobros aparecerán aquí al instante.</p></div>';
   return regs.slice().reverse().map((r,idx) => {
     const discStr = r.discType==='pct' ? `Desc. ${r.discValue}%: -${fc(r.discAmt)}`
-      : r.discType==='amt' ? `Desc. $: -${fc(r.discAmt)}`
-      : r.discType==='tip' ? `Propina: +${fc(r.tip)}` : '';
+      : r.discType==='amt' ? `Desc. $: -${fc(r.discAmt)}` : '';
+    const tipStr  = (r.tip||r.tipValue)>0 ? `Propina: +${fc(r.tip||r.tipValue)}` : '';
     // Calcular índice real en el array original (invertido)
     const realIdx = regs.length - 1 - idx;
     return `<div class="caja-reg">
@@ -1825,7 +1935,8 @@ function buildCajaSessionList(){
       <div style="font-size:12px;color:var(--muted);margin-top:5px">${r.items.map(i=>`${i.qty}× ${i.name}`).join(' · ')}</div>
       <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:8px;font-size:12px">
         <span>Subtotal: <strong>${fc(r.subtotal)}</strong></span>
-        ${discStr ? `<span style="color:${r.discType==='tip'?'var(--info)':'var(--ok)'}">${discStr}</span>` : ''}
+        ${discStr ? `<span style="color:var(--ok)">${discStr}</span>` : ''}
+        ${tipStr  ? `<span style="color:var(--info)">${tipStr}</span>`  : ''}
         ${r.cash>0 ? `<span>💵 Efectivo: <strong>${fc(r.cash)}</strong></span>` : ''}
         ${r.card>0 ? `<span>💳 Tarjeta: <strong>${fc(r.card)}</strong></span>` : ''}
         ${r.transfer>0 ? `<span>📱 Transfer.: <strong>${fc(r.transfer)}</strong></span>` : ''}
