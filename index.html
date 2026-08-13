@@ -159,6 +159,12 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#FDFAF8}
 /* ── ORDERS VIEW ── */
 .order-layout{display:grid;grid-template-columns:1fr 380px;gap:20px;align-items:start}
 .prod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:9px}
+/* Buscador + scroll del menú en Pedidos */
+.menu-search-wrap{position:relative;margin-bottom:10px}
+.menu-search-wrap .ico-search{position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:14px;pointer-events:none;color:var(--muted)}
+.menu-search-inp{width:100%;padding:9px 12px 9px 34px;border:2px solid var(--border);border-radius:var(--rs);font-size:13px;font-family:inherit;color:var(--text);background:#FDFAF8;transition:border-color .2s}
+.menu-search-inp:focus{outline:none;border-color:var(--birria)}
+.prod-scroll{max-height:340px;overflow-y:auto;padding-right:4px}
 .pb{background:#FDFAF8;border:2px solid var(--border);border-radius:var(--rs);
   padding:13px 10px;text-align:center;cursor:pointer;transition:all .18s;font-family:inherit}
 .pb:hover{border-color:var(--birria);background:#FFF5F0}
@@ -1088,12 +1094,19 @@ function rOrders(c){
       </div>
       <div class="card">
         <div class="ch"><div class="ct">🍖 Menú</div></div>
+        <div class="menu-search-wrap">
+          <span class="ico-search">🔍</span>
+          <input type="text" class="menu-search-inp" id="menu-search" placeholder="Buscar producto..."
+            oninput="filterMenuSearch(this.value)"/>
+        </div>
         <div class="chip-row" id="cat-chips">
           <button class="cchip ${orderCatFilter==='all'?'active':''}" onclick="filterCat('all',this)">Todos</button>
           ${cats.map(c=>`<button class="cchip ${orderCatFilter===c?'active':''}" onclick="filterCat('${c}',this)">${c}</button>`).join('')}
         </div>
-        <div class="prod-grid" id="pgrid">
-          ${buildProdGrid(prods,orderCatFilter)}
+        <div class="prod-scroll">
+          <div class="prod-grid" id="pgrid">
+            ${buildProdGrid(prods,orderCatFilter)}
+          </div>
         </div>
       </div>
     </div>
@@ -1113,9 +1126,10 @@ function rOrders(c){
   buildCart();
 }
 
-function buildProdGrid(prods,cat){
-  const f=cat==='all'?prods:prods.filter(p=>p.category===cat);
-  if(!f.length)return'<p style="color:var(--muted);font-size:13px;padding:8px">Sin productos en esta categoría.</p>';
+function buildProdGrid(prods,cat,q=''){
+  let f=cat==='all'?prods:prods.filter(p=>p.category===cat);
+  if(q){const ql=q.toLowerCase();f=f.filter(p=>p.name.toLowerCase().includes(ql)||(p.category||'').toLowerCase().includes(ql));}
+  if(!f.length)return`<p style="color:var(--muted);font-size:13px;padding:8px">${q?'Sin resultados para "'+q+'"':'Sin productos en esta categoría.'}</p>`;
   return f.map(p=>`<button class="pb" onclick="addToCart('${p.id}')">
     <span class="pn">${p.name}</span><span class="pp">${fc(p.price)}</span><span class="pc">${p.category}</span>
   </button>`).join('');
@@ -1125,7 +1139,13 @@ function filterCat(cat,btn){
   document.querySelectorAll('#cat-chips .cchip').forEach(c=>c.classList.remove('active'));
   btn.classList.add('active');
   const prods=LS.get('be_products').filter(p=>p.active!==false);
-  document.getElementById('pgrid').innerHTML=buildProdGrid(prods,cat);
+  const searchEl=document.getElementById('menu-search');
+  const q=searchEl?searchEl.value.trim():'';
+  document.getElementById('pgrid').innerHTML=buildProdGrid(prods,cat,q);
+}
+function filterMenuSearch(q){
+  const prods=LS.get('be_products').filter(p=>p.active!==false);
+  document.getElementById('pgrid').innerHTML=buildProdGrid(prods,orderCatFilter,q);
 }
 function addToCart(pid){
   const p=LS.get('be_products').find(x=>x.id===pid);if(!p)return;
@@ -1256,23 +1276,43 @@ function markDel(oid){
 // ═══════════════════════════════════════════
 function rKitchen(c){
   const all=LS.get('be_orders');
+  const cnt={pending:all.filter(o=>o.status==='pending').length,'in-process':all.filter(o=>o.status==='in-process').length,ready:all.filter(o=>o.status==='ready').length,bar:all.filter(o=>o.status==='bar').length};
+  c.innerHTML=`
+  <div class="fpills" id="k-pills">
+    <button class="fpill ${kFilter==='active'?'active':''}" onclick="setKFilter('active')">🔥 Activos (${cnt.pending+cnt['in-process']+cnt.ready+cnt.bar})</button>
+    <button class="fpill ${kFilter==='pending'?'active':''}" onclick="setKFilter('pending')">⏳ Espera (${cnt.pending})</button>
+    <button class="fpill ${kFilter==='in-process'?'active':''}" onclick="setKFilter('in-process')">👨‍🍳 Proceso (${cnt['in-process']})</button>
+    <button class="fpill ${kFilter==='ready'?'active':''}" onclick="setKFilter('ready')">✅ Listos (${cnt.ready})</button>
+    <button class="fpill ${kFilter==='bar'?'active':''}" onclick="setKFilter('bar')">🍺 Barra (${cnt.bar})</button>
+    <button class="fpill ${kFilter==='all'?'active':''}" onclick="setKFilter('all')">📋 Todos</button>
+  </div>
+  <div id="k-cards"></div>`;
+  renderKCards();
+}
+function setKFilter(f){
+  kFilter=f;
+  // Actualizar pills sin salir de la vista
+  document.querySelectorAll('#k-pills .fpill').forEach(btn=>{
+    const map={'active':'active','pending':'pending','in-process':'in-process','ready':'ready','bar':'bar','all':'all'};
+    // Detectar cuál pill es cuál por su texto/onclick
+    const oc=btn.getAttribute('onclick')||'';
+    const match=oc.match(/setKFilter\('([^']+)'\)/);
+    btn.classList.toggle('active',match&&match[1]===f);
+  });
+  renderKCards();
+}
+function renderKCards(){
+  const all=LS.get('be_orders');
   let filtered=kFilter==='all'?all:kFilter==='active'?all.filter(o=>!['paid','cancelled'].includes(o.status)):all.filter(o=>o.status===kFilter);
   const sorted=[...filtered].sort((a,b)=>{
     const s={pending:0,'in-process':1,ready:2,bar:3,delivered:4,paid:5};
     return((s[a.status]||9)-(s[b.status]||9))||new Date(a.timestamp)-new Date(b.timestamp);
   });
-  const cnt={pending:all.filter(o=>o.status==='pending').length,'in-process':all.filter(o=>o.status==='in-process').length,ready:all.filter(o=>o.status==='ready').length,bar:all.filter(o=>o.status==='bar').length};
-  c.innerHTML=`
-  <div class="fpills">
-    <button class="fpill ${kFilter==='active'?'active':''}" onclick="kFilter='active';go('kitchen')">🔥 Activos (${cnt.pending+cnt['in-process']+cnt.ready+cnt.bar})</button>
-    <button class="fpill ${kFilter==='pending'?'active':''}" onclick="kFilter='pending';go('kitchen')">⏳ Espera (${cnt.pending})</button>
-    <button class="fpill ${kFilter==='in-process'?'active':''}" onclick="kFilter='in-process';go('kitchen')">👨‍🍳 Proceso (${cnt['in-process']})</button>
-    <button class="fpill ${kFilter==='ready'?'active':''}" onclick="kFilter='ready';go('kitchen')">✅ Listos (${cnt.ready})</button>
-    <button class="fpill ${kFilter==='bar'?'active':''}" onclick="kFilter='bar';go('kitchen')">🍺 Barra (${cnt.bar})</button>
-    <button class="fpill ${kFilter==='all'?'active':''}" onclick="kFilter='all';go('kitchen')">📋 Todos</button>
-  </div>
-  ${!sorted.length?'<div class="card"><div class="empty"><div class="ei">👨‍🍳</div><h3>Sin pedidos</h3><p>No hay pedidos en esta categoría.</p></div></div>':
-  `<div class="kgrid">${sorted.map(o=>buildKCard(o)).join('')}</div>`}`;
+  const wrap=document.getElementById('k-cards');
+  if(!wrap)return;
+  wrap.innerHTML=!sorted.length
+    ?'<div class="card"><div class="empty"><div class="ei">👨‍🍳</div><h3>Sin pedidos</h3><p>No hay pedidos en esta categoría.</p></div></div>'
+    :`<div class="kgrid">${sorted.map(o=>buildKCard(o)).join('')}</div>`;
 }
 function buildKCard(o){
   const el=Math.floor((Date.now()-new Date(o.timestamp))/60000);
@@ -1315,7 +1355,7 @@ function updStatus(oid,ns){
     LS.set('be_orders',orders);
     logAct(CU.id,`Cerró pedido #${orders[i].number} (ya cobrado) al entregar`);
     notify('✅',`Pedido #${orders[i].number} cerrado`,`${orders[i].clientName} — entregado y cobrado.`,4000);
-    go('kitchen',true);
+    refreshKitchenView();
     return;
   }
   orders[i].status=ns;LS.set('be_orders',orders);
@@ -1325,7 +1365,28 @@ function updStatus(oid,ns){
     notify('🍺',`¡Pedido #${orders[i].number} en Barra!`,`${orders[i].clientName} — listo para entregar.`,6000,'nbar');
     playSound('bar');
   }
-  go('kitchen',true);
+  refreshKitchenView();
+}
+// Refresca la vista de cocina sin salir de ella
+function refreshKitchenView(){
+  updBadges();
+  // Si estamos en cocina: solo actualizar pills y tarjetas en su lugar
+  if(CV==='kitchen'){
+    const all=LS.get('be_orders');
+    const cnt={pending:all.filter(o=>o.status==='pending').length,'in-process':all.filter(o=>o.status==='in-process').length,ready:all.filter(o=>o.status==='ready').length,bar:all.filter(o=>o.status==='bar').length};
+    // Actualizar contadores en pills
+    const pills=document.querySelectorAll('#k-pills .fpill');
+    if(pills.length>=6){
+      pills[0].innerHTML=`🔥 Activos (${cnt.pending+cnt['in-process']+cnt.ready+cnt.bar})`;
+      pills[1].innerHTML=`⏳ Espera (${cnt.pending})`;
+      pills[2].innerHTML=`👨‍🍳 Proceso (${cnt['in-process']})`;
+      pills[3].innerHTML=`✅ Listos (${cnt.ready})`;
+      pills[4].innerHTML=`🍺 Barra (${cnt.bar})`;
+    }
+    renderKCards();
+  } else {
+    go('kitchen',true);
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -2315,12 +2376,9 @@ function rDashboard(cnt){
 
 
 // ═══════════════════════════════════════════
-// EXPORTAR EXCEL — Todos los registros (sin Usuarios)
+// EXPORTAR EXCEL — Workbook con pestañas reales (SpreadsheetML)
 // ═══════════════════════════════════════════
 function exportAllToExcel(){
-  // Construir workbook manualmente en formato CSV multi-hoja
-  // usando una hoja por sección, separadas con líneas vacías (una sola descarga .xlsx simulada con CSV por sección)
-  // Usamos el formato XML SpreadsheetML para compatibilidad con Excel sin librería
   const orders   = LS.get('be_orders');
   const prods    = LS.get('be_products');
   const cuts     = LS.get('be_cuts');
@@ -2331,95 +2389,136 @@ function exportAllToExcel(){
   const sm       = LS.obj('be_sm',{total:0,cash:0,card:0,transfer:0});
   const inventory= LS.get('be_inventory');
 
-  const esc = v => {
+  // Escapa caracteres especiales para XML
+  const ex = v => {
     if(v===undefined||v===null) return '';
-    if(typeof v==='object') return JSON.stringify(v).replace(/"/g,'""');
-    return String(v).replace(/"/g,'""');
+    if(typeof v==='object') v=JSON.stringify(v);
+    return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
   };
-  const row = cols => cols.map(v=>`"${esc(v)}"`).join(',');
 
-  const sections = [];
+  // Determina si un valor es numérico para usar tipo Number en la celda
+  const isNum = v => v!==''&&v!==null&&v!==undefined&&typeof v!=='object'&&!isNaN(Number(v))&&String(v).trim()!=='';
 
-  // 1. PEDIDOS
-  sections.push('=== PEDIDOS ===');
-  sections.push(row(['ID','Número','Cliente','Mesero','Estado','Subtotal','Total Final','Efectivo','Tarjeta','Transfer.','Propina','Descuento','Cambio','Fecha','Pagado En','Nota General','Motivo Cancelación']));
-  orders.forEach(o=>{
-    const p=o.payment||{};const d=o.discount||{};
-    sections.push(row([o.id,o.number,o.clientName,o.workerName,o.status,o.total,
-      p.finalTotal||o.total,p.cash||0,p.card||0,p.transfer||0,p.tip||0,d.discAmt||0,p.change||0,
-      fd(o.timestamp),fd(o.paidAt),o.generalNote||'',o.cancelReason||'']));
-  });
-  sections.push('');
-
-  // 2. DETALLE DE ITEMS POR PEDIDO
-  sections.push('=== ITEMS DE PEDIDOS ===');
-  sections.push(row(['ID Pedido','Número Pedido','Cliente','Producto','Precio Unit.','Cantidad','Subtotal Item','Nota Item']));
-  orders.forEach(o=>{
-    (o.items||[]).forEach(i=>{
-      sections.push(row([o.id,o.number,o.clientName,i.name,i.price,i.qty,(i.price*i.qty),i.note||'']));
+  // Construye una fila XML
+  const xmlRow = (cols, isHeader=false) => {
+    const cells = cols.map(v => {
+      const val = ex(v);
+      if(isHeader) return `<Cell ss:StyleID="Header"><Data ss:Type="String">${val}</Data></Cell>`;
+      if(isNum(v)) return `<Cell><Data ss:Type="Number">${Number(v)}</Data></Cell>`;
+      return `<Cell><Data ss:Type="String">${val}</Data></Cell>`;
     });
-  });
-  sections.push('');
+    return `<Row>${cells.join('')}</Row>`;
+  };
 
-  // 3. COBROS (CAJA)
-  sections.push('=== COBROS REGISTRADOS ===');
-  sections.push(row(['ID','Número','Cliente','Total','Efectivo','Tarjeta','Transfer.','Cajero','Fecha']));
-  caja.forEach(c=>{
-    sections.push(row([c.id,c.number,c.clientName,c.total,c.cash||0,c.card||0,c.transfer||0,c.workerName,fd(c.timestamp)]));
-  });
-  sections.push('');
+  // Construye una hoja completa
+  const xmlSheet = (name, headers, dataRows) => {
+    const rows = [xmlRow(headers, true), ...dataRows.map(r=>xmlRow(r))].join('\n');
+    return `<Worksheet ss:Name="${ex(name)}">
+  <Table>
+    <Column ss:AutoFitWidth="1" ss:Width="120"/>
+    ${rows}
+  </Table>
+</Worksheet>`;
+  };
 
-  // 4. REGISTROS DEL DÍA (CAJA SESSION)
-  sections.push('=== REGISTROS DEL DÍA (CAJA) ===');
-  sections.push(row(['Número','Cliente','Mesero','Subtotal','Tipo Desc.','Valor Desc.','Monto Desc.','Propina','Total Final','Efectivo','Tarjeta','Transfer.','Cambio','Hora']));
-  (cajaSess.registros||[]).forEach(r=>{
-    sections.push(row([r.number,r.clientName,r.workerName,r.subtotal,r.discType||'',r.discValue||0,r.discAmt||0,r.tip||0,r.finalTotal,r.cash||0,r.card||0,r.transfer||0,r.change||0,fd(r.paidAt)]));
-  });
-  sections.push('');
+  // ── 1. Pedidos ──────────────────────────────────────────────────────────────
+  const sheetPedidos = xmlSheet('Pedidos',
+    ['ID','Número','Cliente','Mesero','Estado','Subtotal','Total Final','Efectivo','Tarjeta','Transfer.','Propina','Descuento','Cambio','Fecha','Pagado En','Nota General','Motivo Cancelación'],
+    orders.map(o=>{
+      const p=o.payment||{};const d=o.discount||{};
+      return[o.id,o.number,o.clientName,o.workerName,SL[o.status]||o.status,o.total,
+        p.finalTotal||o.total,p.cash||0,p.card||0,p.transfer||0,p.tip||0,d.discAmt||0,p.change||0,
+        fd(o.timestamp),fd(o.paidAt),o.generalNote||'',o.cancelReason||''];
+    })
+  );
 
-  // 5. CORTES DE CAJA
-  sections.push('=== CORTES DE CAJA ===');
-  sections.push(row(['ID','Fecha','Cajero','Caja Inicial','Ventas Total','Efectivo','Tarjeta','Transfer.','Propinas','Desc. Monto $','Desc. Porcentaje $','Esperado','Físico','Diferencia']));
-  cuts.forEach(c=>{
-    sections.push(row([c.id,fd(c.timestamp),c.workerName,c.initCash,c.salesTotal,c.cash,c.card,c.transfer,c.tips||0,c.discAmt||0,c.discPct||0,c.expectedCash,c.physicalCash,c.diff]));
-  });
-  sections.push('');
+  // ── 2. Detalle Items ────────────────────────────────────────────────────────
+  const itemRows=[];
+  orders.forEach(o=>(o.items||[]).forEach(i=>{
+    itemRows.push([o.id,o.number,o.clientName,i.name,i.price,i.qty,i.price*i.qty,i.note||'']);
+  }));
+  const sheetItems = xmlSheet('Items por Pedido',
+    ['ID Pedido','Número Pedido','Cliente','Producto','Precio Unit.','Cantidad','Subtotal Item','Nota Item'],
+    itemRows
+  );
 
-  // 6. VENTAS ACUMULADAS
-  sections.push('=== VENTAS ACUMULADAS ===');
-  sections.push(row(['Periodo','Total','Efectivo','Tarjeta','Transfer.','Desde']));
-  sections.push(row(['Día',sd.total,sd.cash||0,sd.card||0,sd.transfer||0,sd.date||today()]));
-  sections.push(row(['Semana',sw.total,sw.cash||0,sw.card||0,sw.transfer||0,sw.weekStart||'']));
-  sections.push(row(['Mes',sm.total,sm.cash||0,sm.card||0,sm.transfer||0,sm.monthStart||'']));
-  sections.push('');
+  // ── 3. Cobros (Caja) ────────────────────────────────────────────────────────
+  const sheetCaja = xmlSheet('Cobros Caja',
+    ['ID','Número','Cliente','Total','Efectivo','Tarjeta','Transfer.','Cajero','Fecha'],
+    caja.map(c=>[c.id,c.number,c.clientName,c.total,c.cash||0,c.card||0,c.transfer||0,c.workerName,fd(c.timestamp)])
+  );
 
-  // 7. PRODUCTOS
-  sections.push('=== PRODUCTOS ===');
-  sections.push(row(['ID','Nombre','Descripción','Categoría','Precio','Activo']));
-  prods.forEach(p=>{
-    sections.push(row([p.id,p.name,p.description||'',p.category,p.price,p.active===false?'No':'Sí']));
-  });
-  sections.push('');
+  // ── 4. Registros del Día ────────────────────────────────────────────────────
+  const sheetSesion = xmlSheet('Registros del Día',
+    ['Número','Cliente','Mesero','Subtotal','Tipo Desc.','Valor Desc.','Monto Desc.','Propina','Total Final','Efectivo','Tarjeta','Transfer.','Cambio','Hora'],
+    (cajaSess.registros||[]).map(r=>[r.number,r.clientName,r.workerName,r.subtotal,r.discType||'',r.discValue||0,r.discAmt||0,r.tip||0,r.finalTotal,r.cash||0,r.card||0,r.transfer||0,r.change||0,fd(r.paidAt)])
+  );
 
-  // 8. INVENTARIO
-  sections.push('=== INVENTARIO ===');
-  sections.push(row(['ID Producto','Nombre','Stock','Unidad','Stock Mínimo','Costo Unitario','Valor Total','Estado']));
-  inventory.forEach(item=>{
-    const prod=prods.find(p=>p.id===item.prodId);
-    const st=item.stock<=0?'Agotado':item.stock<=(item.stockMin||0)?'Stock Bajo':'OK';
-    sections.push(row([item.prodId,prod?prod.name:item.nombre||'',item.stock||0,item.unit||'pzas',item.stockMin||0,item.costoUnit||0,((item.stock||0)*(item.costoUnit||0)).toFixed(2),st]));
-  });
-  sections.push('');
+  // ── 5. Cortes de Caja ───────────────────────────────────────────────────────
+  const sheetCortes = xmlSheet('Cortes de Caja',
+    ['ID','Fecha','Cajero','Caja Inicial','Ventas Total','Efectivo','Tarjeta','Transfer.','Propinas','Desc. Monto $','Desc. %','Esperado','Físico','Diferencia'],
+    cuts.map(c=>[c.id,fd(c.timestamp),c.workerName,c.initCash,c.salesTotal,c.cash,c.card,c.transfer,c.tips||0,c.discAmt||0,c.discPct||0,c.expectedCash,c.physicalCash,c.diff])
+  );
 
-  const csv = '\uFEFF' + sections.join('\n'); // BOM para UTF-8 en Excel
-  const blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  // ── 6. Ventas Acumuladas ────────────────────────────────────────────────────
+  const sheetVentas = xmlSheet('Ventas Acumuladas',
+    ['Periodo','Total','Efectivo','Tarjeta','Transfer.','Desde'],
+    [
+      ['Día',     sd.total, sd.cash||0, sd.card||0, sd.transfer||0, sd.date||today()],
+      ['Semana',  sw.total, sw.cash||0, sw.card||0, sw.transfer||0, sw.weekStart||''],
+      ['Mes',     sm.total, sm.cash||0, sm.card||0, sm.transfer||0, sm.monthStart||''],
+    ]
+  );
+
+  // ── 7. Productos ────────────────────────────────────────────────────────────
+  const sheetProds = xmlSheet('Productos',
+    ['ID','Nombre','Descripción','Categoría','Precio','Activo'],
+    prods.map(p=>[p.id,p.name,p.description||'',p.category,p.price,p.active===false?'No':'Sí'])
+  );
+
+  // ── 8. Inventario ───────────────────────────────────────────────────────────
+  const sheetInv = xmlSheet('Inventario',
+    ['ID Producto','Nombre','Stock','Unidad','Stock Mínimo','Costo Unitario','Valor Total','Estado'],
+    inventory.map(item=>{
+      const prod=prods.find(p=>p.id===item.prodId);
+      const st=item.stock<=0?'Agotado':item.stock<=(item.stockMin||0)?'Stock Bajo':'OK';
+      return[item.prodId,prod?prod.name:item.nombre||'',item.stock||0,item.unit||'pzas',item.stockMin||0,item.costoUnit||0,((item.stock||0)*(item.costoUnit||0)).toFixed(2),st];
+    })
+  );
+
+  // ── Estilos para encabezados ────────────────────────────────────────────────
+  const styles = `<Styles>
+  <Style ss:ID="Header">
+    <Font ss:Bold="1" ss:Color="#FFFFFF"/>
+    <Interior ss:Color="#C8400A" ss:Pattern="Solid"/>
+  </Style>
+</Styles>`;
+
+  // ── Armar workbook completo ─────────────────────────────────────────────────
+  const wb = `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+  xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+  xmlns:x="urn:schemas-microsoft-com:office:excel">
+${styles}
+${sheetPedidos}
+${sheetItems}
+${sheetCaja}
+${sheetSesion}
+${sheetCortes}
+${sheetVentas}
+${sheetProds}
+${sheetInv}
+</Workbook>`;
+
+  const blob = new Blob([wb],{type:'application/vnd.ms-excel;charset=utf-8'});
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
   a.href=url;
-  a.download='BiarriaExpress_Registros_'+today()+'.csv';
+  a.download='BirriaExpress_'+today()+'.xls';
   a.click();
   URL.revokeObjectURL(url);
-  notify('✅','Exportación completa',`Archivo CSV descargado con todos los registros (abre con Excel).`,4000);
+  notify('✅','Exportación completa','Archivo Excel descargado con 8 pestañas separadas.',4000);
 }
 
 // ═══════════════════════════════════════════
