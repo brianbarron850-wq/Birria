@@ -886,10 +886,11 @@ function initData(){
   _localInit('be_caja_session',{registros:[],fecha:today()});
   _localInit('be_inventory',[]);
   _localInit('be_horarios',{semana:weekStart(),turnos:{}});
-  if(!LCache['be_sd']||!LCache['be_sd'].date||LCache['be_sd'].date!==today())
-    LCache['be_sd']={total:0,cash:0,card:0,transfer:0,date:today(),initCash:0};
-  if(!LCache['be_sw']||!LCache['be_sw'].weekStart) LCache['be_sw']={total:0,cash:0,card:0,transfer:0,weekStart:weekStart()};
-  if(!LCache['be_sm']||!LCache['be_sm'].monthStart) LCache['be_sm']={total:0,cash:0,card:0,transfer:0,monthStart:monthStart()};
+  // be_sd: solo inicializar si no existe en absoluto.
+  // NUNCA resetear a cero automáticamente — el cierre de caja (doCorte) lo hace explícitamente.
+  _localInit('be_sd',{total:0,cash:0,card:0,transfer:0,date:today(),initCash:0});
+  _localInit('be_sw',{total:0,cash:0,card:0,transfer:0,weekStart:weekStart()});
+  _localInit('be_sm',{total:0,cash:0,card:0,transfer:0,monthStart:monthStart()});
 }
 
 // ═══════════════════════════════════════════
@@ -1054,8 +1055,24 @@ function pollServer(){
       }
     });
 
-    Object.keys(freshData).forEach(k=>{ LCache[k]=freshData[k]; });
-    initData();
+    // Mezclar datos del servidor preservando claves locales que NO deben sobreescribirse
+    // si el servidor devuelve versiones vacías o con fecha distinta (zona horaria)
+    const PRESERVE_IF_LOCAL_BIGGER=['be_sd','be_sw','be_sm'];
+    Object.keys(freshData).forEach(k=>{
+      if(PRESERVE_IF_LOCAL_BIGGER.includes(k)){
+        const srv=freshData[k];const loc=LCache[k];
+        // Solo actualizar si el servidor tiene un total mayor (otro dispositivo cobró algo)
+        if(loc&&srv&&typeof srv.total==='number'&&typeof loc.total==='number'){
+          if(srv.total>loc.total) LCache[k]=srv;
+          // Si son iguales o local es mayor, conservar local
+        } else if(!loc){
+          LCache[k]=srv;
+        }
+      } else {
+        LCache[k]=freshData[k];
+      }
+    });
+    // NO llamar initData() aquí — causaría resetear be_sd si la fecha del servidor difiere
     loadTurnosOpt();
     _lastBadgeHash='';
     updBadges();
@@ -1860,8 +1877,9 @@ function finalizePay(ft,paid,da,ta){
     workerName:CU.name,timestamp:new Date().toISOString()});
   const addSales=(key)=>{const s=LS.obj(key,{total:0,cash:0,card:0,transfer:0});
     s.total+=ft;s.cash+=csPayments.cash||0;s.card+=csPayments.card||0;s.transfer+=csPayments.transfer||0;return s;};
+  // NUNCA reiniciar cajaSess automáticamente por fecha — solo doCorte/resetCajaSession lo hacen
   let cajaSess=LS.obj('be_caja_session',{registros:[],fecha:today()});
-  if(cajaSess.fecha!==today())cajaSess={registros:[],fecha:today()};
+  if(!cajaSess.registros)cajaSess.registros=[];
   cajaSess.registros.push({
     id:orders[i].id,number:orders[i].number,clientName:orders[i].clientName,
     workerName:orders[i].workerName,items:orders[i].items,subtotal:orders[i].total,
@@ -2356,120 +2374,129 @@ function printCuts(type){
 // ── Propinas por mesero ────────────────────────────────────────────────────
 function openTipsByWaiter(){
   const cuts=LS.get('be_cuts');
-  const caja=LS.get('be_caja');
   if(!cuts.length){
     notify('⚠️','Sin cortes','Primero realiza un cierre de caja para ver las propinas.',4000);
     return;
   }
-  // Tomar registros del último corte — buscamos los pagos realizados en la sesión del corte
-  // Los registros de caja tienen workerName del cajero pero necesitamos el mesero del pedido
   const orders=LS.get('be_orders');
-  // Buscar el último corte
   const lastCut=cuts[cuts.length-1];
   const cutTime=new Date(lastCut.timestamp);
-
-  // Encontrar el corte anterior para delimitar el rango
   const prevCut=cuts.length>1?cuts[cuts.length-2]:null;
   const prevTime=prevCut?new Date(prevCut.timestamp):new Date(0);
 
-  // Filtrar pedidos pagados entre el corte anterior y el último corte
+  // Filtrar pedidos pagados dentro del rango del último corte
   const paidOrders=orders.filter(o=>{
-    if(o.status!=='paid'&&!o.paidAt)return false;
-    const pt=new Date(o.paidAt||o.timestamp);
+    if(!o.paidAt)return false;
+    const pt=new Date(o.paidAt);
     return pt>prevTime&&pt<=cutTime;
   });
 
-  // Si no hay pedidos en ese rango, tomar todos los que tengan propina registrada en caja
-  // como fallback usar los registros de caja con fecha en ese rango
-  const cajaInRange=caja.filter(c=>{
-    const ct=new Date(c.timestamp);
-    return ct>prevTime&&ct<=cutTime;
-  });
-
-  // Agrupar propinas por mesero desde los pedidos del rango
+  // Agrupar propinas generadas por cada mesero (de sus propios pedidos)
   const tipMap={};
-  let totalPropinas=0;
+  let totalGeneral=0;
 
-  // Fuente primaria: pedidos pagados con su mesero asignado
   paidOrders.forEach(o=>{
     const tip=(o.payment?.tip||0)+(o.discount?.tipValue||0);
-    if(tip<=0)return;
     const name=o.workerName||'Sin nombre';
-    if(!tipMap[name])tipMap[name]={name,tip:0,count:0};
-    tipMap[name].tip+=tip;
-    tipMap[name].count++;
-    totalPropinas+=tip;
+    if(!tipMap[name])tipMap[name]={name,tipPropia:0,pedidos:0};
+    if(tip>0){
+      tipMap[name].tipPropia+=tip;
+      tipMap[name].pedidos++;
+      totalGeneral+=tip;
+    } else {
+      // Contar pedido aunque no tenga propina
+      tipMap[name].pedidos++;
+    }
   });
 
-  // Si no se encontraron pedidos, mostrar total del corte sin desglose
-  const hayDesglose=Object.keys(tipMap).length>0;
-  const tipTotal=lastCut.tips||0;
+  // Si no hay pedidos en rango, usar total del corte sin desglose
+  const hayMeseros=Object.keys(tipMap).length>0;
+  const tipTotalCorte=lastCut.tips||0;
+  const rows=Object.values(tipMap).sort((a,b)=>b.tipPropia-a.tipPropia);
+  const numMeseros=rows.length||1;
+  const porPartes=totalGeneral/numMeseros;
 
   om('m-tips-waiter');
   const body=document.getElementById('mtw-body');
-  const fecha=document.getElementById('mtw-fecha');
-  if(fecha)fecha.textContent=`Último cierre: ${fds(lastCut.timestamp)} — Cajero: ${lastCut.workerName}`;
-
+  const fechaEl=document.getElementById('mtw-fecha');
+  if(fechaEl)fechaEl.textContent=`Último cierre: ${fds(lastCut.timestamp)} · Cajero: ${lastCut.workerName}`;
   if(!body)return;
 
-  if(!hayDesglose){
-    // Mostrar al menos el total de propinas del corte sin desglose por mesero
+  if(!hayMeseros||totalGeneral===0){
     body.innerHTML=`
       <div style="text-align:center;padding:20px 0">
         <div style="font-size:40px;margin-bottom:8px">💰</div>
-        <div style="font-size:28px;font-weight:900;color:var(--ok)">${fc(tipTotal)}</div>
-        <div style="font-size:13px;color:var(--muted);margin-top:6px">Total de propinas en el último corte</div>
-        <div style="font-size:12px;color:var(--muted);margin-top:4px">No se encontró desglose por mesero en este rango.<br>Los pedidos pueden haber sido registrados con otro método.</div>
+        <div style="font-size:28px;font-weight:900;color:var(--ok)">${fc(tipTotalCorte)}</div>
+        <div style="font-size:13px;color:var(--muted);margin-top:6px">Total de propinas registradas en el corte</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">No se encontraron propinas con desglose por mesero en este período.</div>
       </div>`;
     return;
   }
 
-  const rows=Object.values(tipMap).sort((a,b)=>b.tip-a.tip);
-  const numMeseros=rows.length;
-  const porMesero=numMeseros>0?totalPropinas/numMeseros:0;
-
   body.innerHTML=`
+    <!-- Resumen total -->
     <div style="background:#F0FDF4;border-radius:var(--rs);padding:14px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
       <div>
-        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Total de Propinas</div>
-        <div style="font-size:28px;font-weight:900;color:var(--ok)">${fc(totalPropinas)}</div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Total Propinas</div>
+        <div style="font-size:28px;font-weight:900;color:var(--ok)">${fc(totalGeneral)}</div>
       </div>
       <div style="text-align:right">
-        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Por Mesero (${numMeseros})</div>
-        <div style="font-size:22px;font-weight:900;color:var(--info)">${fc(porMesero)}</div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">${numMeseros} Mesero(s)</div>
+        <div style="font-size:22px;font-weight:900;color:var(--info)">${fc(porPartes)} c/u si se divide</div>
       </div>
     </div>
-    <table style="width:100%;border-collapse:collapse;font-size:13px">
+
+    <!-- Tabla: propina propia de cada mesero -->
+    <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">
+      💼 Propinas generadas por cada mesero (sus propios pedidos)
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:18px">
       <thead>
         <tr style="background:#F5EDE4">
           <th style="padding:8px;text-align:left;border-bottom:2px solid var(--border)">Mesero</th>
           <th style="padding:8px;text-align:center;border-bottom:2px solid var(--border)">Pedidos</th>
-          <th style="padding:8px;text-align:right;border-bottom:2px solid var(--border)">Propinas Generadas</th>
-          <th style="padding:8px;text-align:right;border-bottom:2px solid var(--border)">Le Corresponde</th>
+          <th style="padding:8px;text-align:right;border-bottom:2px solid var(--border)">Con propina</th>
+          <th style="padding:8px;text-align:right;border-bottom:2px solid var(--border)">Propina generada</th>
         </tr>
       </thead>
       <tbody>
         ${rows.map(r=>`
           <tr style="border-bottom:1px solid var(--border)">
             <td style="padding:10px 8px;font-weight:700">👤 ${r.name}</td>
-            <td style="padding:10px 8px;text-align:center;color:var(--muted)">${r.count}</td>
-            <td style="padding:10px 8px;text-align:right;color:var(--ok);font-weight:700">${fc(r.tip)}</td>
+            <td style="padding:10px 8px;text-align:center;color:var(--muted)">${r.pedidos}</td>
+            <td style="padding:10px 8px;text-align:center;color:var(--muted)">${r.pedidos>0?Math.round((r.tipPropia>0?1:0)*100/r.pedidos*r.pedidos)+'':0} cobros</td>
             <td style="padding:10px 8px;text-align:right">
-              <span style="background:var(--ok);color:#fff;padding:4px 12px;border-radius:20px;font-weight:900;font-size:14px">${fc(porMesero)}</span>
+              ${r.tipPropia>0
+                ?`<span style="background:var(--ok);color:#fff;padding:4px 12px;border-radius:20px;font-weight:900;font-size:14px">${fc(r.tipPropia)}</span>`
+                :`<span style="color:var(--muted);font-size:12px">Sin propinas</span>`}
             </td>
           </tr>`).join('')}
       </tbody>
       <tfoot>
         <tr style="background:#F5EDE4;font-weight:700">
-          <td style="padding:10px 8px" colspan="2">TOTAL</td>
-          <td style="padding:10px 8px;text-align:right;color:var(--ok)">${fc(totalPropinas)}</td>
-          <td style="padding:10px 8px;text-align:right;color:var(--info)">${fc(porMesero)} c/u</td>
+          <td style="padding:10px 8px" colspan="3">TOTAL PROPINAS</td>
+          <td style="padding:10px 8px;text-align:right;color:var(--ok);font-size:15px">${fc(totalGeneral)}</td>
         </tr>
       </tfoot>
     </table>
-    <div style="margin-top:12px;font-size:11px;color:var(--muted);text-align:center">
-      Las propinas se dividen a partes iguales entre todos los meseros del turno.
+
+    <!-- División equitativa -->
+    <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:var(--rs);padding:14px">
+      <div style="font-size:12px;font-weight:700;color:var(--info);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">
+        ➗ Si se divide entre todos los meseros del turno
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+        ${rows.map(r=>`
+          <div style="background:#fff;border:1px solid #BFDBFE;border-radius:var(--rs);padding:10px 14px;flex:1;min-width:130px;text-align:center">
+            <div style="font-size:12px;color:var(--muted);margin-bottom:4px">👤 ${r.name}</div>
+            <div style="font-size:20px;font-weight:900;color:var(--info)">${fc(porPartes)}</div>
+          </div>`).join('')}
+      </div>
+      <div style="font-size:11px;color:var(--muted);text-align:center">
+        ${fc(totalGeneral)} ÷ ${numMeseros} mesero(s) = ${fc(porPartes)} cada uno
+      </div>
     </div>`;
+}
 }
 
 // ═══════════════════════════════════════════
