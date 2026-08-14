@@ -639,6 +639,27 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#FDFAF8}
     </div>
   </div>
 </div>
+<!-- Edición rápida de pedido desde Caja -->
+<div class="mov" id="m-caja-edit">
+  <div class="modal" style="max-width:520px">
+    <div class="mh">
+      <div class="mt" id="mce-title">✏️ Editar Pedido</div>
+      <button class="mc" onclick="cm('m-caja-edit')">✕</button>
+    </div>
+    <div class="mb">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:14px">Ajusta cantidades o elimina productos. El total se recalculará automáticamente al guardar.</p>
+      <div id="mce-items"></div>
+      <div style="margin-top:14px;padding-top:12px;border-top:2px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:13px;font-weight:600;color:var(--muted)">NUEVO TOTAL</span>
+        <span style="font-size:22px;font-weight:900;color:var(--birria)" id="mce-total">$0.00</span>
+      </div>
+    </div>
+    <div class="mf">
+      <button class="btn bo" onclick="cm('m-caja-edit')">Cancelar</button>
+      <button class="btn bp" onclick="saveCajaEdit()">💾 Guardar cambios</button>
+    </div>
+  </div>
+</div>
 <!-- Notifications -->
 <div id="notif-box"></div>
 
@@ -974,8 +995,8 @@ let _lastSyncHash='';
 const SYNC_CRITICAL=['be_orders','be_caja_session'];
 
 function startRealtimeSync(){
-  // Intervalo de 8 segundos — equilibrio entre reactividad y cuota de Apps Script
-  _syncInterval=setInterval(pollServer,8000);
+  // Intervalo de 4 segundos para mayor reactividad entre dispositivos
+  _syncInterval=setInterval(pollServer,4000);
 }
 
 function _hashData(data){
@@ -1555,6 +1576,116 @@ function selCsOrder(oid){
   };
   go('cashier',true);
 }
+
+// ── Edición rápida de pedido desde Caja ────────────────────────────────────
+// Copia temporal de items mientras el cajero edita
+let _cajaEditItems=[];
+
+function openCajaEdit(){
+  if(!selOrder)return;
+  // Clonar los items actuales del pedido seleccionado
+  _cajaEditItems=selOrder.items.map(i=>({...i}));
+  document.getElementById('mce-title').textContent=`✏️ Editar Pedido #${selOrder.number} — ${selOrder.clientName}`;
+  renderCajaEditItems();
+  om('m-caja-edit');
+}
+
+function renderCajaEditItems(){
+  const wrap=document.getElementById('mce-items');
+  if(!wrap)return;
+  if(!_cajaEditItems.length){
+    wrap.innerHTML='<div class="empty" style="padding:16px 0"><p>Sin productos — agrega al menos uno antes de guardar.</p></div>';
+    updCajaEditTotal();
+    return;
+  }
+  wrap.innerHTML=_cajaEditItems.map((item,idx)=>`
+    <div class="cart-item" style="margin-bottom:8px" id="cei-${idx}">
+      <div class="cin">
+        <div class="cname">${item.name}</div>
+        <div class="cprice">${fc(item.price)} c/u${item.note?` · <em style="color:var(--muted)">${item.note}</em>`:''}</div>
+      </div>
+      <div class="qc">
+        <button class="qb" onclick="chgCajaQty(${idx},-1)">−</button>
+        <span class="qv" id="ceiq-${idx}">${item.qty}</span>
+        <button class="qb" onclick="chgCajaQty(${idx},+1)">+</button>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+        <span style="font-weight:700;font-size:13px" id="ceip-${idx}">${fc(item.price*item.qty)}</span>
+        <button class="cr" title="Eliminar" onclick="remCajaItem(${idx})">✕</button>
+      </div>
+    </div>`).join('');
+  updCajaEditTotal();
+}
+
+function chgCajaQty(idx,delta){
+  if(!_cajaEditItems[idx])return;
+  const newQty=(_cajaEditItems[idx].qty||1)+delta;
+  if(newQty<1){
+    // Si llega a 0 preguntar si eliminar
+    confirm2(
+      '¿Eliminar producto?',
+      `¿Quitar "${_cajaEditItems[idx].name}" del pedido?`,
+      ()=>{ _cajaEditItems.splice(idx,1); renderCajaEditItems(); },
+      'Eliminar','bd'
+    );
+    return;
+  }
+  _cajaEditItems[idx].qty=newQty;
+  // Actualizar solo el elemento afectado sin re-renderizar todo
+  const qEl=document.getElementById('ceiq-'+idx);
+  const pEl=document.getElementById('ceip-'+idx);
+  if(qEl)qEl.textContent=newQty;
+  if(pEl)pEl.textContent=fc(_cajaEditItems[idx].price*newQty);
+  updCajaEditTotal();
+}
+
+function remCajaItem(idx){
+  const name=_cajaEditItems[idx]?.name||'producto';
+  confirm2(
+    `¿Eliminar "${name}"?`,
+    'Se quitará del pedido. Esta acción no se puede deshacer.',
+    ()=>{ _cajaEditItems.splice(idx,1); renderCajaEditItems(); },
+    'Eliminar','bd'
+  );
+}
+
+function updCajaEditTotal(){
+  const tot=_cajaEditItems.reduce((s,i)=>s+(i.price*i.qty),0);
+  const el=document.getElementById('mce-total');
+  if(el)el.textContent=fc(tot);
+}
+
+function saveCajaEdit(){
+  if(!selOrder){cm('m-caja-edit');return;}
+  if(!_cajaEditItems.length){
+    notify('⚠️','Sin productos','El pedido debe tener al menos un producto.',3000);
+    return;
+  }
+  const orders=LS.get('be_orders');
+  const i=orders.findIndex(o=>o.id===selOrder.id);
+  if(i===-1){cm('m-caja-edit');return;}
+
+  const newTotal=_cajaEditItems.reduce((s,it)=>s+(it.price*it.qty),0);
+  orders[i].items=[..._cajaEditItems];
+  orders[i].total=newTotal;
+  orders[i].lastEditAt=new Date().toISOString();
+  orders[i].lastEditBy=CU.name;
+  // Si tenía descuento/propina, recalcular finalTotal
+  if(orders[i].discount){
+    orders[i].discount.finalTotal=newTotal; // se recalculará al cobrar
+  }
+  LS.set('be_orders',orders);
+  // Actualizar selOrder en memoria para reflejar los cambios inmediatamente
+  selOrder={...orders[i]};
+  // Resetear descuento/propina para que se recalculen sobre el nuevo total
+  csDisc={discType:'none',discValue:0,discReason:'',tipValue:0,tipReason:''};
+  logAct(CU.id,`Editó pedido #${orders[i].number} desde Caja — nuevo total: ${fc(newTotal)}`);
+  notify('✅','Pedido actualizado',`#${orders[i].number} — Nuevo total: ${fc(newTotal)}`,4000);
+  cm('m-caja-edit');
+  // Refrescar el panel de cobro con el pedido actualizado
+  const pp=document.getElementById('pay-panel');
+  if(pp)pp.innerHTML=buildPayPanel();
+}
 // ── Helpers para calcular descuento y propina del nuevo csDisc ───────────────
 function calcDA(base){
   const d=csDisc;
@@ -1612,6 +1743,7 @@ function buildPayPanel(){
     <div class="psum" id="psum">${buildPaySum(o.total,da,ta,ft,paid,chg,rem)}</div>
     <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
       <button class="btn bo" onclick="showTicket()">🧾 Ver Ticket</button>
+      <button class="btn bw btn-sm" onclick="openCajaEdit()">✏️ Editar</button>
       <button class="btn bo" style="color:var(--err);border-color:var(--err)" onclick="cancelOrder('${o.id}')">🚫 Cancelar</button>
       <button class="btn bs" style="flex:1" onclick="doPay()">✅ Cobrar</button>
     </div>
