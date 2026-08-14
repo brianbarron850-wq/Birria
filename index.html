@@ -995,12 +995,11 @@ let _lastSyncHash='';
 const SYNC_CRITICAL=['be_orders','be_caja_session'];
 
 function startRealtimeSync(){
-  // Intervalo de 4 segundos para mayor reactividad entre dispositivos
+  if(_syncInterval){clearInterval(_syncInterval);_syncInterval=null;}
   _syncInterval=setInterval(pollServer,4000);
 }
 
 function _hashData(data){
-  // Hash rápido de los datos críticos para detectar cambios reales
   try{
     const keys=SYNC_CRITICAL.map(k=>JSON.stringify(data[k]||'')).join('|');
     let h=0;for(let i=0;i<keys.length;i++){h=(Math.imul(31,h)+keys.charCodeAt(i))|0;}
@@ -1008,29 +1007,28 @@ function _hashData(data){
   }catch(e){return'';}
 }
 
+let _pollBusy=false;
 function pollServer(){
   if(!CU||!SCRIPT_URL||SCRIPT_URL.trim()==='')return;
-  // No sincronizar si el usuario está en medio de un cobro (evitar perder datos del formulario)
-  if(selOrder)return;
+  if(_pollBusy)return;
+  _pollBusy=true;
 
   const doSync=(freshData)=>{
+    _pollBusy=false;
     if(!freshData)return;
     const newHash=_hashData(freshData);
-    if(newHash===_lastSyncHash)return; // Sin cambios — no hacer nada
+    if(newHash===_lastSyncHash)return;
     _lastSyncHash=newHash;
 
-    // Detectar qué cambió para notificar al usuario
     const prevOrders=LCache['be_orders']||[];
     const newOrders=freshData['be_orders']||[];
 
-    // Nuevos pedidos para cocina
     if(['kitchen','orders'].includes(CV)){
       const prevIds=new Set(prevOrders.map(o=>o.id));
       const added=newOrders.filter(o=>!prevIds.has(o.id));
       if(added.length)notify('🔔','Nuevo pedido',`${added.map(o=>'#'+o.number+' '+o.clientName).join(', ')} llegó.`,5000);
     }
 
-    // Pedidos cuyo estado cambió (relevante para mesero y cocina)
     const prevMap=new Map(prevOrders.map(o=>[o.id,o.status]));
     newOrders.forEach(o=>{
       const ps=prevMap.get(o.id);
@@ -1040,36 +1038,33 @@ function pollServer(){
       }
     });
 
-    // Actualizar caché local con datos frescos del servidor
-    // Solo sobreescribir claves que llegaron del servidor, preservar estado local de UI
     Object.keys(freshData).forEach(k=>{ LCache[k]=freshData[k]; });
     initData();
     loadTurnosOpt();
     _lastBadgeHash='';
     updBadges();
 
-    // Re-renderizar la vista activa si los datos cambiaron (sin perder scroll ni foco)
-    // Solo vistas de "lectura" — no interrumpir formularios activos
     const readOnlyViews=['kitchen','cashier','dashboard','corte','inventario'];
-    if(readOnlyViews.includes(CV)){
+    if(readOnlyViews.includes(CV)&&!selOrder){
       go(CV,true);
     } else if(CV==='orders'){
-      // En pedidos solo actualizar "Mis Pedidos Activos" para no perder el carrito
       const mo=document.getElementById('my-orders');
       if(mo)mo.innerHTML=buildMyOrders();
     }
   };
 
+  // Cache-busting: timestamp+random para evitar caché del servidor Apps Script
+  const bust=Date.now()+'_'+Math.random().toString(36).substr(2,6);
   if(typeof google!=='undefined'&&google.script&&google.script.run){
     google.script.run
-      .withSuccessHandler(data=>doSync((data&&data.data)?data.data:(data||null)))
-      .withFailureHandler(()=>{})
+      .withSuccessHandler(data=>{doSync((data&&data.data)?data.data:(data||null));})
+      .withFailureHandler(()=>{_pollBusy=false;})
       .loadAllData();
   } else {
-    fetch(SCRIPT_URL+'?action=load&t='+Date.now())
+    fetch(SCRIPT_URL+'?action=load&_='+bust,{cache:'no-store'})
       .then(r=>r.json())
       .then(res=>doSync((res&&res.data)?res.data:(res||null)))
-      .catch(()=>{});
+      .catch(()=>{_pollBusy=false;});
   }
 }
 function startClock(){
@@ -1743,7 +1738,7 @@ function buildPayPanel(){
     <div class="psum" id="psum">${buildPaySum(o.total,da,ta,ft,paid,chg,rem)}</div>
     <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
       <button class="btn bo" onclick="showTicket()">🧾 Ver Ticket</button>
-      <button class="btn bw btn-sm" onclick="openCajaEdit()">✏️ Editar</button>
+      <button class="btn" style="background:#B45309;color:#fff;border:none;padding:8px 14px;border-radius:var(--rs);font-weight:700;cursor:pointer;font-size:13px" onclick="openCajaEdit()">✏️ Editar Pedido</button>
       <button class="btn bo" style="color:var(--err);border-color:var(--err)" onclick="cancelOrder('${o.id}')">🚫 Cancelar</button>
       <button class="btn bs" style="flex:1" onclick="doPay()">✅ Cobrar</button>
     </div>
