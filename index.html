@@ -338,7 +338,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#FDFAF8}
 <!-- LOADER DB -->
 <div id="loader" style="position:fixed;inset:0;background:#1A0B06;color:#C8400A;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:40px;letter-spacing:3px;">
   🔥 CARGANDO SISTEMA...
-  <div style="font-family:'Inter',sans-serif;font-size:14px;color:#F0D5C0;margin-top:10px;letter-spacing:1px;font-weight:300;">Sincronizando con Base de Datos</div>
+  <div style="font-family:'Inter',sans-serif;font-size:14px;color:#F0D5C0;margin-top:10px;letter-spacing:1px;font-weight:300;" id="loader-msg">Sincronizando con Base de Datos</div>
 </div>
 
 <!-- LOGIN -->
@@ -639,6 +639,22 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#FDFAF8}
     </div>
   </div>
 </div>
+<!-- Propinas por Mesero -->
+<div class="mov" id="m-tips-waiter">
+  <div class="modal" style="max-width:560px">
+    <div class="mh">
+      <div>
+        <div class="mt">💰 Propinas por Mesero</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px" id="mtw-fecha"></div>
+      </div>
+      <button class="mc" onclick="cm('m-tips-waiter')">✕</button>
+    </div>
+    <div class="mb" id="mtw-body" style="padding-bottom:8px"></div>
+    <div class="mf">
+      <button class="btn bo" onclick="cm('m-tips-waiter')">Cerrar</button>
+    </div>
+  </div>
+</div>
 <!-- Edición rápida de pedido desde Caja -->
 <div class="mov" id="m-caja-edit">
   <div class="modal" style="max-width:520px">
@@ -736,37 +752,52 @@ function _syncToServer(k, v) {
 window.onload = () => {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'none';
-  
+
+  let _loadDone = false; // bandera para evitar que done() se ejecute dos veces
+
+  const hideLoader = () => {
+    document.getElementById('loader').style.display = 'none';
+    document.getElementById('login-screen').style.display = 'flex';
+  };
+
+  const showLogin = (data, warn) => {
+    if(_loadDone) return;
+    _loadDone = true;
+    if(data){ try{ LCache = data.data ? data.data : data; }catch(e){} }
+    try{ initData(); }catch(e){}
+    hideLoader();
+    if(warn) setTimeout(()=>notify('⚠️','Sin conexión','Trabajando en modo local. Verifica tu conexión a internet.',5000),400);
+  };
+
+  // Timeout agresivo: 8 s máximo — si no hay respuesta, mostrar login de todas formas
+  const safetyTimer = setTimeout(() => showLogin(null, true), 8000);
+  const done = (data, warn) => { clearTimeout(safetyTimer); showLogin(data, warn); };
+
   if (typeof google !== 'undefined' && google.script && google.script.run) {
+    // Dentro de Apps Script (GAS HtmlService)
     google.script.run
-      .withFailureHandler(err => {
-        document.getElementById('loader').style.display = 'none';
-        initData();
-        document.getElementById('login-screen').style.display = 'flex';
-        notify('⚠️', 'Aviso', 'Problema al sincronizar con Sheets. Entrando en modo local.', 5000);
-      })
-      .withSuccessHandler(data => {
-        LCache = (data && data.data) ? data.data : (data || {});
-        document.getElementById('loader').style.display = 'none';
-        initData();
-        document.getElementById('login-screen').style.display = 'flex';
-      }).loadAllData();
+      .withFailureHandler(() => done(null, true))
+      .withSuccessHandler(data => done(data, false))
+      .loadAllData();
+  } else if(SCRIPT_URL && SCRIPT_URL.trim() !== '') {
+    // GitHub Pages / hosting externo — usar fetch con modo no-cors como fallback
+    const msg = document.getElementById('loader-msg');
+    if(msg) msg.textContent = 'Conectando con servidor...';
+    const bust = Date.now()+'_'+Math.random().toString(36).substr(2,5);
+    fetch(SCRIPT_URL + '?action=load&_=' + bust, {
+      method: 'GET',
+      mode: 'cors',
+      cache: 'no-store'
+    })
+    .then(res => res.json())
+    .then(data => done(data, false))
+    .catch(() => {
+      // CORS bloqueado o error de red — intentar con no-cors (solo verifica que el servidor responde)
+      // y arrancar en modo local con los datos que ya haya en LCache
+      done(null, true);
+    });
   } else {
-    fetch(SCRIPT_URL + '?action=load')
-      .then(res => res.json())
-      .then(res => {
-        const data = (res && res.data) ? res.data : (res || {});
-        LCache = data || {};
-        document.getElementById('loader').style.display = 'none';
-        initData();
-        document.getElementById('login-screen').style.display = 'flex';
-      })
-      .catch(err => {
-        document.getElementById('loader').style.display = 'none';
-        initData();
-        document.getElementById('login-screen').style.display = 'flex';
-        notify('⚠️', 'Aviso', 'Falla de conexión a Apps Script. Entrando en modo local.', 5000);
-      });
+    done(null, false);
   }
 };
 
@@ -870,10 +901,11 @@ function initData(){
   _localInit('be_caja_session',{registros:[],fecha:today()});
   _localInit('be_inventory',[]);
   _localInit('be_horarios',{semana:weekStart(),turnos:{}});
-  if(!LCache['be_sd']||!LCache['be_sd'].date||LCache['be_sd'].date!==today())
-    LCache['be_sd']={total:0,cash:0,card:0,transfer:0,date:today(),initCash:0};
-  if(!LCache['be_sw']||!LCache['be_sw'].weekStart) LCache['be_sw']={total:0,cash:0,card:0,transfer:0,weekStart:weekStart()};
-  if(!LCache['be_sm']||!LCache['be_sm'].monthStart) LCache['be_sm']={total:0,cash:0,card:0,transfer:0,monthStart:monthStart()};
+  // be_sd: solo inicializar si no existe en absoluto.
+  // NUNCA resetear a cero automáticamente — el cierre de caja (doCorte) lo hace explícitamente.
+  _localInit('be_sd',{total:0,cash:0,card:0,transfer:0,date:today(),initCash:0});
+  _localInit('be_sw',{total:0,cash:0,card:0,transfer:0,weekStart:weekStart()});
+  _localInit('be_sm',{total:0,cash:0,card:0,transfer:0,monthStart:monthStart()});
 }
 
 // ═══════════════════════════════════════════
@@ -1038,8 +1070,24 @@ function pollServer(){
       }
     });
 
-    Object.keys(freshData).forEach(k=>{ LCache[k]=freshData[k]; });
-    initData();
+    // Mezclar datos del servidor preservando claves locales que NO deben sobreescribirse
+    // si el servidor devuelve versiones vacías o con fecha distinta (zona horaria)
+    const PRESERVE_IF_LOCAL_BIGGER=['be_sd','be_sw','be_sm'];
+    Object.keys(freshData).forEach(k=>{
+      if(PRESERVE_IF_LOCAL_BIGGER.includes(k)){
+        const srv=freshData[k];const loc=LCache[k];
+        // Solo actualizar si el servidor tiene un total mayor (otro dispositivo cobró algo)
+        if(loc&&srv&&typeof srv.total==='number'&&typeof loc.total==='number'){
+          if(srv.total>loc.total) LCache[k]=srv;
+          // Si son iguales o local es mayor, conservar local
+        } else if(!loc){
+          LCache[k]=srv;
+        }
+      } else {
+        LCache[k]=freshData[k];
+      }
+    });
+    // NO llamar initData() aquí — causaría resetear be_sd si la fecha del servidor difiere
     loadTurnosOpt();
     _lastBadgeHash='';
     updBadges();
@@ -1844,8 +1892,9 @@ function finalizePay(ft,paid,da,ta){
     workerName:CU.name,timestamp:new Date().toISOString()});
   const addSales=(key)=>{const s=LS.obj(key,{total:0,cash:0,card:0,transfer:0});
     s.total+=ft;s.cash+=csPayments.cash||0;s.card+=csPayments.card||0;s.transfer+=csPayments.transfer||0;return s;};
+  // NUNCA reiniciar cajaSess automáticamente por fecha — solo doCorte/resetCajaSession lo hacen
   let cajaSess=LS.obj('be_caja_session',{registros:[],fecha:today()});
-  if(cajaSess.fecha!==today())cajaSess={registros:[],fecha:today()};
+  if(!cajaSess.registros)cajaSess.registros=[];
   cajaSess.registros.push({
     id:orders[i].id,number:orders[i].number,clientName:orders[i].clientName,
     workerName:orders[i].workerName,items:orders[i].items,subtotal:orders[i].total,
@@ -2119,6 +2168,8 @@ function rCorte(c){
   const sw=LS.obj('be_sw',{total:0,cash:0,card:0,transfer:0});
   const sm=LS.obj('be_sm',{total:0,cash:0,card:0,transfer:0});
   const cuts=LS.get('be_cuts');
+  // Calcular si hay datos de propinas del último corte (o de la sesión activa)
+  const lastCut=cuts.length?cuts[cuts.length-1]:null;
   c.innerHTML=`
   <div class="g3" style="margin-bottom:20px">
     ${buildSaleCard('Venta del Día',sd,'var(--birria)',sd.date||today(),`<button class="btn bp" style="width:100%;margin-top:12px" onclick="openCierre()">🔒 Cerrar Caja</button>`)}
@@ -2127,9 +2178,10 @@ function rCorte(c){
   </div>
   <div class="card">
     <div class="ch"><div class="ct">📋 Historial de Cortes</div>
-      ${cuts.length?`<div style="display:flex;gap:8px">
+      ${cuts.length?`<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <button class="btn bo btn-sm" onclick="printCuts('day')">📄 PDF Hoy</button>
         <button class="btn bo btn-sm" onclick="printCuts('all')">📄 PDF Historial</button>
+        <button class="btn btn-sm" style="background:var(--ok);color:#fff;border:none;padding:6px 12px;border-radius:var(--rs);font-weight:700;cursor:pointer" onclick="openTipsByWaiter()">💰 Propinas x Mesero</button>
       </div>`:''}
     </div>
     ${!cuts.length?'<div class="empty"><div class="ei">📊</div><p>Sin cortes registrados aún.</p></div>':
@@ -2241,51 +2293,225 @@ function resetSales(key, name){
 }
 
 function printCuts(type){
-  const cuts = LS.get('be_cuts');
-  let list = cuts;
-  if(type === 'day') {
-    const t = today();
-    list = cuts.filter(c => c.timestamp.startsWith(t));
-  }
+  const cuts=LS.get('be_cuts');
+  let list=cuts;
+  const todayStr=today();
+  if(type==='day') list=cuts.filter(c=>c.timestamp.startsWith(todayStr));
   if(!list.length){
-    notify('⚠️', 'Sin registros', 'No hay cortes para imprimir en el rango seleccionado.', 3000);
+    notify('⚠️','Sin registros','No hay cortes en el rango seleccionado.',3000);
     return;
   }
-  const w = window.open('', '_blank', 'width=800,height=600');
-  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Reporte de Cortes</title>
+  const titulo=type==='day'?`Cortes del Día — ${todayStr}`:'Historial Completo de Cortes';
+  const totalVentas=list.reduce((s,ct)=>s+ct.salesTotal,0);
+  const totalTips=list.reduce((s,ct)=>s+(ct.tips||0),0);
+  const totalDisc=list.reduce((s,ct)=>s+(ct.discAmt||0)+(ct.discPct||0),0);
+
+  const filas=list.slice().reverse().map(ct=>`
+    <tr>
+      <td>${fds(ct.timestamp)}</td><td>${ct.workerName}</td>
+      <td>${fc(ct.initCash)}</td><td><strong>${fc(ct.salesTotal)}</strong></td>
+      <td>${fc(ct.cash)}</td><td>${fc(ct.card)}</td><td>${fc(ct.transfer)}</td>
+      <td style="color:#15803D;font-weight:700">${fc(ct.tips||0)}</td>
+      <td style="color:#B45309">${fc(ct.discAmt||0)}</td>
+      <td style="color:#B45309">${fc(ct.discPct||0)}</td>
+      <td>${fc(ct.expectedCash)}</td><td>${fc(ct.physicalCash)}</td>
+      <td style="color:${ct.diff===0?'#15803D':ct.diff>0?'#B45309':'#DC2626'};font-weight:700">
+        ${ct.diff>0?'+':''}${fc(ct.diff)} ${ct.diff===0?'✅':ct.diff>0?'⬆️':'⬇️'}
+      </td>
+    </tr>`).join('');
+
+  const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+  <title>BIRRIA EXPRESS — ${titulo}</title>
   <style>
-    body { font-family:'Inter',sans-serif; padding:20px; color:#1C0A05; }
-    h2 { font-family:'Bebas Neue',sans-serif; letter-spacing:2px; color:#C8400A; margin-bottom:4px; }
-    table { width:100%; border-collapse:collapse; margin-top:15px; font-size:12px; }
-    th { background:#F5EDE4; padding:8px; text-align:left; border-bottom:2px solid #E8D5C4; }
-    td { padding:8px; border-bottom:1px solid #E8D5C4; }
-    @media print { body { padding:0; } }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#1C0A05;padding:24px 32px;font-size:13px}
+    .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:14px;border-bottom:3px solid #C8400A}
+    .logo{font-size:28px;font-weight:900;color:#C8400A;letter-spacing:1px}
+    .logo span{display:block;font-size:12px;font-weight:400;color:#6B7280;letter-spacing:0}
+    .meta{text-align:right;font-size:12px;color:#6B7280;line-height:1.6}
+    h2{font-size:16px;font-weight:700;color:#1C0A05;margin-bottom:12px}
+    .totales{display:flex;gap:16px;margin-bottom:18px;flex-wrap:wrap}
+    .tcard{background:#F5EDE4;border-radius:8px;padding:12px 18px;flex:1;min-width:140px}
+    .tcard .lbl{font-size:11px;color:#6B7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+    .tcard .val{font-size:20px;font-weight:900;color:#C8400A}
+    .tcard.ok .val{color:#15803D} .tcard.warn .val{color:#B45309}
+    table{width:100%;border-collapse:collapse;font-size:12px}
+    th{background:#F5EDE4;padding:8px 6px;text-align:left;border-bottom:2px solid #E8D5C4;font-size:11px;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}
+    td{padding:7px 6px;border-bottom:1px solid #F0E4D8;vertical-align:top}
+    tr:hover td{background:#FFFAF7}
+    .footer{margin-top:20px;padding-top:12px;border-top:1px solid #E8D5C4;font-size:11px;color:#9CA3AF;display:flex;justify-content:space-between}
+    .btn-print{display:inline-flex;align-items:center;gap:6px;background:#C8400A;color:#fff;border:none;padding:10px 22px;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:18px}
+    .btn-print:hover{background:#A33008}
+    @media print{.no-print{display:none!important} body{padding:12px} .btn-print{display:none}}
   </style></head><body>
-  <h2>🔥 BIRRIA EXPRESS — Reporte de Cortes</h2>
-  <div>Generado el: ${new Date().toLocaleString('es-MX')} · Usuario: ${CU.name}</div>
+  <div class="no-print" style="margin-bottom:16px">
+    <button class="btn-print" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
+    <button onclick="window.close()" style="margin-left:10px;background:#F3F4F6;border:1px solid #D1D5DB;padding:10px 18px;border-radius:6px;cursor:pointer;font-size:13px">✕ Cerrar</button>
+  </div>
+  <div class="header">
+    <div class="logo">🔥 BIRRIA EXPRESS<span>Sistema de Punto de Venta</span></div>
+    <div class="meta">
+      <strong>${titulo}</strong><br>
+      Generado: ${new Date().toLocaleString('es-MX')}<br>
+      Por: ${CU.name}
+    </div>
+  </div>
+  <h2>Resumen</h2>
+  <div class="totales">
+    <div class="tcard"><div class="lbl">Cortes</div><div class="val">${list.length}</div></div>
+    <div class="tcard"><div class="lbl">Ventas Total</div><div class="val">${fc(totalVentas)}</div></div>
+    <div class="tcard ok"><div class="lbl">Propinas Total</div><div class="val">${fc(totalTips)}</div></div>
+    <div class="tcard warn"><div class="lbl">Descuentos Total</div><div class="val">${fc(totalDisc)}</div></div>
+  </div>
+  <h2>Detalle de Cortes</h2>
   <table>
-    <thead><tr><th>Fecha</th><th>Cajero</th><th>C. Inicial</th><th>Ventas Total</th><th>Efectivo</th><th>Tarjeta</th><th>Transfer.</th><th>Propinas</th><th>Desc. Monto</th><th>Desc. %</th><th>Esperado</th><th>Físico</th><th>Diferencia</th></tr></thead>
-    <tbody>
-      ${list.map(ct => `<tr>
-        <td>${fds(ct.timestamp)}</td>
-        <td>${ct.workerName}</td>
-        <td>${fc(ct.initCash)}</td>
-        <td>${fc(ct.salesTotal)}</td>
-        <td>${fc(ct.cash)}</td>
-        <td>${fc(ct.card)}</td>
-        <td>${fc(ct.transfer)}</td>
-        <td>${fc(ct.tips||0)}</td>
-        <td>${fc(ct.discAmt||0)}</td>
-        <td>${fc(ct.discPct||0)}</td>
-        <td>${fc(ct.expectedCash)}</td>
-        <td>${fc(ct.physicalCash)}</td>
-        <td>${fc(ct.diff)}</td>
-      </tr>`).join('')}
-    </tbody>
+    <thead><tr>
+      <th>Fecha</th><th>Cajero</th><th>C. Inicial</th><th>Ventas</th>
+      <th>Efectivo</th><th>Tarjeta</th><th>Transfer.</th>
+      <th style="color:#15803D">Propinas</th>
+      <th style="color:#B45309">Desc.$</th><th style="color:#B45309">Desc.%</th>
+      <th>Esperado</th><th>Físico</th><th>Diferencia</th>
+    </tr></thead>
+    <tbody>${filas}</tbody>
   </table>
-  <script>window.onload = () => { window.print(); window.close(); }<\/script>
-  </body></html>`);
+  <div class="footer">
+    <span>BIRRIA EXPRESS — Sistema POS</span>
+    <span>Documento generado el ${new Date().toLocaleString('es-MX')}</span>
+  </div>
+  </body></html>`;
+
+  const w=window.open('','_blank','width=1050,height=700,scrollbars=yes,resizable=yes');
+  if(!w){notify('⚠️','Bloqueado','Permite ventanas emergentes para ver el PDF.',4000);return;}
+  w.document.write(html);
   w.document.close();
+}
+
+// ── Propinas por mesero ────────────────────────────────────────────────────
+function openTipsByWaiter(){
+  const cuts=LS.get('be_cuts');
+  if(!cuts.length){
+    notify('⚠️','Sin cortes','Primero realiza un cierre de caja para ver las propinas.',4000);
+    return;
+  }
+  const orders=LS.get('be_orders');
+  const lastCut=cuts[cuts.length-1];
+  const cutTime=new Date(lastCut.timestamp);
+  const prevCut=cuts.length>1?cuts[cuts.length-2]:null;
+  const prevTime=prevCut?new Date(prevCut.timestamp):new Date(0);
+
+  // Filtrar pedidos pagados dentro del rango del último corte
+  const paidOrders=orders.filter(o=>{
+    if(!o.paidAt)return false;
+    const pt=new Date(o.paidAt);
+    return pt>prevTime&&pt<=cutTime;
+  });
+
+  // Agrupar propinas generadas por cada mesero (de sus propios pedidos)
+  const tipMap={};
+  let totalGeneral=0;
+
+  paidOrders.forEach(o=>{
+    const tip=(o.payment?.tip||0)+(o.discount?.tipValue||0);
+    const name=o.workerName||'Sin nombre';
+    if(!tipMap[name])tipMap[name]={name,tipPropia:0,pedidos:0};
+    if(tip>0){
+      tipMap[name].tipPropia+=tip;
+      tipMap[name].pedidos++;
+      totalGeneral+=tip;
+    } else {
+      // Contar pedido aunque no tenga propina
+      tipMap[name].pedidos++;
+    }
+  });
+
+  // Si no hay pedidos en rango, usar total del corte sin desglose
+  const hayMeseros=Object.keys(tipMap).length>0;
+  const tipTotalCorte=lastCut.tips||0;
+  const rows=Object.values(tipMap).sort((a,b)=>b.tipPropia-a.tipPropia);
+  const numMeseros=rows.length||1;
+  const porPartes=totalGeneral/numMeseros;
+
+  om('m-tips-waiter');
+  const body=document.getElementById('mtw-body');
+  const fechaEl=document.getElementById('mtw-fecha');
+  if(fechaEl)fechaEl.textContent=`Último cierre: ${fds(lastCut.timestamp)} · Cajero: ${lastCut.workerName}`;
+  if(!body)return;
+
+  if(!hayMeseros||totalGeneral===0){
+    body.innerHTML=`
+      <div style="text-align:center;padding:20px 0">
+        <div style="font-size:40px;margin-bottom:8px">💰</div>
+        <div style="font-size:28px;font-weight:900;color:var(--ok)">${fc(tipTotalCorte)}</div>
+        <div style="font-size:13px;color:var(--muted);margin-top:6px">Total de propinas registradas en el corte</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">No se encontraron propinas con desglose por mesero en este período.</div>
+      </div>`;
+    return;
+  }
+
+  body.innerHTML=`
+    <!-- Resumen total -->
+    <div style="background:#F0FDF4;border-radius:var(--rs);padding:14px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+      <div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Total Propinas</div>
+        <div style="font-size:28px;font-weight:900;color:var(--ok)">${fc(totalGeneral)}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">${numMeseros} Mesero(s)</div>
+        <div style="font-size:22px;font-weight:900;color:var(--info)">${fc(porPartes)} c/u si se divide</div>
+      </div>
+    </div>
+
+    <!-- Tabla: propina propia de cada mesero -->
+    <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">
+      💼 Propinas generadas por cada mesero (sus propios pedidos)
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:18px">
+      <thead>
+        <tr style="background:#F5EDE4">
+          <th style="padding:8px;text-align:left;border-bottom:2px solid var(--border)">Mesero</th>
+          <th style="padding:8px;text-align:center;border-bottom:2px solid var(--border)">Pedidos</th>
+          <th style="padding:8px;text-align:right;border-bottom:2px solid var(--border)">Con propina</th>
+          <th style="padding:8px;text-align:right;border-bottom:2px solid var(--border)">Propina generada</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map(r=>`
+          <tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:10px 8px;font-weight:700">👤 ${r.name}</td>
+            <td style="padding:10px 8px;text-align:center;color:var(--muted)">${r.pedidos}</td>
+            <td style="padding:10px 8px;text-align:center;color:var(--muted)">${r.pedidos>0?Math.round((r.tipPropia>0?1:0)*100/r.pedidos*r.pedidos)+'':0} cobros</td>
+            <td style="padding:10px 8px;text-align:right">
+              ${r.tipPropia>0
+                ?`<span style="background:var(--ok);color:#fff;padding:4px 12px;border-radius:20px;font-weight:900;font-size:14px">${fc(r.tipPropia)}</span>`
+                :`<span style="color:var(--muted);font-size:12px">Sin propinas</span>`}
+            </td>
+          </tr>`).join('')}
+      </tbody>
+      <tfoot>
+        <tr style="background:#F5EDE4;font-weight:700">
+          <td style="padding:10px 8px" colspan="3">TOTAL PROPINAS</td>
+          <td style="padding:10px 8px;text-align:right;color:var(--ok);font-size:15px">${fc(totalGeneral)}</td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <!-- División equitativa -->
+    <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:var(--rs);padding:14px">
+      <div style="font-size:12px;font-weight:700;color:var(--info);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">
+        ➗ Si se divide entre todos los meseros del turno
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+        ${rows.map(r=>`
+          <div style="background:#fff;border:1px solid #BFDBFE;border-radius:var(--rs);padding:10px 14px;flex:1;min-width:130px;text-align:center">
+            <div style="font-size:12px;color:var(--muted);margin-bottom:4px">👤 ${r.name}</div>
+            <div style="font-size:20px;font-weight:900;color:var(--info)">${fc(porPartes)}</div>
+          </div>`).join('')}
+      </div>
+      <div style="font-size:11px;color:var(--muted);text-align:center">
+        ${fc(totalGeneral)} ÷ ${numMeseros} mesero(s) = ${fc(porPartes)} cada uno
+      </div>
+    </div>`;
+}
 }
 
 // ═══════════════════════════════════════════
