@@ -338,7 +338,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#FDFAF8}
 <!-- LOADER DB -->
 <div id="loader" style="position:fixed;inset:0;background:#1A0B06;color:#C8400A;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:40px;letter-spacing:3px;">
   🔥 CARGANDO SISTEMA...
-  <div style="font-family:'Inter',sans-serif;font-size:14px;color:#F0D5C0;margin-top:10px;letter-spacing:1px;font-weight:300;" id="loader-msg">Sincronizando con Base de Datos</div>
+  <div style="font-family:'Inter',sans-serif;font-size:14px;color:#F0D5C0;margin-top:10px;letter-spacing:1px;font-weight:300;">Iniciando...</div>
 </div>
 
 <!-- LOGIN -->
@@ -753,51 +753,46 @@ window.onload = () => {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'none';
 
-  let _loadDone = false; // bandera para evitar que done() se ejecute dos veces
-
-  const hideLoader = () => {
+  // ── Mostrar login de inmediato sin esperar al servidor ───────────────────
+  // La carga del servidor ocurre en background y actualiza LCache cuando llega
+  const showLoginNow = (data) => {
+    if(data){
+      try{ LCache = data.data ? data.data : (typeof data === 'object' ? data : {}); }catch(e){}
+    }
+    try{ initData(); }catch(e){}
     document.getElementById('loader').style.display = 'none';
     document.getElementById('login-screen').style.display = 'flex';
   };
 
-  const showLogin = (data, warn) => {
-    if(_loadDone) return;
-    _loadDone = true;
-    if(data){ try{ LCache = data.data ? data.data : data; }catch(e){} }
-    try{ initData(); }catch(e){}
-    hideLoader();
-    if(warn) setTimeout(()=>notify('⚠️','Sin conexión','Trabajando en modo local. Verifica tu conexión a internet.',5000),400);
-  };
-
-  // Timeout agresivo: 8 s máximo — si no hay respuesta, mostrar login de todas formas
-  const safetyTimer = setTimeout(() => showLogin(null, true), 8000);
-  const done = (data, warn) => { clearTimeout(safetyTimer); showLogin(data, warn); };
-
   if (typeof google !== 'undefined' && google.script && google.script.run) {
-    // Dentro de Apps Script (GAS HtmlService)
+    // ── Dentro de GAS HtmlService: esperar hasta 6s, luego mostrar login igual ──
+    let shown = false;
+    const fallback = setTimeout(() => { if(!shown){ shown=true; showLoginNow(null); } }, 6000);
     google.script.run
-      .withFailureHandler(() => done(null, true))
-      .withSuccessHandler(data => done(data, false))
+      .withFailureHandler(() => { if(!shown){ shown=true; clearTimeout(fallback); showLoginNow(null); } })
+      .withSuccessHandler(data => { if(!shown){ shown=true; clearTimeout(fallback); showLoginNow(data); } })
       .loadAllData();
-  } else if(SCRIPT_URL && SCRIPT_URL.trim() !== '') {
-    // GitHub Pages / hosting externo — usar fetch con modo no-cors como fallback
-    const msg = document.getElementById('loader-msg');
-    if(msg) msg.textContent = 'Conectando con servidor...';
-    const bust = Date.now()+'_'+Math.random().toString(36).substr(2,5);
-    fetch(SCRIPT_URL + '?action=load&_=' + bust, {
-      method: 'GET',
-      mode: 'cors',
-      cache: 'no-store'
-    })
-    .then(res => res.json())
-    .then(data => done(data, false))
-    .catch(() => {
-      // CORS bloqueado o error de red — intentar con no-cors (solo verifica que el servidor responde)
-      // y arrancar en modo local con los datos que ya haya en LCache
-      done(null, true);
-    });
   } else {
-    done(null, false);
+    // ── GitHub Pages / hosting externo ────────────────────────────────────
+    // 1. Mostrar login YA con datos locales (si los hay de sesión anterior)
+    showLoginNow(null);
+    // 2. Intentar cargar datos del servidor en background (sin bloquear)
+    if(SCRIPT_URL && SCRIPT_URL.trim() !== ''){
+      const bust = Date.now()+'_'+Math.random().toString(36).substr(2,5);
+      fetch(SCRIPT_URL + '?action=load&_=' + bust, { method:'GET', cache:'no-store' })
+        .then(res => { if(!res.ok) throw new Error(); return res.json(); })
+        .then(data => {
+          // Datos llegaron — actualizar LCache y refrescar vista si aún está en login
+          const fresh = data && data.data ? data.data : (typeof data === 'object' ? data : null);
+          if(fresh && Object.keys(fresh).length > 0){
+            LCache = fresh;
+            try{ initData(); }catch(e){}
+            // Si el usuario ya inició sesión, actualizar la vista activa
+            if(CU) { updBadges(); go(CV, true); }
+          }
+        })
+        .catch(() => {}); // Error silencioso — el sistema ya está en modo local
+    }
   }
 };
 
