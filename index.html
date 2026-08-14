@@ -1072,17 +1072,45 @@ function pollServer(){
 
     // Mezclar datos del servidor preservando claves locales que NO deben sobreescribirse
     // si el servidor devuelve versiones vacías o con fecha distinta (zona horaria)
+    // Claves de ventas: solo actualizar si el servidor tiene un total MAYOR (otro dispositivo cobró)
     const PRESERVE_IF_LOCAL_BIGGER=['be_sd','be_sw','be_sm'];
+    // be_caja_session: fusionar registros del servidor con los locales por id para no perder cobros
+    const MERGE_REGISTROS=['be_caja_session'];
+
     Object.keys(freshData).forEach(k=>{
       if(PRESERVE_IF_LOCAL_BIGGER.includes(k)){
-        const srv=freshData[k];const loc=LCache[k];
-        // Solo actualizar si el servidor tiene un total mayor (otro dispositivo cobró algo)
+        const srv=freshData[k]; const loc=LCache[k];
         if(loc&&srv&&typeof srv.total==='number'&&typeof loc.total==='number'){
-          if(srv.total>loc.total) LCache[k]=srv;
-          // Si son iguales o local es mayor, conservar local
+          if(srv.total>loc.total){
+            // Servidor tiene más ventas — sincronizar pero conservar fecha local si es hoy
+            LCache[k]={...srv, date: loc.date||srv.date};
+          }
+          // local >= servidor: conservar local
         } else if(!loc){
           LCache[k]=srv;
         }
+      } else if(MERGE_REGISTROS.includes(k)){
+        // Fusionar registros del servidor con los locales (unión por id)
+        const srv=freshData[k]; const loc=LCache[k];
+        const srvRegs=(srv&&srv.registros)||[];
+        const locRegs=(loc&&loc.registros)||[];
+        if(!locRegs.length && srvRegs.length){
+          // Local vacío, tomar del servidor
+          LCache[k]=srv;
+        } else if(srvRegs.length > locRegs.length){
+          // Servidor tiene más registros (otro dispositivo cobró) — fusionar
+          const locIds=new Set(locRegs.map(r=>r.id));
+          const nuevos=srvRegs.filter(r=>!locIds.has(r.id));
+          LCache[k]={...(loc||{}), registros:[...locRegs,...nuevos]};
+        }
+        // Si local tiene más o igual registros: conservar local
+      } else if(k==='be_caja'){
+        // be_caja es el historial permanente de cobros — nunca sobreescribir con versión más corta
+        const srv=freshData[k]||[]; const loc=LCache[k]||[];
+        if(srv.length>=loc.length){
+          LCache[k]=srv; // servidor tiene más cobros (otro dispositivo cobró)
+        }
+        // si local tiene más: conservar local
       } else {
         LCache[k]=freshData[k];
       }
@@ -1605,6 +1633,17 @@ function rCashier(c){
   const stEl=document.getElementById('caja-sess-total');
   if(stEl){const sess=LS.obj('be_caja_session',{registros:[]});const tot=sess.registros.reduce((s,r)=>s+r.finalTotal,0);stEl.textContent=sess.registros.length?`${sess.registros.length} cobro(s) · ${fc(tot)}`:'Sin cobros hoy';}
 }
+// Refresca solo la sección de Registros del Día sin re-renderizar toda la vista Caja
+function refreshCajaSessionUI(){
+  const list=document.getElementById('caja-sess-list');
+  const tot=document.getElementById('caja-sess-total');
+  if(list) list.innerHTML=buildCajaSessionList();
+  if(tot){
+    const sess=LS.obj('be_caja_session',{registros:[]});
+    const total=sess.registros.reduce((s,r)=>s+(r.finalTotal||0),0);
+    tot.textContent=sess.registros.length?`${sess.registros.length} cobro(s) · ${fc(total)}`:'Sin cobros hoy';
+  }
+}
 function selCsOrder(oid){
   const o=LS.get('be_orders').find(x=>x.id===oid);
   selOrder=o;csPayments={cash:0,card:0,transfer:0};
@@ -1920,7 +1959,13 @@ function finalizePay(ft,paid,da,ta){
   selOrder=null;csPayments={cash:0,card:0,transfer:0};
   csDisc={discType:'none',discValue:0,discReason:'',tipValue:0,tipReason:''};
   updBadges();
-  go('cashier',true);
+  // Si ya estamos en caja, actualizar solo las partes que cambiaron (pedidos activos + registros)
+  // sin re-renderizar toda la vista (evita parpadeo y pérdida de scroll)
+  if(CV==='cashier'){
+    go('cashier',true); // re-render completo para quitar el pedido de la lista de activos
+  } else {
+    go('cashier',true);
+  }
 }
 function showTicket(oArg){
   const o=oArg||selOrder;if(!o)return;
@@ -2223,18 +2268,37 @@ function buildSaleCard(ttl,s,color,sub,extra){
   </div>`;
 }
 function openCierre(){
-  const sd=LS.obj('be_sd',{});
+  const sd=LS.obj('be_sd',{total:0,cash:0,card:0,transfer:0,initCash:0});
+  const sess=LS.obj('be_caja_session',{registros:[]});
+  const numCobros=(sess.registros||[]).length;
   document.getElementById('ci-ini').value=sd.initCash||'';
   document.getElementById('ci-fis').value='';
   document.getElementById('ci-res').style.display='none';
   document.getElementById('btn-corte').style.display='none';
-  cierreData=null;om('m-cierre');
+  cierreData=null;
+  // Mostrar resumen del día en el modal para que el cajero sepa qué está cerrando
+  const resEl=document.getElementById('ci-res');
+  if(sd.total>0||numCobros>0){
+    resEl.innerHTML=`<div style="background:#F5EDE4;border-radius:var(--rs);padding:12px;margin-bottom:4px;font-size:13px">
+      <div style="font-weight:700;color:var(--birria);margin-bottom:8px">📊 Ventas del día (acumulado)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        <div>Total ventas: <strong>${fc(sd.total)}</strong></div>
+        <div>Cobros: <strong>${numCobros}</strong></div>
+        <div>💵 Efectivo: <strong>${fc(sd.cash||0)}</strong></div>
+        <div>💳 Tarjeta: <strong>${fc(sd.card||0)}</strong></div>
+        <div>📱 Transfer.: <strong>${fc(sd.transfer||0)}</strong></div>
+      </div>
+    </div>`;
+    resEl.style.display='block';
+  }
+  om('m-cierre');
 }
 function calcCierre(){
   const ini=parseFloat(document.getElementById('ci-ini').value)||0;
   const fis=parseFloat(document.getElementById('ci-fis').value);
-  if(isNaN(fis)){notify('⚠️','Ingresa el monto','Por favor ingresa el dinero físico contado.',3000);return}
-  const sd=LS.obj('be_sd',{cash:0});
+  if(isNaN(fis)){notify('⚠️','Ingresa el monto','Por favor ingresa el dinero físico contado.',3000);return;}
+  // Leer siempre directo de LCache para tener el valor más actualizado
+  const sd=LS.obj('be_sd',{cash:0,total:0,card:0,transfer:0});
   const cashSales=sd.cash||0;
   const expected=ini+cashSales;
   const diff=fis-expected;
@@ -2243,11 +2307,14 @@ function calcCierre(){
   const msg=diff===0?'✅ La caja cuadra perfectamente.':diff>0?`⬆️ Sobran ${fc(Math.abs(diff))}`:(`⬇️ Faltan ${fc(Math.abs(diff))}`);
   const resEl=document.getElementById('ci-res');
   resEl.innerHTML=`<div class="chkbox ${cls}">
-    <div class="prow"><span>Caja Inicial:</span><strong>${fc(ini)}</strong></div>
+    <div class="prow"><span>💰 Total Ventas del Día:</span><strong>${fc(sd.total||0)}</strong></div>
+    <div class="prow"><span>💳 Tarjeta + Transfer.:</span><strong>${fc((sd.card||0)+(sd.transfer||0))}</strong></div>
+    <div class="prow" style="border-top:1px solid var(--border);margin-top:4px;padding-top:8px">
+      <span>Caja Inicial:</span><strong>${fc(ini)}</strong></div>
     <div class="prow"><span>Ventas en Efectivo:</span><strong>${fc(cashSales)}</strong></div>
     <div class="prow" style="border-top:1px solid var(--border);margin-top:4px;padding-top:8px">
       <span>Efectivo Esperado:</span><strong>${fc(expected)}</strong></div>
-    <div class="prow"><span>Efectivo Físico:</span><strong>${fc(fis)}</strong></div>
+    <div class="prow"><span>Efectivo Físico Contado:</span><strong>${fc(fis)}</strong></div>
     <div class="prow" style="font-size:16px;font-weight:900;border-top:2px solid var(--border);margin-top:6px;padding-top:10px">
       <span>Diferencia:</span>
       <span style="color:${cls==='ok'?'var(--ok)':cls==='over'?'var(--warn)':'var(--err)'}">
@@ -2272,10 +2339,14 @@ function doCorte(){
     initCash:cierreData.ini,salesTotal:sd.total,cash:sd.cash,card:sd.card,transfer:sd.transfer,
     expectedCash:cierreData.expected,physicalCash:cierreData.fis,diff:cierreData.diff,
     tips:totalTipsCierre, discAmt:totalDiscAmt, discPct:totalDiscPct, totalDisc:totalDiscTotal};
-  cuts.push(c);LS.set('be_cuts',cuts);
-  // Limpiar sesión del día al hacer corte
-  LS.set('be_caja_session',{registros:[],fecha:today()});
-  LS.set('be_sd',{total:0,cash:0,card:0,transfer:0,date:today(),initCash:cierreData.fis});
+  // Guardar el corte y limpiar SOLO la sesión del día (no el historial de cobros en be_caja)
+  cuts.push(c);
+  // Resetear acumulados del día y sesión — esto ocurre ÚNICAMENTE aquí y en resetSales
+  LS.setBatch([
+    ['be_cuts',         cuts],
+    ['be_caja_session', {registros:[],fecha:today()}],
+    ['be_sd',           {total:0,cash:0,card:0,transfer:0,date:today(),initCash:cierreData.fis}]
+  ]);
   logAct(CU.id,`Realizó corte de caja. Ventas: ${fc(sd.total)} · Diferencia: ${fc(cierreData.diff)}`);
   cm('m-cierre');
   notify('✅','Corte realizado',`Corte guardado exitosamente en Google Sheets.`,4000);
