@@ -6,6 +6,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🔥 Birria Express — Sistema de Gestión</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Bebas+Neue&display=swap" rel="stylesheet">
+<script>
+// Script de emergencia: si window.onload no dispara en 3s, ocultar loader y mostrar login
+document.addEventListener('DOMContentLoaded', function(){
+  var t = setTimeout(function(){
+    var l = document.getElementById('loader');
+    var s = document.getElementById('login-screen');
+    if(l && l.style.display !== 'none'){ l.style.display='none'; }
+    if(s && s.style.display === 'none'){ s.style.display='flex'; }
+  }, 3000);
+  // Cancelar el timer de emergencia si window.onload se dispara normalmente
+  window._emergencyTimer = t;
+});
+</script>
 <style>
 :root{
   --birria:#C8400A;--birria2:#E85A1F;--birria-dk:#8B2500;
@@ -749,50 +762,57 @@ function _syncToServer(k, v) {
   }
 }
 
+// ═══════════════════════════════════════════
+// INICIO — ocultar loader y mostrar login de inmediato
+// ═══════════════════════════════════════════
+function _mostrarLogin(data) {
+  if(data){
+    try{
+      const d = (data && data.data) ? data.data : data;
+      if(d && typeof d === 'object' && Object.keys(d).length > 0) LCache = d;
+    }catch(e){}
+  }
+  try{ initData(); }catch(e){ console.error('initData error:',e); }
+  const loader = document.getElementById('loader');
+  const login  = document.getElementById('login-screen');
+  if(loader) loader.style.display = 'none';
+  if(login)  login.style.display  = 'flex';
+  // Cargar datos del servidor en background si hay URL configurada
+  if(typeof google === 'undefined' && SCRIPT_URL && SCRIPT_URL.trim() !== ''){
+    const bust = Date.now()+'_'+Math.random().toString(36).substr(2,5);
+    fetch(SCRIPT_URL+'?action=load&_='+bust, {method:'GET', cache:'no-store'})
+      .then(r => { if(!r.ok) throw 0; return r.json(); })
+      .then(res => {
+        const fresh = (res && res.data) ? res.data : (typeof res==='object' ? res : null);
+        if(fresh && Object.keys(fresh).length > 0){
+          LCache = fresh;
+          try{ initData(); }catch(e){}
+          if(CU){ try{ updBadges(); go(CV,true); }catch(e){} }
+        }
+      })
+      .catch(()=>{});
+  }
+}
+
 window.onload = () => {
-  document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('app').style.display = 'none';
+  if(window._emergencyTimer) clearTimeout(window._emergencyTimer);
+  const loader = document.getElementById('loader');
+  const login  = document.getElementById('login-screen');
+  const app    = document.getElementById('app');
+  if(login) login.style.display = 'none';
+  if(app)   app.style.display   = 'none';
 
-  // ── Mostrar login de inmediato sin esperar al servidor ───────────────────
-  // La carga del servidor ocurre en background y actualiza LCache cuando llega
-  const showLoginNow = (data) => {
-    if(data){
-      try{ LCache = data.data ? data.data : (typeof data === 'object' ? data : {}); }catch(e){}
-    }
-    try{ initData(); }catch(e){}
-    document.getElementById('loader').style.display = 'none';
-    document.getElementById('login-screen').style.display = 'flex';
-  };
-
-  if (typeof google !== 'undefined' && google.script && google.script.run) {
-    // ── Dentro de GAS HtmlService: esperar hasta 6s, luego mostrar login igual ──
-    let shown = false;
-    const fallback = setTimeout(() => { if(!shown){ shown=true; showLoginNow(null); } }, 6000);
+  if(typeof google !== 'undefined' && google.script && google.script.run){
+    // GAS HtmlService: esperar respuesta del servidor (máx 5s)
+    let done = false;
+    const guard = setTimeout(()=>{ if(!done){ done=true; _mostrarLogin(null); } }, 5000);
     google.script.run
-      .withFailureHandler(() => { if(!shown){ shown=true; clearTimeout(fallback); showLoginNow(null); } })
-      .withSuccessHandler(data => { if(!shown){ shown=true; clearTimeout(fallback); showLoginNow(data); } })
+      .withFailureHandler(()=>{ if(!done){ done=true; clearTimeout(guard); _mostrarLogin(null); } })
+      .withSuccessHandler(d =>{ if(!done){ done=true; clearTimeout(guard); _mostrarLogin(d);    } })
       .loadAllData();
   } else {
-    // ── GitHub Pages / hosting externo ────────────────────────────────────
-    // 1. Mostrar login YA con datos locales (si los hay de sesión anterior)
-    showLoginNow(null);
-    // 2. Intentar cargar datos del servidor en background (sin bloquear)
-    if(SCRIPT_URL && SCRIPT_URL.trim() !== ''){
-      const bust = Date.now()+'_'+Math.random().toString(36).substr(2,5);
-      fetch(SCRIPT_URL + '?action=load&_=' + bust, { method:'GET', cache:'no-store' })
-        .then(res => { if(!res.ok) throw new Error(); return res.json(); })
-        .then(data => {
-          // Datos llegaron — actualizar LCache y refrescar vista si aún está en login
-          const fresh = data && data.data ? data.data : (typeof data === 'object' ? data : null);
-          if(fresh && Object.keys(fresh).length > 0){
-            LCache = fresh;
-            try{ initData(); }catch(e){}
-            // Si el usuario ya inició sesión, actualizar la vista activa
-            if(CU) { updBadges(); go(CV, true); }
-          }
-        })
-        .catch(() => {}); // Error silencioso — el sistema ya está en modo local
-    }
+    // GitHub Pages u otro hosting: mostrar login INMEDIATAMENTE, sin esperar nada
+    _mostrarLogin(null);
   }
 };
 
