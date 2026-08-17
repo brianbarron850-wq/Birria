@@ -974,16 +974,49 @@ function editOrder(oid){
 // AUTH
 // ═══════════════════════════════════════════
 function doLogin(){
-  const name=document.getElementById('lu').value.trim();
-  const pass=document.getElementById('lp').value;
+  const name=(document.getElementById('lu').value||'').trim();
+  const pass=(document.getElementById('lp').value||'');
   const errEl=document.getElementById('lerr');
-  const users=LS.get('be_users');
-  const u=users.find(u=>u.name&&u.name.toLowerCase()===name.toLowerCase()&&String(u.password)===String(pass)&&u.active!==false);
-  if(!u){errEl.style.display='block';return}
+  const btn=document.querySelector('.btn-login');
+  // Feedback visual inmediato
+  if(btn){btn.textContent='Verificando...';btn.disabled=true;}
   errEl.style.display='none';
-  CU=u;LS.set('be_session',{uid:u.id});
-  logAct(u.id,'Inició sesión');
-  startApp();
+  
+  const tryLogin = () => {
+    const users=LS.get('be_users');
+    const u=users.find(x=>x.name&&x.name.toLowerCase()===name.toLowerCase()&&String(x.password)===String(pass)&&x.active!==false);
+    if(btn){btn.textContent='Iniciar Sesión';btn.disabled=false;}
+    if(!u){
+      errEl.textContent='Usuario o contraseña incorrectos';
+      errEl.style.display='block';
+      return;
+    }
+    errEl.style.display='none';
+    CU=u;
+    try{LS.set('be_session',{uid:u.id});}catch(e){}
+    try{logAct(u.id,'Inició sesión');}catch(e){}
+    try{startApp();}catch(e){
+      console.error('startApp error:',e);
+      // Forzar visibilidad del app aunque startApp falle
+      document.getElementById('login-screen').classList.remove('visible');
+      document.getElementById('app').style.cssText='display:block!important;min-height:100vh';
+    }
+  };
+
+  // Si el servidor aún no cargó, intentar cargarlo una vez más antes de hacer login
+  if(!_serverLoaded && SCRIPT_URL && SCRIPT_URL.trim()!==''){
+    _cargarServidor(data=>{
+      if(data){
+        try{
+          const d=data.data?data.data:data;
+          if(d&&typeof d==='object'&&Object.keys(d).length>0){LCache=d;try{initData();}catch(e){}}
+        }catch(e){}
+      }
+      tryLogin();
+    });
+  } else {
+    tryLogin();
+  }
 }
 function doLogout(){
   if(CU){
@@ -1016,25 +1049,32 @@ function logAct(uid,action){
 // START APP
 // ═══════════════════════════════════════════
 function startApp(){
-  loadTurnosOpt();
-  document.getElementById('login-screen').classList.remove('visible');
-  document.getElementById('app').classList.add('visible');
-  document.getElementById('uav').textContent=CU.name.charAt(0).toUpperCase();
-  document.getElementById('uname').textContent=CU.name;
-  document.getElementById('urole').textContent=ROLES[CU.role]||CU.role;
-  document.getElementById('tb-chip').textContent=CU.name+' · '+(ROLES[CU.role]||'');
+  try{loadTurnosOpt();}catch(e){}
+  // Cambiar vistas — doble mecanismo para mayor compatibilidad
+  const loginEl=document.getElementById('login-screen');
+  const appEl=document.getElementById('app');
+  if(loginEl){loginEl.classList.remove('visible');}
+  if(appEl){
+    appEl.classList.add('visible');
+    appEl.style.cssText='display:block!important;min-height:100vh';
+  }
+  try{document.getElementById('uav').textContent=CU.name.charAt(0).toUpperCase();}catch(e){}
+  try{document.getElementById('uname').textContent=CU.name;}catch(e){}
+  try{document.getElementById('urole').textContent=ROLES[CU.role]||CU.role;}catch(e){}
+  try{document.getElementById('tb-chip').textContent=CU.name+' · '+(ROLES[CU.role]||'');}catch(e){}
   const allowed=ROLE_VIEWS[CU.role]||['orders'];
-  document.querySelectorAll('.ni[data-v]').forEach(el=>{
-    el.style.display=allowed.includes(el.dataset.v)?'':'none';
-    el.classList.remove('active');
-  });
+  try{
+    document.querySelectorAll('.ni[data-v]').forEach(el=>{
+      el.style.display=allowed.includes(el.dataset.v)?'':'none';
+      el.classList.remove('active');
+    });
+  }catch(e){}
   CV='';
-  go(allowed[0],true);
-  startClock();
-  setInterval(updBadges,6000);
-  window.addEventListener('storage',e=>{if(e.key&&e.key.startsWith('be_'))updBadges()});
-  // ── Sincronización en tiempo real entre dispositivos ──────────────────────
-  startRealtimeSync();
+  try{go(allowed[0],true);}catch(e){console.error('go error:',e);}
+  try{startClock();}catch(e){}
+  try{setInterval(updBadges,6000);}catch(e){}
+  try{window.addEventListener('storage',e=>{if(e.key&&e.key.startsWith('be_'))updBadges()});}catch(e){}
+  try{startRealtimeSync();}catch(e){}
 }
 
 // ═══════════════════════════════════════════
