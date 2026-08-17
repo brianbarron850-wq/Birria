@@ -2320,7 +2320,7 @@ function doCorte(){
   LS.set('be_sd',{total:0,cash:0,card:0,transfer:0,date:today(),initCash:cierreData.fis,cutAt:_cutTs});
   logAct(CU.id,`Realizó corte de caja. Ventas: ${fc(sd.total)} · Diferencia: ${fc(cierreData.diff)}`);
   cm('m-cierre');
-  notify('✅','Corte realizado',`Corte guardado exitosamente en Google Sheets.`,4000);
+  notify('✅','Corte realizado',`Corte guardado exitosamente.`,4000);
   go('corte');
 }
 
