@@ -7,15 +7,14 @@
 <title>🔥 Birria Express — Sistema de Gestión</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Bebas+Neue&display=swap" rel="stylesheet">
 <script>
-// Script de emergencia: si window.onload no dispara en 3s, ocultar loader y mostrar login
+// Script de emergencia: si window.onload no dispara en 2s, ocultar loader y mostrar login
 document.addEventListener('DOMContentLoaded', function(){
   var t = setTimeout(function(){
     var l = document.getElementById('loader');
     var s = document.getElementById('login-screen');
-    if(l && l.style.display !== 'none'){ l.style.display='none'; }
-    if(s && s.style.display === 'none'){ s.style.display='flex'; }
-  }, 3000);
-  // Cancelar el timer de emergencia si window.onload se dispara normalmente
+    if(l){ l.classList.add('hidden'); }
+    if(s){ s.classList.add('visible'); }
+  }, 2000);
   window._emergencyTimer = t;
 });
 </script>
@@ -33,6 +32,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 /* ── LOGIN ── */
 #login-screen{display:none;min-height:100vh;align-items:center;justify-content:center;
   background:linear-gradient(135deg,#1A0B06 0%,#3D1A0A 45%,#C8400A 100%);padding:20px}
+#login-screen.visible{display:flex!important}
 .lcard{background:var(--card);border-radius:20px;padding:48px 40px;width:100%;max-width:400px;
   box-shadow:var(--sh2);text-align:center}
 .llogo{font-family:'Bebas Neue',sans-serif;font-size:52px;color:var(--birria);letter-spacing:5px;line-height:1}
@@ -46,6 +46,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 .lerr{color:var(--err);font-size:13px;margin-top:10px;display:none}
 /* ── APP ── */
 #app{display:none;min-height:100vh}
+#app.visible{display:block!important}
 .layout{display:flex;min-height:100vh}
 /* ── SIDEBAR ── */
 .sb{width:240px;background:var(--sb);color:var(--sb-txt);display:flex;flex-direction:column;
@@ -353,6 +354,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:#FDFAF8}
   🔥 CARGANDO SISTEMA...
   <div style="font-family:'Inter',sans-serif;font-size:14px;color:#F0D5C0;margin-top:10px;letter-spacing:1px;font-weight:300;">Iniciando...</div>
 </div>
+<style>#loader.hidden{display:none!important}</style>
 
 <!-- LOGIN -->
 <div id="login-screen">
@@ -773,10 +775,11 @@ function _mostrarLogin(data) {
     }catch(e){}
   }
   try{ initData(); }catch(e){ console.error('initData error:',e); }
+  // Usar classList para que !important en CSS funcione correctamente
   const loader = document.getElementById('loader');
   const login  = document.getElementById('login-screen');
-  if(loader) loader.style.display = 'none';
-  if(login)  login.style.display  = 'flex';
+  if(loader){ loader.classList.add('hidden'); }
+  if(login) { login.classList.add('visible'); }
   // Cargar datos del servidor en background si hay URL configurada
   if(typeof google === 'undefined' && SCRIPT_URL && SCRIPT_URL.trim() !== ''){
     const bust = Date.now()+'_'+Math.random().toString(36).substr(2,5);
@@ -796,11 +799,8 @@ function _mostrarLogin(data) {
 
 window.onload = () => {
   if(window._emergencyTimer) clearTimeout(window._emergencyTimer);
-  const loader = document.getElementById('loader');
-  const login  = document.getElementById('login-screen');
-  const app    = document.getElementById('app');
-  if(login) login.style.display = 'none';
-  if(app)   app.style.display   = 'none';
+  // El loader y login-screen ya tienen su estado inicial correcto via CSS
+  // No tocar style.display — usar classList con !important
 
   if(typeof google !== 'undefined' && google.script && google.script.run){
     // GAS HtmlService: esperar respuesta del servidor (máx 5s)
@@ -992,8 +992,8 @@ function doLogout(){
   CU=null;cart=[];selOrder=null;editingOrderId=null;
   csDisc={discType:'none',discValue:0,discReason:'',tipValue:0,tipReason:''};
   LS.set('be_session',null);
-  document.getElementById('app').style.display='none';
-  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('app').classList.remove('visible');
+  document.getElementById('login-screen').classList.add('visible');
   document.getElementById('lu').value='';
   document.getElementById('lp').value='';
 }
@@ -1013,8 +1013,8 @@ function logAct(uid,action){
 // ═══════════════════════════════════════════
 function startApp(){
   loadTurnosOpt();
-  document.getElementById('login-screen').style.display='none';
-  document.getElementById('app').style.display='block';
+  document.getElementById('login-screen').classList.remove('visible');
+  document.getElementById('app').classList.add('visible');
   document.getElementById('uav').textContent=CU.name.charAt(0).toUpperCase();
   document.getElementById('uname').textContent=CU.name;
   document.getElementById('urole').textContent=ROLES[CU.role]||CU.role;
