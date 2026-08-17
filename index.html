@@ -7,14 +7,14 @@
 <title>🔥 Birria Express — Sistema de Gestión</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Bebas+Neue&display=swap" rel="stylesheet">
 <script>
-// Script de emergencia: si window.onload no dispara en 2s, ocultar loader y mostrar login
+// Script de emergencia: si window.onload no termina en 7s, forzar mostrar login
 document.addEventListener('DOMContentLoaded', function(){
   var t = setTimeout(function(){
     var l = document.getElementById('loader');
     var s = document.getElementById('login-screen');
     if(l){ l.classList.add('hidden'); }
     if(s){ s.classList.add('visible'); }
-  }, 2000);
+  }, 7000);
   window._emergencyTimer = t;
 });
 </script>
@@ -767,6 +767,9 @@ function _syncToServer(k, v) {
 // ═══════════════════════════════════════════
 // INICIO — ocultar loader y mostrar login de inmediato
 // ═══════════════════════════════════════════
+// ─── Estado de carga del servidor ────────────────────────────────────────────
+let _serverLoaded = false; // true cuando el servidor respondió (o se decidió modo local)
+
 function _mostrarLogin(data) {
   if(data){
     try{
@@ -774,27 +777,25 @@ function _mostrarLogin(data) {
       if(d && typeof d === 'object' && Object.keys(d).length > 0) LCache = d;
     }catch(e){}
   }
+  _serverLoaded = true;
   try{ initData(); }catch(e){ console.error('initData error:',e); }
-  // Usar classList para que !important en CSS funcione correctamente
   const loader = document.getElementById('loader');
   const login  = document.getElementById('login-screen');
   if(loader){ loader.classList.add('hidden'); }
   if(login) { login.classList.add('visible'); }
-  // Cargar datos del servidor en background si hay URL configurada
-  if(typeof google === 'undefined' && SCRIPT_URL && SCRIPT_URL.trim() !== ''){
-    const bust = Date.now()+'_'+Math.random().toString(36).substr(2,5);
-    fetch(SCRIPT_URL+'?action=load&_='+bust, {method:'GET', cache:'no-store'})
-      .then(r => { if(!r.ok) throw 0; return r.json(); })
-      .then(res => {
-        const fresh = (res && res.data) ? res.data : (typeof res==='object' ? res : null);
-        if(fresh && Object.keys(fresh).length > 0){
-          LCache = fresh;
-          try{ initData(); }catch(e){}
-          if(CU){ try{ updBadges(); go(CV,true); }catch(e){} }
-        }
-      })
-      .catch(()=>{});
-  }
+}
+
+// Carga los datos del servidor y llama cb cuando termina (o falla)
+function _cargarServidor(cb){
+  if(!SCRIPT_URL || SCRIPT_URL.trim() === ''){ cb(null); return; }
+  const bust = Date.now()+'_'+Math.random().toString(36).substr(2,5);
+  // Timeout propio de 6s para el fetch
+  const ctrl = new AbortController();
+  const t = setTimeout(()=>ctrl.abort(), 6000);
+  fetch(SCRIPT_URL+'?action=load&_='+bust, {method:'GET', cache:'no-store', signal:ctrl.signal})
+    .then(r=>{ clearTimeout(t); if(!r.ok) throw 0; return r.json(); })
+    .then(res=>{ cb(res); })
+    .catch(()=>{ clearTimeout(t); cb(null); });
 }
 
 window.onload = () => {
@@ -811,8 +812,11 @@ window.onload = () => {
       .withSuccessHandler(d =>{ if(!done){ done=true; clearTimeout(guard); _mostrarLogin(d);    } })
       .loadAllData();
   } else {
-    // GitHub Pages u otro hosting: mostrar login INMEDIATAMENTE, sin esperar nada
-    _mostrarLogin(null);
+    // GitHub Pages: intentar cargar servidor PRIMERO (6s máx), luego mostrar login
+    // Así el usuario siempre tiene los datos reales al hacer login
+    const msg = document.getElementById('loader') &&
+      document.querySelector('#loader div') ;
+    _cargarServidor(data => _mostrarLogin(data));
   }
 };
 
